@@ -59,6 +59,8 @@ Une mission Claude utilisée comme preuve Filora doit déclarer explicitement se
 
 Le template versionné est soumis à `tools/check_claude_review_prompt.py` dans `Filora guard`. Une modification qui retire une clause minimale requise fait échouer la CI.
 
+Cette règle est introduite dans le périmètre Batch 2 avec garde-fou mécanique. Sa pérennisation canonique éventuelle dans `DEVELOPMENT.md` sera décidée après validation indépendante de ce mécanisme, afin de ne pas modifier prématurément un document canonique en même temps que le contrôle qui l’applique.
+
 ## Classification
 
 - **F4.2 : Sensible** — le Batch modifie CI et un mécanisme de preuve/revue.
