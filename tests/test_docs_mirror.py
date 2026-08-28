@@ -37,6 +37,44 @@ class PrepareDocsMirrorTests(unittest.TestCase):
             self.assertIn("synchronized_at_utc: 2026-08-28T18:00:00Z", sync_info)
             self.assertNotIn("stale.txt", sync_info)
 
+    def test_prepares_claude_payload_as_exact_text_copies(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            output = Path(temp_dir) / "mirror"
+            claude_output = Path(temp_dir) / "claude"
+            root.mkdir()
+            self.make_root(root)
+            claude_output.mkdir()
+            (claude_output / "stale.txt").write_text("stale", encoding="utf-8")
+
+            prepare_mirror(
+                root=root,
+                output=output,
+                sha="preview123",
+                branch="test-preview",
+                synced_at="2026-08-28T18:00:00Z",
+                claude_output=claude_output,
+            )
+
+            expected_names = {
+                "PROJECT_STATE.txt",
+                "PRODUCT.txt",
+                "DATA.txt",
+                "ARCHITECTURE.txt",
+                "DEVELOPMENT.txt",
+                "SYNC_INFO.txt",
+            }
+            self.assertEqual(
+                {path.name for path in claude_output.iterdir()}, expected_names
+            )
+
+            for source_name in (*DOCUMENTS, "SYNC_INFO.md"):
+                target_name = f"{Path(source_name).stem}.txt"
+                self.assertEqual(
+                    (claude_output / target_name).read_text(encoding="utf-8"),
+                    (output / source_name).read_text(encoding="utf-8"),
+                )
+
     def test_accepts_test_preview_source(self) -> None:
         with TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "repo"
