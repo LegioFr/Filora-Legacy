@@ -1,6 +1,6 @@
 # BATCH1.md — Premier socle exécutable de Filora
 
-**Statut : implémentation en cours**  
+**Statut : validé sur `test-preview`, prêt pour promotion vers `main`**  
 **Date de préparation : 2026-08-28**
 
 ## Intention
@@ -47,16 +47,16 @@ Dépendances directes initiales épinglées : React 19.2.8, React DOM 19.2.8, Vi
 
 ## Propriétés attendues / preuves
 
-Avant promotion vers `test-preview` :
+Les conditions de promotion vers `test-preview` ont été satisfaites :
 
-1. GitHub Actions travaille sur le HEAD exact de la PR ;
-2. les contrôles Batch 0 restent verts ;
-3. les tests du contrôle architectural passent et ses cas négatifs sont démontrés, y compris pour les imports dynamiques littéraux ;
-4. l’application passe le typecheck ;
-5. le build Vite de production réussit ;
+1. GitHub Actions a travaillé sur le HEAD exact de la PR ;
+2. les contrôles Batch 0 sont restés verts ;
+3. les tests du contrôle architectural ont passé leurs cas positifs et négatifs, y compris pour les imports dynamiques littéraux ;
+4. l’application a passé le typecheck ;
+5. le build Vite de production a réussi ;
 6. les dépendances npm sont reproductibles via un `package-lock.json` versionné et `npm ci` en CI ;
-7. une revue indépendante examine les dépendances, la CI, la règle architecturale, ses angles morts et les classifications F4.3/F4.4 ;
-8. l’accord explicite de Mickaël requis par le plancher Critique est obtenu avant merge.
+7. la contre-vérification indépendante finale a conclu `ACCEPTABLE` pour la promotion vers `test-preview` et a jugé la protection supplémentaire §10.6 adéquate et exercée ;
+8. l’accord explicite de Mickaël requis par le plancher Critique a été confirmé directement.
 
 La présence d’un contrôle ne prouve que la propriété qu’il teste. Le contrôle architectural actuel vérifie uniquement les dépendances internes exprimées par imports/exports relatifs statiques ou imports dynamiques littéraux dans les fichiers `.ts`/`.tsx`, selon les couches `app`, `domains` et `shared`. Il ne prétend pas actuellement couvrir des alias TypeScript non configurés, des imports dynamiques calculés ou des cycles entre plusieurs domaines inexistants dans ce Batch. Si un de ces objets apparaît, le contrôle doit être réévalué avant de revendiquer leur couverture.
 
@@ -71,10 +71,14 @@ Une première revue indépendante a conclu `À CORRIGER` et a identifié notamme
 - une preuve insuffisante, dans le paquet transmis, de l’exécution réelle des tests architecturaux en CI ;
 - une classification F4.3 initialement trop basse (`Sensible` au lieu de `Critique`).
 
-Une contre-revue ultérieure a confirmé ces corrections mais a maintenu un finding bloquant de reproductibilité npm : absence de `package-lock.json`. Ce finding est maintenant traité par un lockfile généré par npm, versionné, et l’usage de `npm ci` dans le workflow final. Les ruptures de traçabilité du paquet précédent doivent être redémontrées sur le HEAD final, sans réutiliser des extraits périmés.
+Une contre-revue ultérieure a confirmé ces corrections mais a maintenu un finding bloquant de reproductibilité npm : absence de `package-lock.json`. Ce finding a été traité par un lockfile généré par npm, versionné, et l’usage de `npm ci` dans le workflow final.
 
-Ces findings ne sont pas effacés : ils doivent être vérifiés sur le HEAD final avant promotion.
+La contre-vérification finale, portant sur l’état corrigé et ses preuves cohérentes, a conclu `ACCEPTABLE` pour la promotion vers `test-preview`, sans nouveau finding bloquant.
+
+## Validation sur `test-preview`
+
+Le socle validé a été promu sur `test-preview`. La prochaine transition consiste à vérifier la CI sur l’état destiné à `main` puis à promouvoir selon le flux prévu. Aucun nouveau périmètre fonctionnel n’est ajouté à cette étape.
 
 ## Condition de clôture
 
-Batch 1 n’est pas clôturé par la seule présence du scaffold. Il doit avoir passé les preuves ci-dessus, les findings éventuels doivent être traités ou explicitement classés, puis être promu selon le flux `branche dédiée → test-preview → main`.
+Batch 1 est techniquement validé sur `test-preview`. Il sera considéré clôturé lorsque cet état validé aura été promu sur `main` sans nouveau finding bloquant. L’état Git exact de cette promotion doit être reconstruit depuis GitHub plutôt que mémorisé ici comme vérité persistante.
