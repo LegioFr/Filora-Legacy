@@ -43,7 +43,7 @@ Dépendances directes initiales épinglées : React 19.2.8, React DOM 19.2.8, Vi
 - **F4.2 : Sensible** — introduction d’un framework/build tool, création d’une première frontière architecturale implémentée et modification du workflow CI.
 - **F4.3 : Critique** — le Batch introduit simultanément du code soumis à une nouvelle règle architecturale automatisée et modifie le mécanisme de contrôle chargé de vérifier cette règle. Conformément à DEVELOPMENT §8.3 et §10.6, le succès du contrôle modifié ne suffit pas à valider ce changement.
 - **F4.4 : décision Mickaël pour le choix de stack**, obtenue avant intégration ; les détails internes du scaffold restent techniques dans le périmètre approuvé.
-- Le plancher Critique exige en plus un accord explicite de Mickaël sur l’intention, les conséquences et les compromis avant promotion/clôture. Cet accord Critique reste à obtenir après la reclassification.
+- **Accord Critique de Mickaël obtenu le 2026-08-28** : poursuite de Batch 1 autorisée dans ces conditions Critiques. Cet accord ne remplace pas la protection supplémentaire indépendante ni les preuves techniques requises avant promotion.
 
 ## Propriétés attendues / preuves
 
@@ -70,7 +70,7 @@ Une première revue indépendante a conclu `À CORRIGER` et a identifié notamme
 - une preuve insuffisante, dans le paquet transmis, de l’exécution réelle des tests architecturaux en CI ;
 - une classification F4.3 initialement trop basse (`Sensible` au lieu de `Critique`).
 
-Ces findings ne sont pas effacés : ils doivent être corrigés puis soumis à une contre-vérification ciblée sur le nouvel état.
+Ces findings ne sont pas effacés : ils ont été corrigés ou explicitement classés et doivent encore être soumis à une contre-vérification ciblée sur le nouvel état avant promotion.
 
 ## Condition de clôture
 
