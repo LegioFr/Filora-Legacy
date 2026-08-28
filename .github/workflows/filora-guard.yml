@@ -33,6 +33,9 @@ jobs:
       - name: Human app validation state
         run: python3 tools/filora_guard.py batch-human-validation --root .
 
+      - name: Claude review prompt contract
+        run: python3 tools/check_claude_review_prompt.py --file claude/REVIEW_PROMPT.md
+
       - name: Guard tests
         run: python3 -m unittest discover -s tests -v
 
