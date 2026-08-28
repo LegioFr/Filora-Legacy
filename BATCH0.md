@@ -2,7 +2,7 @@
 
 ## Statut
 
-Préparation validée ; implémentation à contre-vérifier avant clôture.
+Implémentation initiale réalisée ; preuves locales disponibles ; contre-vérification et promotion vers `test-preview` à faire avant clôture.
 
 ## Intention
 
@@ -28,9 +28,16 @@ Exclus :
 
 ### Issue #7 — traiter dans Batch 0
 
-Justification : le risque observé est réel et les règles canoniques exigent déjà un contexte minimal suffisant. Le Batch 0 doit rendre cette règle opérationnelle et vérifiable, sans imposer une procédure lourde à chaque revue.
+Justification : le risque observé est réel et les règles canoniques exigent déjà un contexte minimal suffisant. Le Batch 0 rend cette règle opérationnelle avec `tools/filora_guard.py review-packet`.
 
-Condition de preuve : démontrer sur une mission de revue simulée ou réelle que le contrôle refuse ou bloque une délégation lorsque les entrées nécessaires manquent et qu’il produit un paquet ciblé lorsque les entrées sont disponibles.
+Le contrôle exige :
+
+- une mission non vide ;
+- un SHA Git exact ;
+- des entrées contenant réellement le contenu nécessaire, pas seulement une URL ou une déclaration ;
+- une justification (`purpose`) pour chaque entrée ;
+- l’absence de contenu dupliqué ;
+- un budget de contexte explicite propre à la mission et non dépassé.
 
 ### Issue #8 — reporter
 
@@ -42,33 +49,40 @@ Réévaluation : avant une modification ciblée importante d’un document volum
 
 Justification : l’incident après la Phase F a démontré qu’une obligation documentaire seule ne garantit pas la synchronisation du point de reprise.
 
-Condition de preuve : simuler ou exécuter une transition de clôture et vérifier qu’elle n’est pas considérée complète si `PROJECT_STATE.md` est manifestement périmé ; puis vérifier qu’une nouvelle reprise retrouve directement l’état post-transition.
+Le contrôle `tools/filora_guard.py project-state` échoue si `PROJECT_STATE.md` ne contient pas les trois faits attendus fournis au moment de la transition : étape, état Git et prochaine action.
 
 ## Propriétés à démontrer
 
 1. Le flux normal peut utiliser `test-preview` avant `main`.
-2. Une délégation externe ne part pas sans entrées suffisantes et n’embarque pas un contexte manifestement surdimensionné.
-3. Une clôture ne laisse pas `PROJECT_STATE.md` manifestement périmé.
+2. Une délégation externe ne part pas sans entrées suffisantes et n’embarque pas un contexte manifestement surdimensionné au regard du budget déclaré pour la mission.
+3. Une clôture ne laisse pas `PROJECT_STATE.md` manifestement périmé sur les faits vérifiés.
 4. Aucun contrat canonique n’est modifié pour rendre ces contrôles plus faciles à satisfaire.
 5. Les mécanismes restent simples, proportionnés et vérifiables.
 
-## Preuves attendues avant clôture
+## Preuves disponibles
 
-- état Git exact du Batch ;
-- diff complet ;
-- existence et base vérifiée de `test-preview` ;
-- tests/scénarios reproductibles des garde-fous #7 et #10 ;
-- contrôle que `PROJECT_STATE.md` correspond à l’état de clôture ;
-- classification F4.2/F4.3 et F4.4 avec justification ;
-- revue indépendante si la classification finale l’exige ;
-- liste des findings/réserves restants.
+- `test-preview` a été créée depuis `main` au commit `75409c6b27079748bc94431c65f80de8d569437a`.
+- la branche de travail est `batch0/operational-guardrails`.
+- `tools/filora_guard.py` utilise uniquement la bibliothèque standard Python.
+- `tests/test_filora_guard.py` couvre 6 scénarios : 2 succès/échecs de synchronisation du point de reprise et 4 scénarios de paquet de revue, dont URL seule, duplication et dépassement de budget.
+- exécution locale des 6 tests sur le contenu vérifié depuis la branche GitHub : `Ran 6 tests ... OK`.
+- `review-packet.example.json` fournit un format de paquet minimal sans imposer un contexte permanent ou un seuil universel.
+
+## Preuves encore attendues avant clôture
+
+- état Git exact final du Batch ;
+- diff complet final ;
+- contre-vérification indépendante si la classification finale l’exige ;
+- test de transition final avec `PROJECT_STATE.md` mis à jour sur l’état proposé à la promotion ;
+- fermeture de #7 et #10 uniquement si leurs conditions de résolution sont réellement démontrées.
+
+## Classification provisoire
+
+- **F4.2/F4.3 : Sensible par prudence**, car le Batch introduit des mécanismes de contrôle utilisés dans la gouvernance opérationnelle, même s’il ne modifie aucun document canonique.
+- **F4.4 : décision technique dans le périmètre déjà autorisé**, sous réserve de la vérification finale ; aucune décision produit, données ou architecture n’est introduite.
+
+Cette classification doit être contre-vérifiée sur le diff final avant clôture.
 
 ## Condition de clôture
 
 Le Batch 0 est clôturable uniquement lorsque les propriétés ci-dessus sont démontrées sur l’état Git exact proposé à la promotion et que les Issues #7 et #10 peuvent être fermées sur la base de preuves, pas sur la seule présence de règles écrites.
-
-## État de préparation établi
-
-- `test-preview` a été créée depuis `main` au commit `75409c6b27079748bc94431c65f80de8d569437a`.
-- la branche de travail est `batch0/operational-guardrails`.
-- `PROJECT_STATE.md` a été mis à jour sur la branche de travail pour enregistrer le démarrage et les décisions de findings.
