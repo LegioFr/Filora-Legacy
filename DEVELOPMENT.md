@@ -232,6 +232,18 @@ L’intervention de Mickaël n’est demandée que lorsqu’elle est réellement
 
 Les mécanismes précis de validation indépendante et de séparation entre contrôle et objet contrôlé sont définis en F4.5.
 
+## 6.1 Vérification des moyens disponibles avant transfert manuel
+
+Avant de déclarer qu'une opération autorisée est impossible ou de demander à Mickaël de l'effectuer manuellement, l'agent doit vérifier les moyens raisonnables déjà disponibles pour accomplir l'opération.
+
+Cette vérification comprend, lorsque c'est pertinent, les capacités natives déjà accessibles telles que la pagination, la lecture par plages, les appels successifs, la récupération par identifiant ou blob, ou un autre chemin direct fourni par l'outil disponible.
+
+Une réponse tronquée, paginée ou limitée en taille ne constitue pas à elle seule une preuve que la donnée complète est inaccessible.
+
+L'agent ne doit déclarer une opération techniquement inaccessible qu'après avoir vérifié qu'aucun moyen raisonnable disponible dans son environnement ne permet de l'accomplir sans transfert manuel inutile.
+
+Cette règle n'oblige pas à contourner une permission, une restriction de sécurité, un périmètre autorisé ou une limitation réelle de l'outil.
+
 ---
 
 # 7. F4.2 — Classification de sensibilité
@@ -885,6 +897,22 @@ Deux reviewers indépendants qui produisent la même conclusion augmentent la co
 
 Leur accord ne constitue cependant pas, à lui seul, une preuve mécanique des propriétés qu’aucun des deux n’a réellement vérifiées.
 
+## 14.1 Contrat des prompts de revue utilisés comme preuve
+
+Lorsqu'un prompt de revue participe à une preuve Filora, il doit identifier suffisamment les sources et l'état que le reviewer est autorisé à utiliser afin que son verdict puisse être relié à la propriété réellement examinée.
+
+Toute mission Claude utilisée comme preuve Filora doit déclarer explicitement ses sources autorisées et l'état de référence attendu.
+
+Elle doit demander à Claude de vérifier cet état avant l'analyse, imposer `ÉTAT OBSOLÈTE` en cas de divergence et interdire de remplacer silencieusement les sources autorisées par une mémoire de mission précédente, des connaissances de projet potentiellement périmées ou un accès supposé à une autre source.
+
+Claude ne doit présenter comme vérifié que ce que les sources autorisées permettent réellement d'établir ; les éléments nécessaires mais non démontrables doivent rester explicitement `INVÉRIFIABLE`.
+
+Lorsqu'une mission est explicitement une contre-vérification Codex Security, le prompt doit demander explicitement à Codex d'utiliser le plugin Security.
+
+Une revue Codex ne peut pas être comptée comme preuve `Codex Security` si l'utilisation du plugin Security n'est pas explicitement demandée dans le prompt de mission.
+
+Lorsque des templates de prompts versionnés matérialisent ces contrats, leurs clauses obligatoires doivent être protégées par un contrôle mécanique proportionné. Une CI verte ne prouve cependant que la présence des clauses contrôlées ; elle ne prouve pas qu'un reviewer externe a effectivement exécuté le plugin ou respecté toutes les instructions.
+
 ---
 
 # 15. Usage de reviewers différents
@@ -976,6 +1004,8 @@ Lorsqu'un environnement Codex dispose d'un accès direct au dépôt et à l'éta
 - ou des tests disponibles dans cet environnement.
 
 Il doit lui aussi identifier précisément l'état examiné et ne pas revendiquer des propriétés que son environnement ne permet pas de démontrer.
+
+Pour une mission explicitement `Codex Security`, le prompt versionné de mission doit demander l'utilisation du plugin Security conformément à la Section 14.1.
 
 ## 17.3 Orchestration
 
