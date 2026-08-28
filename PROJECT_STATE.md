@@ -8,41 +8,42 @@ Ce fichier sert à reprendre Filora dans un nouveau contexte sans dépendre de l
 Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas d’écart, vérifier GitHub et les documents canoniques concernés avant d’agir.
 
 ## Reprise structurée
-- stage: post-Batch 0
-- status: Batch 0 clôturé et présent sur main
-- git: main contient Batch 0 ; test-preview doit rester synchronisée avec l’état officiel avant toute nouvelle préparation ; lire les SHA, PR et branches courants directement depuis GitHub
-- next_action: avant tout nouveau Batch, vérifier GitHub et les findings ouverts puis déterminer le prochain périmètre depuis les documents canoniques ; ne rien démarrer automatiquement
+- stage: Batch 1
+- status: premier socle exécutable en implémentation et validation
+- git: travail Batch 1 sur branche dédiée ; lire les HEAD, PR et branches courants directement depuis GitHub
+- next_action: terminer les preuves du Batch 1 sur la PR vers test-preview avant toute promotion ; ne pas démarrer un autre Batch automatiquement
 
 ## État courant
 
-- **Étape :** post-Batch 0.
+- **Étape :** Batch 1 — premier socle exécutable de Filora.
 - **Phase F :** clôturée.
-- **Batch 0 :** clôturé et intégré à `main` après validation sur `test-preview`.
+- **Batch 0 :** clôturé et intégré à `main`.
+- **Batch 1 :** React + TypeScript + Vite approuvé explicitement ; implémentation/validation en cours.
 - **Branche officielle :** `main`.
 - **Branche de validation :** `test-preview`.
 - **État Git pertinent :** les détails volatils (HEAD, PR courante, commit de merge) doivent être lus directement depuis GitHub et ne sont pas recopiés ici comme vérité persistante.
 
 ## Findings / Issues pertinents
 
-- Issue #7 — fermée comme résolue après preuve réelle d’un paquet de délégation ciblé et prévalidé.
-- Issue #8 — fermée `not_planned` avec report explicite ; à réévaluer seulement si l’outillage d’édition ciblée évolue.
-- Issue #10 — fermée comme résolue après test indépendant réussi : reprise sans réparation, aucune auto-référence volatile et aucune contradiction avec GitHub.
-- Issue #12 — résolue et fermée après restauration des documents canoniques manquants.
-- Issues #2, #3, #4 et #5 — résolues et fermées.
+- Issue #21 — ouverte et reportée hors Batch 1 : miroir documentaire Google Drive à traiter dans un périmètre dédié après décision explicite ; aucune implémentation cloud/sync/secrets dans Batch 1.
+- Issue #8 — fermée `not_planned` ; à réévaluer seulement si l’outillage d’édition ciblée évolue ou devient nécessaire.
+- Issues #2, #3, #4, #5, #7, #10 et #12 — fermées/résolues selon leur état GitHub.
 
-Au moment de cette clôture, GitHub ne signale aucun finding/Issue ouvert dans le dépôt. Toujours revérifier l’état réel des Issues avant de préparer ou démarrer un nouveau Batch.
+Toujours revérifier les Issues/findings réels avant toute transition ou nouveau Batch.
 
 ## Réserves / limites connues
 
-- Aucun ruleset/protection de branche n’est établi comme preuve d’interdiction mécanique absolue d’un merge manuel ; le workflow GitHub Actions est un contrôle automatique, pas une barrière technique totale.
-- Les contrôles de données, persistance, recovery, architecture et UI restent reportés jusqu’à apparition de leur objet ; ils ne doivent pas être implémentés dans le vide.
+- Aucun ruleset/protection de branche n’est établi comme preuve d’interdiction mécanique absolue d’un merge manuel ; GitHub Actions reste un contrôle automatique, pas une barrière technique totale.
+- Batch 1 ne fournit aucune persistance, aucune preuve de recovery et aucune implémentation des invariants DATA liés aux mutations de stock.
+- Le contrôle architectural du Batch 1 vérifie seulement des directions d’import objectives actuellement matérialisées ; il ne prétend pas prouver toute l’architecture.
 
 ## Prochaine action
 
-1. Repartir de l’état réel de `main` et vérifier que `test-preview` est synchronisée avant toute préparation.
-2. Vérifier les Issues/findings ouverts pertinents ; s’il n’y en a pas, ne rien inventer.
-3. Consulter les documents canoniques nécessaires pour déterminer le prochain objectif concret.
-4. Définir un périmètre de Batch seulement lorsqu’un travail réel et vérifiable est identifié.
+1. Valider le scaffold Batch 1 sur une PR vers `test-preview`.
+2. Vérifier typecheck, build, contrôles Batch 0 et contrôle des frontières architecturales sur le HEAD exact.
+3. Obtenir la revue indépendante proportionnée requise par le caractère sensible des dépendances et de la CI.
+4. Traiter/classer tout finding nouveau avant promotion.
+5. Ne promouvoir vers `main` qu’après validation sur `test-preview`.
 
 ## Documents canoniques
 
@@ -51,4 +52,4 @@ Au moment de cette clôture, GitHub ne signale aucun finding/Issue ouvert dans l
 - `ARCHITECTURE.md`
 - `DEVELOPMENT.md`
 
-Consulter uniquement les documents nécessaires à la mission courante, mais vérifier leur version GitHub actuelle lorsque leur contenu est déterminant.
+`BATCH1.md` décrit le périmètre courant mais ne remplace aucun document canonique.

@@ -29,3 +29,20 @@ jobs:
 
       - name: Guard tests
         run: python3 -m unittest discover -s tests -v
+
+      - name: Architecture direction
+        run: python3 tools/check_architecture.py src
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install application dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck application
+        run: npm run typecheck
+
+      - name: Build application
+        run: npm run build
