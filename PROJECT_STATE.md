@@ -9,9 +9,9 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 
 ## Reprise structurée
 - stage: Batch 2 — paquet documentaire de contre-vérification Claude et garde-fous permanents de revue IA
-- status: correction en cours sur branche dédiée avant nouvelle validation sur `test-preview` ; l’architecture Drive/rclone/Google Docs est abandonnée et trois règles permanentes ont été ajoutées au candidat dans `DEVELOPMENT.md`
+- status: correction en cours sur branche dédiée avant nouvelle validation sur `test-preview` ; une première contre-vérification indépendante a trouvé un garde canonique incomplet, corrigé depuis par extension des contrats protégés et des tests de mutation ; contre-vérification ciblée requise
 - git: lire les HEAD, PR et branches courants directement depuis GitHub ; ne pas mémoriser ici les SHA ou PR volatiles
-- next_action: faire passer la PR vers `test-preview`, vérifier les nouveaux garde-fous et obtenir la validation indépendante exigée par la modification canonique Critique avant toute intégration comme état validé
+- next_action: vérifier le candidat corrigé par CI puis obtenir une contre-vérification indépendante ciblée du finding avant toute intégration à `test-preview`
 
 ## État courant
 
@@ -24,8 +24,10 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 - **Ancienne solution Drive :** abandonnée. Les synchronisations techniques ont fonctionné pour le payload Markdown, mais l’intégration Claude n’a pas satisfait le besoin avec le forfait actuel ; la tentative Google Docs introduisait une conversion non exacte.
 - **Solution de remplacement :** un workflow sans secret génère depuis le SHA exact de `test-preview` un artefact temporaire contenant un paquet documentaire et un prompt Claude rendu avec la même branche et le même SHA.
 - **Garde-fou Claude permanent :** `DEVELOPMENT.md` impose désormais qu’une mission Claude utilisée comme preuve déclare ses sources et son état attendu, vérifie la référence avant analyse, impose `ÉTAT OBSOLÈTE` en cas de divergence et distingue l’invérifiable du vérifié. Le template est contrôlé mécaniquement.
-- **Garde-fou capacité outil permanent :** avant de déclarer une opération autorisée impossible ou de la transférer manuellement à Mickaël, l’agent doit vérifier les moyens raisonnables déjà disponibles ; une réponse tronquée, paginée ou limitée ne suffit pas à prouver l’inaccessibilité.
+- **Garde-fou capacité outil permanent :** avant de déclarer une opération autorisée impossible ou de la transférer manuellement à Mickaël, l’agent doit vérifier les moyens raisonnables déjà disponibles ; une réponse tronquée, paginée ou limitée ne suffit pas à prouver l’inaccessibilité et la règle n’autorise aucun contournement de permission ou restriction.
 - **Garde-fou Codex Security permanent :** toute mission explicitement `Codex Security` doit demander dans son prompt l’utilisation du plugin Security. Le template versionné `codex/SECURITY_REVIEW_PROMPT.md` et son contrôle mécanique matérialisent cette règle.
+- **Finding de contre-vérification indépendante :** la première revue Critique a confirmé le contenu canonique mais a démontré que `tools/check_review_governance.py` ne protégeait pas plusieurs clauses critiques contre une suppression triviale. Le contrôle et les tests de mutation ont été étendus pour couvrir contrôle préalable/`ÉTAT OBSOLÈTE`/sources de substitution, `INVÉRIFIABLE`, frontière de permissions et limite de preuve de la CI. Cette correction doit encore être contre-vérifiée indépendamment.
+- **Codex Security :** la mission demandait explicitement le plugin Security, mais l’environnement du reviewer ne l’exposait pas ; cette revue ne constitue donc pas une preuve d’exécution `Codex Security`, conformément à la règle elle-même.
 - **Classification Batch 2 :** la correction reste au minimum Sensible par modification de CI et mécanismes de preuve ; l’ensemble des nouvelles règles de gouvernance est traité comme **Critique** car il modifie les mécanismes déterminant ce qu’une IA est autorisée ou obligée à faire et modifie simultanément ces règles et leurs contrôles.
 - **Accord humain :** Mickaël a explicitement demandé et autorisé ces trois garde-fous le 2026-08-28 ; cet accord n’est pas une certification technique.
 - **Validation indépendante :** obligatoire avant intégration comme état validé ; le succès des contrôles modifiés ne suffit pas à auto-valider le changement canonique.
@@ -43,6 +45,7 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 - Finding prompt Claude — **traité et pérennisé avec garde-fou mécanique**.
 - Finding transfert manuel prématuré après réponse tronquée — **traité et pérennisé dans `DEVELOPMENT.md`**.
 - Finding Codex Security depuis tablette — **traité par règle canonique, template versionné et garde-fou mécanique**.
+- Finding garde canonique incomplet — **correction implémentée, contre-vérification ciblée en attente** : plusieurs clauses critiques pouvaient être supprimées sans échec ; elles sont désormais incluses dans les contrats requis et couvertes par des tests de mutation dédiés.
 - Issue #8 — fermée `not_planned` ; à réévaluer seulement si l’outillage d’édition ciblée évolue ou devient nécessaire.
 
 Toujours revérifier les Issues/findings réels avant toute transition ou nouveau Batch.
@@ -59,13 +62,12 @@ Toujours revérifier les Issues/findings réels avant toute transition ou nouvea
 
 ## Prochaine action
 
-1. Vérifier le diff complet de la PR de correction Batch 2 et les Issues/findings ouverts pertinents.
-2. Faire passer `Filora guard`, y compris les garde-fous Claude, Codex Security et contrats permanents, sur le SHA candidat exact.
-3. Obtenir la validation indépendante requise sur le changement canonique Critique et ses mécanismes de contrôle.
-4. Si aucun finding bloquant ne reste, intégrer à `test-preview`.
-5. Vérifier une exécution réelle du workflow de paquet sur le SHA exact de `test-preview` et récupérer l’artefact.
-6. Utiliser ce paquet et son prompt rendu pour une contre-vérification Claude réelle.
-7. Seulement après les preuves exigées, réévaluer la clôture de Batch 2 et de l’Issue #21 avant toute promotion vers `main`.
+1. Vérifier `Filora guard` sur le candidat corrigé.
+2. Obtenir une contre-vérification indépendante ciblée confirmant que le finding de garde canonique incomplet est réellement résolu et qu’aucun affaiblissement collatéral n’a été introduit.
+3. Si aucun finding bloquant ne reste, intégrer à `test-preview`.
+4. Vérifier une exécution réelle du workflow de paquet sur le SHA exact de `test-preview` et récupérer l’artefact.
+5. Utiliser ce paquet et son prompt rendu pour une contre-vérification Claude réelle.
+6. Seulement après les preuves exigées, réévaluer la clôture de Batch 2 et de l’Issue #21 avant toute promotion vers `main`.
 
 ## Documents canoniques
 
