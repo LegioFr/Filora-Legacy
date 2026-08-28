@@ -1,0 +1,19 @@
+{
+  "mission": "Contre-vérifier le delta ciblé du Batch 0",
+  "question": "Le delta vérifié respecte-t-il les règles canoniques applicables sans sur-promettre la preuve ?",
+  "state_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "state_verified": true,
+  "context_budget_chars": 3000,
+  "inputs": [
+    {
+      "kind": "diff",
+      "purpose": "Évaluer le changement réel sur le HEAD ciblé",
+      "content": "<remplacer par le diff ciblé réel avant utilisation>"
+    },
+    {
+      "kind": "canonical",
+      "purpose": "Comparer le delta à la règle applicable",
+      "content": "<remplacer par le passage canonique strictement nécessaire>"
+    }
+  ]
+}
