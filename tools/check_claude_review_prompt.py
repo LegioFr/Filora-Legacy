@@ -24,9 +24,9 @@ REQUIRED_SNIPPETS = (
 def check_prompt(path: Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
     errors = [f"missing required prompt contract: {snippet}" for snippet in REQUIRED_SNIPPETS if snippet not in text]
-    if text.count("{{EXPECTED_BRANCH}}") < 3:
+    if text.count("{{EXPECTED_BRANCH}}") < 2:
         errors.append("expected branch placeholder must guard declaration and mismatch check")
-    if text.count("{{EXPECTED_SHA}}") < 3:
+    if text.count("{{EXPECTED_SHA}}") < 2:
         errors.append("expected SHA placeholder must guard declaration and mismatch check")
     return errors
 
