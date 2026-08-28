@@ -9,24 +9,24 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 
 ## Reprise structurée
 - stage: Batch 0
-- status: validé sur test-preview — promotion vers main à préparer
-- git: PR #14 mergée vers test-preview au commit d9686456cfe9505ca3ff1cba8f803b220d4e1d77 après CI verte et contre-vérification indépendante CONFORME du HEAD 43a084b6cffc824b716756b2906fdad4213308f7
-- next_action: finaliser le rapport Batch 0 sur test-preview, vérifier les conditions de résolution des Issues #7/#10 puis préparer la promotion test-preview vers main
+- status: validé sur test-preview — reprise finale #10 à revalider avant promotion vers main
+- git: test-preview pointe sur 044411a9d9ad6e3b0bd59b715c08b135ce804665 après merges des PR #14 et #15 ; Issue #7 démontrée conforme ; Issue #10 reste ouverte après échec du premier test de reprise finale
+- next_action: intégrer cette synchronisation de reprise dans test-preview puis lancer un nouveau test indépendant sans contexte préalable pour Issue #10 ; promouvoir vers main uniquement si ce test retrouve directement l’état courant sans réparation
 
 ## État courant
 
 - **Étape :** Batch 0 validé sur `test-preview`, pas encore promu vers `main`.
 - **Phase F :** formellement clôturée ; PR #9 mergée et `DEVELOPMENT.md` porte le statut `validé — Phase F`.
-- **Batch 0 :** garde-fous minimaux intégrés à `test-preview` via la PR #14.
+- **Batch 0 :** garde-fous minimaux intégrés à `test-preview` via la PR #14 ; état de clôture intégré via la PR #15.
 - **Branche officielle :** `main`.
-- **Branche de validation :** `test-preview`, contenant le merge de la PR #14 au commit `d9686456cfe9505ca3ff1cba8f803b220d4e1d77`.
-- **État Git pertinent :** PR #11 fermée sans merge ; PR #14 mergée vers `test-preview`. La contre-vérification ciblée finale du HEAD `43a084b6cffc824b716756b2906fdad4213308f7` a conclu `CONFORME` et `MERGE VERS test-preview : ACCEPTABLE`.
+- **Branche de validation :** `test-preview`, HEAD `044411a9d9ad6e3b0bd59b715c08b135ce804665` après merge de la PR #15.
+- **État Git pertinent :** PR #11 fermée sans merge ; PR #14 mergée vers `test-preview` après contre-vérification finale `CONFORME` ; PR #15 mergée vers `test-preview` après CI verte. Le premier test de reprise finale sur `test-preview` a confirmé le SHA mais a conclu Issue #10 `NON CONFORME` parce que ce fichier décrivait encore l’état antérieur à la PR #15.
 
 ## Findings / Issues pertinents
 
-- Issue #7 — traitée techniquement dans Batch 0 par le lint de paquet externe ; reste ouverte jusqu’à vérification explicite de sa condition de résolution complète.
+- Issue #7 — condition de résolution démontrée par un paquet réel prévalidé : lint `PASS`, SHA vérifié, contexte ciblé et exécutable confirmé par contre-vérification indépendante. Peut être fermée comme résolue.
 - Issue #8 — report maintenu ; Issue fermée `not_planned`, à réévaluer si l’outillage d’édition ciblée évolue.
-- Issue #10 — traitée techniquement dans Batch 0 par la reprise structurée et ses tests adversariaux ; reste ouverte jusqu’à vérification explicite de sa condition de résolution complète.
+- Issue #10 — reste ouverte : le mécanisme et les tests sont en place, mais la preuve finale exige qu’un nouveau contexte retrouve directement l’état post-clôture sans devoir réparer une transition périmée.
 
 L’Issue #12 — documents canoniques référencés mais absents du dépôt — est résolue et fermée après restauration de `PRODUCT.md`, `DATA.md` et `ARCHITECTURE.md` via la PR #13.
 
@@ -37,16 +37,17 @@ Toujours vérifier l’état réel des Issues dans GitHub. Ne pas considérer un
 ## Réserves / blocages connus
 
 - Batch 0 reste **Sensible** jusqu’à sa clôture et sa promotion finale.
+- Issue #10 bloque encore la promotion vers `main` jusqu’à réussite d’un test de reprise indépendant sur l’état synchronisé.
 - Aucun ruleset/protection de branche n’est actuellement disponible comme preuve de blocage mécanique d’un merge manuel ; le workflow est un contrôle automatique, pas une interdiction technique absolue.
 - Les contrôles de données, persistance, recovery, architecture et UI restent reportés jusqu’à apparition de leur objet ; ils ne doivent pas être implémentés dans le vide.
-- Les Issues #7 et #10 ne doivent pas être fermées avant démonstration de leurs conditions de résolution complètes.
 
 ## Prochaine action
 
-1. Finaliser le rapport de Batch 0 avec les preuves du HEAD exact et de la contre-vérification conforme.
-2. Vérifier explicitement les conditions de résolution de #7 et #10.
-3. Préparer la promotion de `test-preview` vers `main` uniquement si la clôture est démontrée.
-4. Mettre à jour ce point de reprise sur l’état final promu.
+1. Merger la synchronisation finale de ce point de reprise vers `test-preview` après CI verte.
+2. Ouvrir un nouveau contexte indépendant et reconstruire l’état uniquement depuis GitHub et ce point de reprise.
+3. Fermer Issue #10 uniquement si l’état courant est retrouvé sans réparation.
+4. Préparer ensuite la promotion de `test-preview` vers `main`.
+5. Mettre à jour ce point de reprise sur l’état final promu.
 
 ## Documents canoniques
 
