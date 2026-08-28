@@ -2,103 +2,80 @@
 
 ## Statut
 
-Batch 0 est **validé sur `test-preview`** après correction des bloqueurs et contre-vérification indépendante conforme du HEAD final de la PR #14. La promotion vers `main` n’est pas encore effectuée. L’Issue #7 est résolue. L’Issue #10 reste le seul bloqueur de clôture jusqu’à réussite d’un test indépendant de reprise.
+Batch 0 est **clôturé techniquement et autorisé pour promotion vers `main`**.
+
+Les deux findings traités dans ce Batch sont résolus : Issue #7 et Issue #10. La promotion vers `main` est la dernière opération d’intégration ; les détails Git volatils restent lus depuis GitHub et ne sont pas recopiés comme vérité persistante dans `PROJECT_STATE.md`.
 
 ## Intention
 
-Rendre mécaniques uniquement les contrôles déjà justifiés par des incidents réels ou par une propriété objective simple, sans créer une seconde gouvernance parallèle.
+Rendre mécaniques uniquement les contrôles justifiés par des incidents réels ou par une propriété objective simple, sans créer une seconde gouvernance parallèle.
 
-## Périmètre immédiat
+## Périmètre livré
 
-Inclus :
+- présence des quatre documents canoniques sur les états proposés ;
+- lint de paquet de revue externe pour Issue #7, limité aux propriétés mécaniques réellement vérifiables ;
+- reprise structurée de `PROJECT_STATE.md` pour Issue #10 ;
+- tests adversariaux des faux positifs démontrés ;
+- runner GitHub Actions unique sur les PR vers `test-preview` et `main` ;
+- traçabilité légère règle/finding → contrôle, sans registre parallèle ;
+- point de reprise durable qui ne recopie pas comme vérité persistante le SHA ou la PR de sa propre synchronisation.
 
-- maintenir `test-preview` alignée sur la base canonique pertinente avant promotion vers `main` ;
-- vérifier la présence des quatre documents canoniques sur la base et le HEAD proposés ;
-- traiter l’Issue #7 avec un lint de paquet de revue externe qui contrôle uniquement des propriétés de forme et de borne objectivement vérifiables ;
-- traiter l’Issue #10 avec une section de reprise structurée à clés uniques dans `PROJECT_STATE.md`, sans recherche globale de sous-chaînes ;
-- ajouter des scénarios adversariaux couvrant les faux positifs démontrés par les contre-analyses ;
-- exécuter les contrôles et tests sur les PR vers `test-preview` et `main` via un runner unique GitHub Actions ;
-- conserver une déclaration de clôture unique dans ce document plutôt que multiplier templates et registres.
-
-Reporté jusqu’à apparition de leur objet :
-
-- contrôles d’architecture par imports/cycles ;
-- invariants métier DATA ;
-- persistance, migrations, atomicité et concurrence ;
-- récupération end-to-end ;
-- contrôles UI, réseau, cloud, synchronisation et authentification.
-
-Lorsqu’un futur Batch introduit un objet couvert par une règle objectivement testable, il doit soit ajouter le contrôle applicable dans ce travail, soit déclarer explicitement le report, son risque résiduel et son point de réévaluation. Les jalons canoniques non reportables restent obligatoires à leur frontière, notamment la récupération avant que Filora devienne la source principale de données réelles.
-
-## Décisions sur les findings pertinents
+## Findings pertinents
 
 ### Issue #7 — résolue
 
-Le mécanisme est volontairement qualifié de **lint de forme**, pas de preuve de minimalité ou de suffisance sémantique.
+Le lint vérifie notamment mission/question, SHA au format exact, état déclaré vérifié, entrées typées, accès URL explicitement établi, rejet de placeholders manifestes, contenus dupliqués exacts, plafond de contexte et taille du paquet sérialisé complet.
 
-Il vérifie notamment :
+Il ne prétend pas prouver la suffisance sémantique, la minimalité parfaite ou l’authenticité du contenu. Ces propriétés restent à reviewer.
 
-- mission et question non vides ;
-- SHA Git au format exact et attestation que l’état cible a été vérifié ;
-- vérification locale optionnelle que le SHA résout vers un commit lorsqu’un checkout Git est disponible ;
-- au moins une entrée avec type et finalité ;
-- contenu embarqué ou URL dont l’accès a été explicitement établi ;
-- rejet des placeholders manifestes et contenus dupliqués ;
-- budget déclaré positif mais plafonné par le mécanisme ;
-- comptage du paquet sérialisé complet, pas uniquement de `inputs[].content`.
-
-Ce contrôle **ne prouve pas** que le paquet est sémantiquement suffisant, réellement minimal, authentique ou correctement interprété. Ces propriétés restent à reviewer.
-
-Un test réel de délégation a produit `LINT ISSUE #7 : PASS` et la contre-vérification indépendante a conclu `PAQUET CIBLÉ ET EXÉCUTABLE : oui`. L’Issue #7 est fermée comme résolue.
+Un test réel de délégation a produit `LINT ISSUE #7 : PASS`, avec SHA vérifié, et la contre-vérification indépendante a conclu que le paquet était ciblé et exécutable. Issue #7 est fermée.
 
 ### Issue #8 — report maintenu
 
-Le finding reste reporté/fermé `not_planned` : l’outillage disponible ne fournit pas encore d’édition ciblée sûre et la création d’une abstraction dédiée serait disproportionnée. Réévaluer si l’outillage change ou avant une modification ciblée importante d’un document volumineux.
+Issue fermée `not_planned`. L’outillage disponible ne fournit pas encore d’édition ciblée sûre pour les gros fichiers et ajouter une abstraction dédiée serait disproportionné. Réévaluer seulement si l’outillage change ou avant une modification ciblée importante concernée.
 
-### Issue #10 — mécanisme présent, preuve finale à refaire
+### Issue #10 — résolue
 
-`PROJECT_STATE.md` contient une section `## Reprise structurée` avec exactement quatre clés d’autorité opérationnelle :
+Le point de reprise possède une section structurée unique avec `stage`, `status`, `git`, `next_action`. Le lint rejette doublons, sections concurrentes et représentations ambiguës comme blocs de code/citations.
 
-- `stage` ;
-- `status` ;
-- `git` ;
-- `next_action`.
+Deux tests indépendants ont révélé un défaut supplémentaire : copier dans `PROJECT_STATE.md` le SHA ou la PR de sa propre synchronisation future rendait le fichier périmé immédiatement après merge. La correction finale supprime cette auto-référence volatile et réserve à GitHub les faits volatils.
 
-Le lint exige une section unique, des clés uniques, rejette les représentations ambiguës (dont blocs de code et citations) et permet de comparer exactement les valeurs attendues. Les anciens textes ailleurs dans le fichier ne peuvent donc plus satisfaire le contrôle à la place du champ d’autorité.
+Le test indépendant final sur l’état corrigé a conclu :
 
-Les tests indépendants de reprise ont révélé un défaut de conception supplémentaire : inscrire dans `PROJECT_STATE.md` le SHA ou la PR qui effectue sa propre synchronisation rend le fichier mécaniquement périmé juste après le merge. Cette auto-référence volatile est supprimée. Le point de reprise décrit désormais des faits durables (`test-preview` contient Batch 0 ; `main` ne le contient pas encore ; #10 reste à valider) et laisse GitHub fournir les SHA/PR courants.
+- `SHA VÉRIFIÉ : oui` ;
+- `REPRISE SANS RÉPARATION : oui` ;
+- `AUTO-RÉFÉRENCE VOLATILE : non` ;
+- `CONTRADICTION AVEC GITHUB : non` ;
+- `ISSUE #10 : RÉSOLUBLE` ;
+- `BLOQUEUR AVANT MAIN : non`.
 
-La condition de résolution #10 reste inchangée : un nouveau contexte doit retrouver directement l’état courant sans réparer une transition périmée.
+Issue #10 est fermée.
 
-## Traçabilité légère
+## Propriétés démontrées
 
-Les contrôles mécaniques durables doivent référencer la règle ou le finding qu’ils protègent de manière lisible, sans registre central exhaustif. Les canoniques restent normatifs : un test ou un script vérifie un contrat, il ne le redéfinit pas. Toute contradiction contrôle/canonique ou canonique/canonique doit être rendue explicite et résolue, jamais corrigée automatiquement pour faire passer le contrôle.
+1. Les quatre documents canoniques sont présents sur la base/HEAD validés.
+2. Le lint #7 rejette les faux positifs ciblés et un paquet réel conforme passe après prévalidation.
+3. Le lint #10 rejette les états structurés ambigus et un contexte neuf retrouve désormais l’état sans réparation.
+4. Les contrôles n’affirment pas démontrer plus que ce qu’ils vérifient objectivement.
+5. Le workflow checkout et asserte le HEAD exact de PR avant les validations.
+6. **F4.2/F4.3 : Sensible**.
+7. **F4.4 : décision technique dans le périmètre approuvé du Batch 0**, sans modification des contrats produit, données ou architecture.
+8. Les contre-vérifications indépendantes finales n’ont identifié aucun bloqueur restant avant promotion vers `main`.
 
-## Preuves obtenues
+## Limite connue
 
-- `test-preview` a été réalignée sur le `main` canonique avant reprise du Batch 0.
-- La PR #14 a remplacé la PR #11 historique et a été contre-vérifiée `CONFORME` avant merge vers `test-preview`.
-- Le workflow GitHub Actions a démontré le checkout et l’assertion du HEAD exact, la présence des canoniques, l’état structuré et les tests.
-- L’Issue #7 a été démontrée par un paquet réel prévalidé puis fermée.
-- Les tests Issue #10 ont correctement détecté deux reprises périmées successives ; la cause commune identifiée est l’auto-référence du point de reprise à son propre merge futur. La correction actuelle retire cette dépendance circulaire au lieu de répéter une nouvelle synchronisation auto-référente.
-- L’absence de ruleset/protection bloquante reste explicitement une limite : le workflow contrôle automatiquement les PR concernées mais ne constitue pas une impossibilité technique absolue de merge manuel.
+Aucun ruleset/protection de branche n’est établi comme preuve d’interdiction mécanique absolue d’un merge manuel. Le workflow est un contrôle automatique, pas une barrière technique totale. Cette limite est connue et n’empêche pas la clôture de Batch 0.
 
-## Propriétés à démontrer avant clôture définitive
+## Contrôles reportés jusqu’à apparition de leur objet
 
-1. `test-preview` et le HEAD du Batch contiennent `PRODUCT.md`, `DATA.md`, `ARCHITECTURE.md` et `DEVELOPMENT.md` — **démontré**.
-2. Le lint #7 rejette les faux positifs ciblés et un paquet réel passe après prévalidation — **démontré**.
-3. Le lint #10 rejette doublons, sections concurrentes, historique non autoritaire, blocs de code et citations — **démontré**.
-4. Les contrôles n’affirment pas démontrer davantage que ce qu’ils vérifient objectivement — **contre-vérifié conforme**.
-5. Le runner automatique est rattaché au HEAD exact de PR et l’assertion de SHA a réussi — **démontré**.
-6. **F4.2/F4.3 : Sensible** et **F4.4 : décision technique dans le périmètre approuvé du Batch 0** — **contre-vérifié acceptable**.
-7. Issue #7 — **résolue**.
-8. Issue #10 — **test indépendant final encore requis sur le point de reprise sans auto-référence volatile**.
+- imports/cycles d’architecture ;
+- invariants métier DATA ;
+- persistance, migrations, atomicité, concurrence ;
+- recovery end-to-end ;
+- UI, réseau, cloud, synchronisation, authentification.
 
-## Classification finale proposée
-
-- **F4.2/F4.3 : Sensible**.
-- **F4.4 : décision technique dans le périmètre approuvé du Batch 0**, sans modification des contrats produit, données ou architecture.
+Lorsqu’un futur Batch introduit un objet couvert par une règle objectivement testable, il doit ajouter le contrôle applicable ou déclarer explicitement le report, le risque résiduel et le point de réévaluation. Les jalons canoniques non reportables restent obligatoires à leur frontière, notamment recovery avant que Filora devienne source principale de données réelles.
 
 ## Condition de clôture
 
-Batch 0 n’est clôturable définitivement que lorsque le nouveau test indépendant de reprise confirme que l’état courant est retrouvé directement sans réparation, que le point de reprise est cohérent avec GitHub sans dupliquer comme vérité persistante des identifiants volatils, et que la promotion applicable respecte le flux `test-preview` → `main`. Une propriété obligatoire non démontrée reste non validée.
+Les conditions de clôture de Batch 0 sont démontrées. La promotion `test-preview` → `main` peut être effectuée après CI conforme sur le HEAD exact proposé à `main`.
