@@ -9,17 +9,18 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 
 ## État courant
 
-- **Étape :** finalisation de la Phase F, avant Batch 0.
-- **Phase F :** PR #6 mergée ; Issues #2 à #5 vérifiées après merge et fermées ; clôture formelle restant à établir.
+- **Étape :** préparation de Batch 0 après clôture de la Phase F.
+- **Phase F :** formellement clôturée ; PR #9 mergée et `DEVELOPMENT.md` porte le statut `validé — Phase F`.
 - **Batch 0 :** non démarré.
 - **Branche officielle :** `main`.
 - **Branche de validation prévue :** `test-preview`.
-- **État Git pertinent :** PR #6 mergée dans `main` par le commit `762271f34b3f730531a2344d9e78617d60bf3b74`. Le test de reprise a ensuite été validé et `PROJECT_STATE.md` a été actualisé sur `main`.
+- **État Git pertinent :** PR #9 mergée dans `main` par le commit `7cf4028b08fa1d1eb6ae81313a065f2d078744fb` après contre-vérification Codex conforme sur le HEAD `8d64d4ba0c26971bf6c7c7b9f05b3510b2a42f77`.
 
 ## Findings / Issues pertinents
 
 - Issue #7 — éviter les consommations externes inutiles avant délégation : à décider explicitement avant ou pendant la préparation de Batch 0.
 - Issue #8 — édition GitHub ciblée sans réécriture complète des fichiers : à décider explicitement avant ou pendant la préparation de Batch 0.
+- Issue #10 — maintenir mécaniquement le point de reprise lors des clôtures : à intégrer/décider dans Batch 0 afin qu’une clôture ne laisse pas `PROJECT_STATE.md` périmé.
 
 Les Issues #2, #3, #4 et #5 ont été vérifiées après merge de la PR #6 puis fermées comme résolues. L’Issue #4 a été fermée après un test de reprise équivalent exécuté à partir de ce point d’entrée et des sources GitHub.
 
@@ -27,14 +28,15 @@ Toujours vérifier l’état réel des Issues dans GitHub. Ne pas considérer un
 
 ## Réserves / blocages connus
 
-- `DEVELOPMENT.md` porte encore le statut `candidat à contre-revue — Phase F4`. La Phase F ne doit donc pas être déclarée formellement clôturée tant que ce statut n’a pas été traité de manière contrôlée et cohérente avec les preuves de revue déjà obtenues.
+- Aucun blocage connu sur la clôture de la Phase F.
 - Batch 0 n’est pas démarré.
+- Les findings ouverts pertinents doivent recevoir une décision explicite avant ou pendant sa préparation.
 
 ## Prochaine action
 
-1. Traiter de manière contrôlée le statut de `DEVELOPMENT.md` afin de rendre explicite l’état final réel de la Phase F.
-2. Vérifier que cette transition n’introduit aucune autre modification sémantique.
-3. Une fois la Phase F formellement clôturée, préparer Batch 0 en consultant tous les findings ouverts pertinents et en décidant explicitement pour chacun : traiter/intégrer, reporter, accepter ou rejeter.
+1. Consulter l’ensemble des Issues/findings ouverts pertinents pour Batch 0.
+2. Décider explicitement pour chacun : traiter/intégrer, reporter, accepter ou rejeter.
+3. Définir ensuite le périmètre et les preuves de Batch 0 avant de le démarrer.
 
 ## Documents canoniques
 
