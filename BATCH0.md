@@ -66,3 +66,9 @@ Condition de preuve : simuler ou exécuter une transition de clôture et vérifi
 ## Condition de clôture
 
 Le Batch 0 est clôturable uniquement lorsque les propriétés ci-dessus sont démontrées sur l’état Git exact proposé à la promotion et que les Issues #7 et #10 peuvent être fermées sur la base de preuves, pas sur la seule présence de règles écrites.
+
+## État de préparation établi
+
+- `test-preview` a été créée depuis `main` au commit `75409c6b27079748bc94431c65f80de8d569437a`.
+- la branche de travail est `batch0/operational-guardrails`.
+- `PROJECT_STATE.md` a été mis à jour sur la branche de travail pour enregistrer le démarrage et les décisions de findings.
