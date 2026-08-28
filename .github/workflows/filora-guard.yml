@@ -13,11 +13,12 @@ jobs:
       - name: Checkout exact PR HEAD
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Show tested HEAD
+      - name: Assert exact PR HEAD
         run: |
-          git rev-parse HEAD
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
           git status --short --branch
 
       - name: Canonical presence
