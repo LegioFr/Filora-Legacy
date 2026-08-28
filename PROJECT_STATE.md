@@ -14,13 +14,15 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 - **Batch 0 :** non démarré.
 - **Branche officielle :** `main`.
 - **Branche de validation prévue :** `test-preview`.
-- **État Git pertinent :** PR #9 mergée dans `main` par le commit `7cf4028b08fa1d1eb6ae81313a065f2d078744fb` après contre-vérification Codex conforme sur le HEAD `8d64d4ba0c26971bf6c7c7b9f05b3510b2a42f77`.
+- **État Git pertinent :** PR #13 mergée dans `main` par le commit `640c042211c048870395d9440c56cea2929aa0e3` après validation humaine explicite de F3 pour `ARCHITECTURE.md` et contre-vérification finale Codex `CONFORME` / `MERGE ACCEPTABLE` sur le HEAD `66a695d5a9a83016e50ff1f0759e3f36990fe519`.
 
 ## Findings / Issues pertinents
 
 - Issue #7 — éviter les consommations externes inutiles avant délégation : à décider explicitement avant ou pendant la préparation de Batch 0.
 - Issue #8 — édition GitHub ciblée sans réécriture complète des fichiers : à décider explicitement avant ou pendant la préparation de Batch 0.
 - Issue #10 — maintenir mécaniquement le point de reprise lors des clôtures : à intégrer/décider dans Batch 0 afin qu’une clôture ne laisse pas `PROJECT_STATE.md` périmé.
+
+L’Issue #12 — documents canoniques référencés mais absents du dépôt — est résolue et fermée après restauration de `PRODUCT.md`, `DATA.md` et `ARCHITECTURE.md` via la PR #13, validation explicite de F3 pour `ARCHITECTURE.md`, contre-vérification Codex conforme et merge dans `main`.
 
 Les Issues #2, #3, #4 et #5 ont été vérifiées après merge de la PR #6 puis fermées comme résolues. L’Issue #4 a été fermée après un test de reprise équivalent exécuté à partir de ce point d’entrée et des sources GitHub.
 
@@ -29,6 +31,7 @@ Toujours vérifier l’état réel des Issues dans GitHub. Ne pas considérer un
 ## Réserves / blocages connus
 
 - Aucun blocage connu sur la clôture de la Phase F.
+- Aucun blocage connu lié à l’absence des documents canoniques : les quatre documents canoniques référencés sont présents dans `main`.
 - Batch 0 n’est pas démarré.
 - Les findings ouverts pertinents doivent recevoir une décision explicite avant ou pendant sa préparation.
 
