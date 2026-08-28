@@ -1,6 +1,6 @@
 # BATCH1.md — Premier socle exécutable de Filora
 
-**Statut : validé sur `test-preview`, prêt pour promotion vers `main`**  
+**Statut : clôturé et intégré à `main`**  
 **Date de préparation : 2026-08-28**
 
 ## Intention
@@ -41,22 +41,21 @@ Dépendances directes initiales épinglées : React 19.2.8, React DOM 19.2.8, Vi
 ## Classification
 
 - **F4.2 : Sensible** — introduction d’un framework/build tool, création d’une première frontière architecturale implémentée et modification du workflow CI.
-- **F4.3 : Critique** — le Batch introduit simultanément du code soumis à une nouvelle règle architecturale automatisée et modifie le mécanisme de contrôle chargé de vérifier cette règle. Conformément à DEVELOPMENT §8.3 et §10.6, le succès du contrôle modifié ne suffit pas à valider ce changement.
-- **F4.4 : décision Mickaël pour le choix de stack**, obtenue avant intégration ; les détails internes du scaffold restent techniques dans le périmètre approuvé.
-- **Accord Critique de Mickaël obtenu le 2026-08-28** : poursuite de Batch 1 autorisée dans ces conditions Critiques. Cet accord ne remplace pas la protection supplémentaire indépendante ni les preuves techniques requises avant promotion.
+- **F4.3 : Critique** — le Batch a introduit simultanément du code soumis à une nouvelle règle architecturale automatisée et modifié le mécanisme de contrôle chargé de vérifier cette règle. Conformément à DEVELOPMENT §8.3 et §10.6, le succès du contrôle modifié n’a pas été utilisé seul comme preuve.
+- **F4.4 : décision Mickaël pour le choix de stack**, obtenue avant intégration ; les détails internes du scaffold sont restés techniques dans le périmètre approuvé.
+- **Accord Critique de Mickaël obtenu le 2026-08-28** et confirmé directement lors de la contre-vérification indépendante.
 
-## Propriétés attendues / preuves
+## Preuves de clôture
 
-Les conditions de promotion vers `test-preview` ont été satisfaites :
-
-1. GitHub Actions a travaillé sur le HEAD exact de la PR ;
+1. GitHub Actions a travaillé sur les HEAD exacts des PR de validation et de promotion ;
 2. les contrôles Batch 0 sont restés verts ;
 3. les tests du contrôle architectural ont passé leurs cas positifs et négatifs, y compris pour les imports dynamiques littéraux ;
 4. l’application a passé le typecheck ;
 5. le build Vite de production a réussi ;
 6. les dépendances npm sont reproductibles via un `package-lock.json` versionné et `npm ci` en CI ;
-7. la contre-vérification indépendante finale a conclu `ACCEPTABLE` pour la promotion vers `test-preview` et a jugé la protection supplémentaire §10.6 adéquate et exercée ;
-8. l’accord explicite de Mickaël requis par le plancher Critique a été confirmé directement.
+7. la contre-vérification indépendante finale a conclu `ACCEPTABLE` et a jugé la protection supplémentaire §10.6 adéquate et exercée ;
+8. l’accord explicite de Mickaël requis par le plancher Critique a été confirmé directement ;
+9. l’état validé a été promu sur `test-preview`, puis la promotion `test-preview → main` a passé la CI et a été mergée sans nouveau finding bloquant.
 
 La présence d’un contrôle ne prouve que la propriété qu’il teste. Le contrôle architectural actuel vérifie uniquement les dépendances internes exprimées par imports/exports relatifs statiques ou imports dynamiques littéraux dans les fichiers `.ts`/`.tsx`, selon les couches `app`, `domains` et `shared`. Il ne prétend pas actuellement couvrir des alias TypeScript non configurés, des imports dynamiques calculés ou des cycles entre plusieurs domaines inexistants dans ce Batch. Si un de ces objets apparaît, le contrôle doit être réévalué avant de revendiquer leur couverture.
 
@@ -75,10 +74,6 @@ Une contre-revue ultérieure a confirmé ces corrections mais a maintenu un find
 
 La contre-vérification finale, portant sur l’état corrigé et ses preuves cohérentes, a conclu `ACCEPTABLE` pour la promotion vers `test-preview`, sans nouveau finding bloquant.
 
-## Validation sur `test-preview`
+## Clôture
 
-Le socle validé a été promu sur `test-preview`. La prochaine transition consiste à vérifier la CI sur l’état destiné à `main` puis à promouvoir selon le flux prévu. Aucun nouveau périmètre fonctionnel n’est ajouté à cette étape.
-
-## Condition de clôture
-
-Batch 1 est techniquement validé sur `test-preview`. Il sera considéré clôturé lorsque cet état validé aura été promu sur `main` sans nouveau finding bloquant. L’état Git exact de cette promotion doit être reconstruit depuis GitHub plutôt que mémorisé ici comme vérité persistante.
+Batch 1 est clôturé : son état validé a été intégré à `main` après validation sur `test-preview` et CI de promotion réussie. Les SHA, PR et commits de merge restent des informations volatiles à reconstruire depuis GitHub plutôt qu’à mémoriser ici comme vérité persistante.
