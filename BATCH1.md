@@ -1,6 +1,6 @@
 # BATCH1.md — Premier socle exécutable de Filora
 
-**Statut : intégré techniquement à `main` — clôture rouverte, validation humaine applicative en attente**  
+**Statut : clôturé et intégré à `main` après validation humaine applicative**  
 **Date de préparation : 2026-08-28**
 
 ## Intention
@@ -76,22 +76,27 @@ La contre-vérification finale, portant sur l’état corrigé et ses preuves co
 
 ## Finding de clôture découvert après promotion
 
-Après la promotion à `main`, il a été constaté que le socle applicatif observable n’avait pas été présenté à Mickaël pour validation humaine. Les preuves techniques précédentes restent valides pour les propriétés qu’elles démontrent, mais elles ne prouvent pas que le comportement visible du socle est acceptable pour Mickaël.
+Après la première promotion à `main`, il a été constaté que le socle applicatif observable n’avait pas été présenté à Mickaël pour validation humaine. Les preuves techniques précédentes restent valides pour les propriétés qu’elles démontrent, mais elles ne prouvaient pas que le comportement visible du socle était acceptable pour Mickaël.
 
-La déclaration de clôture précédente est donc corrigée sans réécrire l’historique : Batch 1 reste techniquement intégré à `main`, mais sa clôture est rouverte jusqu’à la validation humaine applicative.
+La clôture a donc été rouverte. Un garde-fou mécanique a ensuite été ajouté pour rendre explicite l’état de validation humaine du Batch et empêcher une clôture lorsqu’un jalon humain reste `EN ATTENTE`.
 
-### Jalon humain requis — EN ATTENTE
+### Jalon humain requis — VALIDÉ
 
-Mickaël doit pouvoir lancer ou ouvrir l’application et vérifier au minimum :
+Le 2026-08-28, une Preview Vercel temporaire du socle Batch 1 a été mise à disposition de Mickaël. Il a ouvert l’application sur sa tablette, fourni une capture de l’écran affiché et indiqué que le résultat lui convenait pour ce premier socle.
 
-- que Filora s’affiche réellement ;
-- que le premier écran du domaine `spools` apparaît conformément au périmètre Batch 1 ;
-- que le comportement visible de ce socle ne présente pas de défaut bloquant évident sur le support testé.
+La validation humaine couvre uniquement les propriétés observables de ce périmètre :
 
-Tout défaut observé dans ce périmètre doit être traité avant une nouvelle déclaration de clôture. Cette validation ne certifie pas les propriétés techniques, de persistance ou de données hors de son champ.
+- Filora s’affiche réellement ;
+- le premier écran `Stock de filament` et l’état vide du domaine `spools` apparaissent ;
+- la mise en page observée sur la tablette testée est acceptable ;
+- aucun défaut bloquant évident n’a été signalé sur ce support.
+
+Cette validation ne certifie pas les propriétés techniques, de persistance ou de données hors de son champ.
 
 ## Clôture
 
-**Batch 1 n’est actuellement pas clôturable.** Il est intégré techniquement à `main`, mais la validation humaine applicative ci-dessus est encore en attente. Une nouvelle clôture ne pourra être déclarée qu’après cette validation et le traitement de tout défaut éventuel.
+**Batch 1 est clôturable et clôturé** sous réserve du passage de la CI sur cette mise à jour de clôture et de sa promotion selon le flux `test-preview → main`.
+
+Les preuves techniques, la contre-vérification indépendante, l’accord Critique et la validation humaine requise sont acquis pour le périmètre du Batch 1. L’Issue #21 reste hors Batch 1 et doit être traitée séparément.
 
 Les SHA, PR et commits de merge restent des informations volatiles à reconstruire depuis GitHub plutôt qu’à mémoriser ici comme vérité persistante.
