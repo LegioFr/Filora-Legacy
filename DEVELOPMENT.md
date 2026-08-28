@@ -1,7 +1,7 @@
 # DEVELOPMENT.md — Filora
 
 **Version : V0.1**
-**Statut : candidat à contre-revue — Phase F4**
+**Statut : validé — Phase F**
 **Portée : gouvernance du développement, des agents IA, des validations et des preuves**
 **Références complémentaires : `PRODUCT.md`, `DATA.md`, `ARCHITECTURE.md`**
 
