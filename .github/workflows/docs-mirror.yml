@@ -3,6 +3,7 @@ name: Filora documentation mirror
 on:
   push:
     branches:
+      - test-preview
       - main
     paths:
       - PROJECT_STATE.md
@@ -16,6 +17,67 @@ permissions:
   contents: read
 
 jobs:
+  sync-preview:
+    if: github.ref_name == 'test-preview' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    environment: drive-mirror-preview
+    steps:
+      - name: Checkout exact test-preview commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Assert preview source
+        run: |
+          test "${{ github.ref_name }}" = "test-preview"
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+
+      - name: Prepare preview mirror payload
+        run: |
+          SYNCED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          python3 tools/prepare_docs_mirror.py \
+            --root . \
+            --output "$RUNNER_TEMP/filora-doc-preview" \
+            --sha "${{ github.sha }}" \
+            --branch test-preview \
+            --synced-at "$SYNCED_AT"
+
+      - name: Install rclone
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes rclone
+          rclone version
+
+      - name: Materialize rclone config
+        env:
+          FILORA_RCLONE_CONFIG: ${{ secrets.FILORA_RCLONE_CONFIG }}
+        run: |
+          test -n "$FILORA_RCLONE_CONFIG" || {
+            echo "::error::Missing required environment secret FILORA_RCLONE_CONFIG"
+            exit 1
+          }
+          printf '%s' "$FILORA_RCLONE_CONFIG" > "$RUNNER_TEMP/rclone.conf"
+          chmod 600 "$RUNNER_TEMP/rclone.conf"
+
+      - name: Copy preview documentation mirror
+        run: |
+          rclone copy \
+            "$RUNNER_TEMP/filora-doc-preview" \
+            "filora_drive:Filora-Claude-Preview" \
+            --config "$RUNNER_TEMP/rclone.conf" \
+            --create-empty-src-dirs
+
+      - name: Verify remote preview payload against source
+        run: |
+          rclone check \
+            "$RUNNER_TEMP/filora-doc-preview" \
+            "filora_drive:Filora-Claude-Preview" \
+            --config "$RUNNER_TEMP/rclone.conf" \
+            --one-way
+          cmp \
+            "$RUNNER_TEMP/filora-doc-preview/SYNC_INFO.md" \
+            <(rclone cat "filora_drive:Filora-Claude-Preview/SYNC_INFO.md" --config "$RUNNER_TEMP/rclone.conf")
+
   sync-main:
     if: github.ref_name == 'main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
