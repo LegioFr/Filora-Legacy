@@ -1,0 +1,42 @@
+name: Filora documentation mirror preflight
+
+on:
+  pull_request:
+    branches:
+      - test-preview
+      - main
+    paths:
+      - .github/workflows/docs-mirror-preflight.yml
+      - .github/workflows/docs-mirror.yml
+      - tools/prepare_docs_mirror.py
+      - tests/test_docs_mirror.py
+      - BATCH2.md
+      - PROJECT_STATE.md
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Assert exact PR HEAD
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+
+      - name: Test mirror preparation
+        run: python3 -m unittest tests.test_docs_mirror -v
+
+      - name: Prepare representative main mirror
+        run: |
+          python3 tools/prepare_docs_mirror.py \
+            --root . \
+            --output "$RUNNER_TEMP/filora-doc-mirror" \
+            --sha "${{ github.event.pull_request.head.sha }}" \
+            --branch main \
+            --synced-at "2026-01-01T00:00:00Z"
+          find "$RUNNER_TEMP/filora-doc-mirror" -maxdepth 1 -type f -printf '%f\n' | sort
