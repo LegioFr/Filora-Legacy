@@ -41,6 +41,12 @@ jobs:
       - name: Install application dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Emit generated package lock
+        run: |
+          echo 'FILORA_PACKAGE_LOCK_BEGIN'
+          cat package-lock.json
+          echo 'FILORA_PACKAGE_LOCK_END'
+
       - name: Typecheck application
         run: npm run typecheck
 
