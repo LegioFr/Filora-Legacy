@@ -66,6 +66,16 @@ class FiloraGuardTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("access_verified", result.stderr)
 
+    def test_review_packet_rejects_unverified_url_even_with_content(self) -> None:
+        packet = self.valid_packet()
+        packet["inputs"][0]["url"] = "https://example.invalid/diff"
+        packet["inputs"][0]["access_verified"] = False
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.write_json(Path(tmp), packet)
+            result = self.run_guard("review-packet", str(path))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("access_verified", result.stderr)
+
     def test_review_packet_accepts_verified_url_only(self) -> None:
         packet = self.valid_packet()
         packet["inputs"][0] = {
@@ -82,6 +92,15 @@ class FiloraGuardTests(unittest.TestCase):
     def test_review_packet_rejects_placeholder_content(self) -> None:
         packet = self.valid_packet()
         packet["inputs"][0]["content"] = "placeholder"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.write_json(Path(tmp), packet)
+            result = self.run_guard("review-packet", str(path))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("placeholder", result.stderr)
+
+    def test_review_packet_rejects_prefixed_placeholder_content(self) -> None:
+        packet = self.valid_packet()
+        packet["inputs"][0]["content"] = "TODO: ajouter le vrai diff"
         with tempfile.TemporaryDirectory() as tmp:
             path = self.write_json(Path(tmp), packet)
             result = self.run_guard("review-packet", str(path))
@@ -124,6 +143,29 @@ class FiloraGuardTests(unittest.TestCase):
             result = self.run_guard("review-packet", str(path))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("state_verified", result.stderr)
+
+    def test_review_packet_verifies_existing_git_sha_when_requested(self) -> None:
+        packet = self.valid_packet()
+        packet["state_sha"] = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+        ).strip()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.write_json(Path(tmp), packet)
+            result = self.run_guard(
+                "review-packet", str(path), "--verify-git-sha", "--repo-root", str(ROOT)
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_review_packet_rejects_missing_git_sha_when_verification_requested(self) -> None:
+        packet = self.valid_packet()
+        packet["state_sha"] = "0" * 40
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.write_json(Path(tmp), packet)
+            result = self.run_guard(
+                "review-packet", str(path), "--verify-git-sha", "--repo-root", str(ROOT)
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("does not resolve", result.stderr)
 
     def state_text(self, extra: str = "") -> str:
         return (
@@ -185,6 +227,42 @@ class FiloraGuardTests(unittest.TestCase):
             result = self.run_guard("project-state", "--file", str(state))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("must appear exactly once", result.stderr)
+
+    def test_project_state_rejects_keys_inside_code_block(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "PROJECT_STATE.md"
+            state.write_text(
+                "# PROJECT_STATE\n\n"
+                "## Reprise structurée\n"
+                "```markdown\n"
+                "- stage: Batch 0\n"
+                "- status: en cours\n"
+                "- git: abc123\n"
+                "- next_action: corriger\n"
+                "```\n\n"
+                "## Historique\n",
+                encoding="utf-8",
+            )
+            result = self.run_guard("project-state", "--file", str(state))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("fenced code block", result.stderr)
+
+    def test_project_state_rejects_quoted_example(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "PROJECT_STATE.md"
+            state.write_text(
+                "# PROJECT_STATE\n\n"
+                "## Reprise structurée\n"
+                "> - stage: Batch 0\n"
+                "> - status: en cours\n"
+                "> - git: abc123\n"
+                "> - next_action: corriger\n\n"
+                "## Historique\n",
+                encoding="utf-8",
+            )
+            result = self.run_guard("project-state", "--file", str(state))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("quoted/example", result.stderr)
 
     def test_canonical_presence_accepts_all_four(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
