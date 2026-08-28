@@ -31,6 +31,16 @@ jobs:
       - name: Test mirror preparation
         run: python3 -m unittest tests.test_docs_mirror -v
 
+      - name: Prepare representative preview mirror
+        run: |
+          python3 tools/prepare_docs_mirror.py \
+            --root . \
+            --output "$RUNNER_TEMP/filora-doc-preview" \
+            --sha "${{ github.event.pull_request.head.sha }}" \
+            --branch test-preview \
+            --synced-at "2026-01-01T00:00:00Z"
+          find "$RUNNER_TEMP/filora-doc-preview" -maxdepth 1 -type f -printf '%f\n' | sort
+
       - name: Prepare representative main mirror
         run: |
           python3 tools/prepare_docs_mirror.py \
