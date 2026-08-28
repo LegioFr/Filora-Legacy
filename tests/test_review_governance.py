@@ -10,16 +10,40 @@ class ReviewGovernanceTests(unittest.TestCase):
     def test_development_contains_permanent_contracts(self):
         self.assertEqual(check_development(Path("DEVELOPMENT.md")), [])
 
-    def test_development_guard_rejects_removed_tool_rule(self):
+    def _assert_development_rejects_replacement(self, original: str, replacement: str = ""):
         source = Path("DEVELOPMENT.md").read_text(encoding="utf-8")
-        weakened = source.replace(
-            "Une réponse tronquée, paginée ou limitée en taille ne constitue pas à elle seule une preuve que la donnée complète est inaccessible.",
-            "Une réponse tronquée suffit à conclure que la donnée complète est inaccessible.",
-        )
+        self.assertIn(original, source)
+        weakened = source.replace(original, replacement)
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "DEVELOPMENT.md"
             path.write_text(weakened, encoding="utf-8")
             self.assertTrue(check_development(path))
+
+    def test_development_guard_rejects_removed_tool_rule(self):
+        self._assert_development_rejects_replacement(
+            "Une réponse tronquée, paginée ou limitée en taille ne constitue pas à elle seule une preuve que la donnée complète est inaccessible.",
+            "Une réponse tronquée suffit à conclure que la donnée complète est inaccessible.",
+        )
+
+    def test_development_guard_rejects_removed_permission_boundary(self):
+        self._assert_development_rejects_replacement(
+            "Cette règle n'oblige pas à contourner une permission, une restriction de sécurité, un périmètre autorisé ou une limitation réelle de l'outil."
+        )
+
+    def test_development_guard_rejects_removed_claude_state_check(self):
+        self._assert_development_rejects_replacement(
+            "Elle doit demander à Claude de vérifier cet état avant l'analyse, imposer `ÉTAT OBSOLÈTE` en cas de divergence et interdire de remplacer silencieusement les sources autorisées par une mémoire de mission précédente, des connaissances de projet potentiellement périmées ou un accès supposé à une autre source."
+        )
+
+    def test_development_guard_rejects_removed_unverifiable_clause(self):
+        self._assert_development_rejects_replacement(
+            "Claude ne doit présenter comme vérifié que ce que les sources autorisées permettent réellement d'établir ; les éléments nécessaires mais non démontrables doivent rester explicitement `INVÉRIFIABLE`."
+        )
+
+    def test_development_guard_rejects_removed_ci_evidence_limit(self):
+        self._assert_development_rejects_replacement(
+            "Lorsque des templates de prompts versionnés matérialisent ces contrats, leurs clauses obligatoires doivent être protégées par un contrôle mécanique proportionné. Une CI verte ne prouve cependant que la présence des clauses contrôlées ; elle ne prouve pas qu'un reviewer externe a effectivement exécuté le plugin ou respecté toutes les instructions."
+        )
 
     def test_codex_security_prompt_satisfies_guard(self):
         self.assertEqual(check_codex_security_prompt(Path("codex/SECURITY_REVIEW_PROMPT.md")), [])
