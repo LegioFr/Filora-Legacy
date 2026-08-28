@@ -1,0 +1,112 @@
+name: Filora documentation mirror
+
+on:
+  pull_request:
+    branches:
+      - test-preview
+      - main
+    paths:
+      - .github/workflows/docs-mirror.yml
+      - tools/prepare_docs_mirror.py
+      - tests/test_docs_mirror.py
+      - BATCH2.md
+      - PROJECT_STATE.md
+  push:
+    branches:
+      - main
+    paths:
+      - PROJECT_STATE.md
+      - PRODUCT.md
+      - DATA.md
+      - ARCHITECTURE.md
+      - DEVELOPMENT.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Assert exact PR HEAD
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+
+      - name: Test mirror preparation
+        run: python3 -m unittest tests.test_docs_mirror -v
+
+      - name: Prepare representative main mirror
+        run: |
+          python3 tools/prepare_docs_mirror.py \
+            --root . \
+            --output "$RUNNER_TEMP/filora-doc-mirror" \
+            --sha "${{ github.event.pull_request.head.sha }}" \
+            --branch main \
+            --synced-at "2026-01-01T00:00:00Z"
+          find "$RUNNER_TEMP/filora-doc-mirror" -maxdepth 1 -type f -printf '%f\n' | sort
+
+  sync-main:
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Assert official source
+        run: |
+          test "${{ github.ref_name }}" = "main"
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+
+      - name: Prepare mirror payload
+        run: |
+          SYNCED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          python3 tools/prepare_docs_mirror.py \
+            --root . \
+            --output "$RUNNER_TEMP/filora-doc-mirror" \
+            --sha "${{ github.sha }}" \
+            --branch main \
+            --synced-at "$SYNCED_AT"
+
+      - name: Install rclone
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes rclone
+          rclone version
+
+      - name: Materialize rclone config
+        env:
+          FILORA_RCLONE_CONFIG: ${{ secrets.FILORA_RCLONE_CONFIG }}
+        run: |
+          test -n "$FILORA_RCLONE_CONFIG" || {
+            echo "::error::Missing required GitHub Actions secret FILORA_RCLONE_CONFIG"
+            exit 1
+          }
+          printf '%s' "$FILORA_RCLONE_CONFIG" > "$RUNNER_TEMP/rclone.conf"
+          chmod 600 "$RUNNER_TEMP/rclone.conf"
+
+      - name: Copy official documentation mirror
+        run: |
+          rclone copy \
+            "$RUNNER_TEMP/filora-doc-mirror" \
+            "filora_drive:Filora-Claude-Mirror" \
+            --config "$RUNNER_TEMP/rclone.conf" \
+            --create-empty-src-dirs
+
+      - name: Verify remote payload against source
+        run: |
+          rclone check \
+            "$RUNNER_TEMP/filora-doc-mirror" \
+            "filora_drive:Filora-Claude-Mirror" \
+            --config "$RUNNER_TEMP/rclone.conf" \
+            --one-way
+          cmp \
+            "$RUNNER_TEMP/filora-doc-mirror/SYNC_INFO.md" \
+            <(rclone cat "filora_drive:Filora-Claude-Mirror/SYNC_INFO.md" --config "$RUNNER_TEMP/rclone.conf")
