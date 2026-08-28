@@ -851,6 +851,8 @@ Pour un changement Critique ou une étape structurelle majeure, plusieurs mécan
 
 L’utilisation de plusieurs reviewers ne doit pas devenir une boucle de validation infinie.
 
+Un même désaccord non résolu entre reviewers ne peut donner lieu qu'à un seul cycle de correction et de contre-vérification avant escalade selon la hiérarchie ci-dessus. La découverte ultérieure d'un défaut distinct, factuel et nouvellement établi n'est pas considérée comme la répétition du même cycle.
+
 Lorsqu’un désaccord persiste :
 
 1. les arguments sont comparés aux contrats canoniques et aux preuves ;
@@ -890,12 +892,24 @@ Elle ne modifie pas les règles normatives précédentes.
 
 ## 17.1 Claude
 
-Lorsque Claude ne dispose pas d'un accès direct vérifiable au dépôt :
+Claude est utilisé principalement comme contradicteur indépendant et second avis.
 
-- les documents canoniques peuvent être fournis comme contexte permanent lorsqu'un mécanisme adapté existe ;
-- une nouvelle conversation peut être utilisée pour chaque contre-revue afin de limiter la contamination par l'historique d'une autre mission ;
-- la mission reçoit un paquet ciblé correspondant à l'état à examiner ;
-- Claude doit distinguer ce qu'il peut vérifier de ce qui reste `INVÉRIFIABLE`.
+Un projet Claude dédié à Filora est créé afin de fournir un contexte permanent contenant les documents canoniques utiles.
+
+Claude n'a pas besoin de conserver l'historique d'une conversation unique entre plusieurs revues. Une nouvelle conversation peut être ouverte pour chaque contre-revue ou avis indépendant.
+
+Chaque conversation reçoit uniquement le contexte spécifique nécessaire à la mission courante, par exemple :
+
+- SHA ou état concerné ;
+- diff ;
+- fichiers pertinents ;
+- résultats de tests ou CI ;
+- preuves nécessaires ;
+- question précise à examiner.
+
+L'objectif est que Claude reconstruise un avis indépendant à partir du contexte canonique du projet et des éléments propres à la mission, sans dépendre de l'historique d'une conversation précédente.
+
+Lorsqu'il ne dispose pas d'un accès direct vérifiable au dépôt, Claude doit distinguer ce qu'il peut réellement vérifier de ce qui reste INVÉRIFIABLE.
 
 ## 17.2 Codex
 
