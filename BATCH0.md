@@ -2,9 +2,11 @@
 
 ## Statut
 
-Batch 0 est **clôturé techniquement et autorisé pour promotion vers `main`**.
+Batch 0 est **clôturé et intégré à `main`**.
 
-Les deux findings traités dans ce Batch sont résolus : Issue #7 et Issue #10. La promotion vers `main` est la dernière opération d’intégration ; les détails Git volatils restent lus depuis GitHub et ne sont pas recopiés comme vérité persistante dans `PROJECT_STATE.md`.
+Les findings traités dans ce Batch sont résolus : Issue #7 et Issue #10. La validation a été effectuée sur `test-preview`, puis la promotion vers `main` a passé le workflow GitHub Actions sur le HEAD exact proposé avant merge.
+
+Les détails Git volatils restent lus depuis GitHub et ne sont pas recopiés comme vérité persistante dans `PROJECT_STATE.md`.
 
 ## Intention
 
@@ -38,9 +40,9 @@ Issue fermée `not_planned`. L’outillage disponible ne fournit pas encore d’
 
 Le point de reprise possède une section structurée unique avec `stage`, `status`, `git`, `next_action`. Le lint rejette doublons, sections concurrentes et représentations ambiguës comme blocs de code/citations.
 
-Deux tests indépendants ont révélé un défaut supplémentaire : copier dans `PROJECT_STATE.md` le SHA ou la PR de sa propre synchronisation future rendait le fichier périmé immédiatement après merge. La correction finale supprime cette auto-référence volatile et réserve à GitHub les faits volatils.
+Deux tests indépendants ont révélé qu’une auto-référence au SHA ou à la PR de sa propre synchronisation rendait le point de reprise immédiatement périmé après merge. La correction finale réserve les faits volatils à GitHub.
 
-Le test indépendant final sur l’état corrigé a conclu :
+Le test indépendant final a conclu :
 
 - `SHA VÉRIFIÉ : oui` ;
 - `REPRISE SANS RÉPARATION : oui` ;
@@ -55,12 +57,13 @@ Issue #10 est fermée.
 
 1. Les quatre documents canoniques sont présents sur la base/HEAD validés.
 2. Le lint #7 rejette les faux positifs ciblés et un paquet réel conforme passe après prévalidation.
-3. Le lint #10 rejette les états structurés ambigus et un contexte neuf retrouve désormais l’état sans réparation.
+3. Le lint #10 rejette les états structurés ambigus et un contexte neuf retrouve l’état sans réparation.
 4. Les contrôles n’affirment pas démontrer plus que ce qu’ils vérifient objectivement.
 5. Le workflow checkout et asserte le HEAD exact de PR avant les validations.
 6. **F4.2/F4.3 : Sensible**.
 7. **F4.4 : décision technique dans le périmètre approuvé du Batch 0**, sans modification des contrats produit, données ou architecture.
 8. Les contre-vérifications indépendantes finales n’ont identifié aucun bloqueur restant avant promotion vers `main`.
+9. La promotion vers `main` a été effectuée après CI conforme.
 
 ## Limite connue
 
@@ -76,6 +79,6 @@ Aucun ruleset/protection de branche n’est établi comme preuve d’interdictio
 
 Lorsqu’un futur Batch introduit un objet couvert par une règle objectivement testable, il doit ajouter le contrôle applicable ou déclarer explicitement le report, le risque résiduel et le point de réévaluation. Les jalons canoniques non reportables restent obligatoires à leur frontière, notamment recovery avant que Filora devienne source principale de données réelles.
 
-## Condition de clôture
+## Clôture
 
-Les conditions de clôture de Batch 0 sont démontrées. La promotion `test-preview` → `main` peut être effectuée après CI conforme sur le HEAD exact proposé à `main`.
+Les conditions de clôture de Batch 0 sont démontrées et la promotion `test-preview` → `main` est effectuée. Aucun nouveau Batch ne doit être démarré automatiquement : vérifier d’abord GitHub, les findings ouverts et l’objectif concret issu des documents canoniques.
