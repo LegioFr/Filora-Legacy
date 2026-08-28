@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from tools.check_claude_review_prompt import check_prompt
-from tools.prepare_claude_review import DOCUMENTS, build_package
+from tools.prepare_claude_review import DOCUMENTS, build_package, render_prompt
 
 
 class ClaudeReviewPackageTests(unittest.TestCase):
@@ -46,6 +46,14 @@ class ClaudeReviewPackageTests(unittest.TestCase):
             prompt = Path(tmp) / "prompt.md"
             prompt.write_text("Review Filora", encoding="utf-8")
             self.assertTrue(check_prompt(prompt))
+
+    def test_rendered_prompt_embeds_exact_reference(self):
+        template = Path("claude/REVIEW_PROMPT.md").read_text(encoding="utf-8")
+        sha = "b" * 40
+        prompt = render_prompt(template, "test-preview", sha)
+        self.assertNotIn("{{EXPECTED_", prompt)
+        self.assertGreaterEqual(prompt.count("test-preview"), 2)
+        self.assertGreaterEqual(prompt.count(sha), 2)
 
 
 if __name__ == "__main__":
