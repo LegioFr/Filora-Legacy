@@ -28,6 +28,7 @@ STATE_SECTION = "## Reprise structurée"
 STATE_KEYS = ("stage", "status", "git", "next_action")
 BATCH_FILE_RE = re.compile(r"^BATCH(\d+)\.md$")
 BATCH_STATUS_RE = re.compile(r"^\*\*Statut\s*:\s*(.+?)\*\*\s*$", re.MULTILINE)
+CLOSED_STATUS_RE = re.compile(r"\bclôturé(?:e|s|es)?\b", re.IGNORECASE)
 HUMAN_VALIDATION_RE = re.compile(
     r"^###\s+Jalon humain requis\s+—\s+(EN ATTENTE|VALIDÉ|NON REQUIS)\s*$",
     re.MULTILINE,
@@ -270,7 +271,7 @@ def check_batch_human_validation(root: Path) -> int:
 
     batch_status = statuses[0].strip()
     human_state = human_states[0]
-    is_closed = "clôtur" in batch_status.casefold()
+    is_closed = CLOSED_STATUS_RE.search(batch_status) is not None
 
     if is_closed and human_state == "EN ATTENTE":
         return fail(
