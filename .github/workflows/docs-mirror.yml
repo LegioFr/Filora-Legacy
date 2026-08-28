@@ -17,8 +17,9 @@ permissions:
 
 jobs:
   sync-main:
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')
+    if: github.ref_name == 'main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
+    environment: drive-mirror-production
     steps:
       - name: Checkout exact main commit
         uses: actions/checkout@v4
@@ -51,7 +52,7 @@ jobs:
           FILORA_RCLONE_CONFIG: ${{ secrets.FILORA_RCLONE_CONFIG }}
         run: |
           test -n "$FILORA_RCLONE_CONFIG" || {
-            echo "::error::Missing required GitHub Actions secret FILORA_RCLONE_CONFIG"
+            echo "::error::Missing required environment secret FILORA_RCLONE_CONFIG"
             exit 1
           }
           printf '%s' "$FILORA_RCLONE_CONFIG" > "$RUNNER_TEMP/rclone.conf"
