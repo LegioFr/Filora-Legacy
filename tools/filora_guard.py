@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Minimal operational guardrails for Filora Batch 0.
+"""Minimal operational guardrails for Filora.
 
 These checks intentionally prove only objective properties:
 - canonical files are present on the checked tree;
 - an external-review packet is structurally usable and bounded;
-- PROJECT_STATE.md exposes one unambiguous structured resume state.
+- PROJECT_STATE.md exposes one unambiguous structured resume state;
+- the latest Batch declares one human-app-validation state and cannot be
+  declared closed while that validation is still pending.
 
-Semantic sufficiency, minimality, finding relevance, and review independence
-remain review responsibilities.
+Semantic sufficiency, finding relevance, whether a human checkpoint is needed,
+and review independence remain review responsibilities.
 """
 
 from __future__ import annotations
@@ -24,6 +26,13 @@ MAX_REVIEW_PAYLOAD_CHARS = 50_000
 CANONICAL_FILES = ("PRODUCT.md", "DATA.md", "ARCHITECTURE.md", "DEVELOPMENT.md")
 STATE_SECTION = "## Reprise structurée"
 STATE_KEYS = ("stage", "status", "git", "next_action")
+BATCH_FILE_RE = re.compile(r"^BATCH(\d+)\.md$")
+BATCH_STATUS_RE = re.compile(r"^\*\*Statut\s*:\s*(.+?)\*\*\s*$", re.MULTILINE)
+CLOSED_STATUS_RE = re.compile(r"\bclôturé(?:e|s|es)?\b", re.IGNORECASE)
+HUMAN_VALIDATION_RE = re.compile(
+    r"^###\s+Jalon humain requis\s+—\s+(EN ATTENTE|VALIDÉ|NON REQUIS)\s*$",
+    re.MULTILINE,
+)
 PLACEHOLDER_RE = re.compile(
     r"^\s*(?:placeholder(?:\b.*)?|todo(?:\b.*)?|tbd(?:\b.*)?|à compléter(?:\b.*)?|a completer(?:\b.*)?|<[^>]+>|\.\.\.)\s*$",
     re.IGNORECASE,
@@ -227,6 +236,55 @@ def check_project_state(
     return 0
 
 
+def _latest_batch_file(root: Path) -> Path:
+    candidates: list[tuple[int, Path]] = []
+    for path in root.iterdir():
+        if not path.is_file():
+            continue
+        match = BATCH_FILE_RE.fullmatch(path.name)
+        if match:
+            candidates.append((int(match.group(1)), path))
+    if not candidates:
+        raise ValueError("no BATCH<n>.md file found")
+    return max(candidates, key=lambda item: item[0])[1]
+
+
+def check_batch_human_validation(root: Path) -> int:
+    try:
+        batch_path = _latest_batch_file(root)
+        text = batch_path.read_text(encoding="utf-8")
+    except (OSError, ValueError) as exc:
+        return fail(str(exc))
+
+    statuses = BATCH_STATUS_RE.findall(text)
+    if len(statuses) != 1:
+        return fail(
+            f"{batch_path.name} must contain exactly one '**Statut : ...**' line (found {len(statuses)})"
+        )
+
+    human_states = HUMAN_VALIDATION_RE.findall(text)
+    if len(human_states) != 1:
+        return fail(
+            f"{batch_path.name} must contain exactly one human validation marker: "
+            "'### Jalon humain requis — EN ATTENTE|VALIDÉ|NON REQUIS'"
+        )
+
+    batch_status = statuses[0].strip()
+    human_state = human_states[0]
+    is_closed = CLOSED_STATUS_RE.search(batch_status) is not None
+
+    if is_closed and human_state == "EN ATTENTE":
+        return fail(
+            f"{batch_path.name} is declared closed while human app validation is still EN ATTENTE"
+        )
+
+    print(
+        f"PASS: {batch_path.name} human app validation state is {human_state}; "
+        f"batch status is {batch_status!r}"
+    )
+    return 0
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description="Filora minimal operational guardrails")
     commands = root.add_subparsers(dest="command", required=True)
@@ -255,6 +313,12 @@ def parser() -> argparse.ArgumentParser:
     state.add_argument("--expect-status")
     state.add_argument("--expect-git")
     state.add_argument("--expect-next")
+
+    human = commands.add_parser(
+        "batch-human-validation",
+        help="validate the latest Batch human-app-validation closure state",
+    )
+    human.add_argument("--root", type=Path, default=Path("."))
     return root
 
 
@@ -272,6 +336,8 @@ def main() -> int:
             args.expect_git,
             args.expect_next,
         )
+    if args.command == "batch-human-validation":
+        return check_batch_human_validation(args.root)
     return fail("unknown command")
 
 
