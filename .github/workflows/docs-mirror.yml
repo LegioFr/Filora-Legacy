@@ -11,6 +11,8 @@ on:
       - DATA.md
       - ARCHITECTURE.md
       - DEVELOPMENT.md
+      - .github/workflows/docs-mirror.yml
+      - tools/prepare_docs_mirror.py
   workflow_dispatch:
 
 permissions:
@@ -32,12 +34,13 @@ jobs:
           test "${{ github.ref_name }}" = "test-preview"
           test "$(git rev-parse HEAD)" = "${{ github.sha }}"
 
-      - name: Prepare preview mirror payload
+      - name: Prepare preview mirror payloads
         run: |
           SYNCED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           python3 tools/prepare_docs_mirror.py \
             --root . \
             --output "$RUNNER_TEMP/filora-doc-preview" \
+            --claude-output "$RUNNER_TEMP/filora-claude-preview" \
             --sha "${{ github.sha }}" \
             --branch test-preview \
             --synced-at "$SYNCED_AT"
@@ -67,6 +70,16 @@ jobs:
             --config "$RUNNER_TEMP/rclone.conf" \
             --create-empty-src-dirs
 
+      - name: Publish preview Google Docs for Claude project
+        run: |
+          rclone copy \
+            "$RUNNER_TEMP/filora-claude-preview" \
+            "filora_drive:Filora-Claude-Preview/ClaudeProject" \
+            --config "$RUNNER_TEMP/rclone.conf" \
+            --drive-import-formats txt \
+            --drive-export-formats txt \
+            --create-empty-src-dirs
+
       - name: Verify remote preview payload against source
         run: |
           rclone check \
@@ -77,6 +90,47 @@ jobs:
           cmp \
             "$RUNNER_TEMP/filora-doc-preview/SYNC_INFO.md" \
             <(rclone cat "filora_drive:Filora-Claude-Preview/SYNC_INFO.md" --config "$RUNNER_TEMP/rclone.conf")
+
+      - name: Verify preview Google Docs are exact and native
+        run: |
+          for name in PROJECT_STATE PRODUCT DATA ARCHITECTURE DEVELOPMENT SYNC_INFO; do
+            cmp \
+              "$RUNNER_TEMP/filora-claude-preview/${name}.txt" \
+              <(rclone cat \
+                "filora_drive:Filora-Claude-Preview/ClaudeProject/${name}.txt" \
+                --config "$RUNNER_TEMP/rclone.conf" \
+                --drive-export-formats txt)
+          done
+          REMOTE_JSON="$(rclone lsjson \
+            "filora_drive:Filora-Claude-Preview/ClaudeProject" \
+            --config "$RUNNER_TEMP/rclone.conf" \
+            --files-only \
+            --drive-export-formats txt)"
+          export REMOTE_JSON
+          python3 - <<'PY'
+          import json
+          import os
+
+          expected = {
+              "PROJECT_STATE.txt",
+              "PRODUCT.txt",
+              "DATA.txt",
+              "ARCHITECTURE.txt",
+              "DEVELOPMENT.txt",
+              "SYNC_INFO.txt",
+          }
+          items = json.loads(os.environ["REMOTE_JSON"])
+          actual = {item["Name"] for item in items}
+          if actual != expected:
+              raise SystemExit(f"unexpected ClaudeProject payload: {sorted(actual)}")
+          non_docs = [
+              item["Name"]
+              for item in items
+              if item.get("MimeType") != "application/vnd.google-apps.document"
+          ]
+          if non_docs:
+              raise SystemExit(f"ClaudeProject files are not native Google Docs: {non_docs}")
+          PY
 
   sync-main:
     if: github.ref_name == 'main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
@@ -93,12 +147,13 @@ jobs:
           test "${{ github.ref_name }}" = "main"
           test "$(git rev-parse HEAD)" = "${{ github.sha }}"
 
-      - name: Prepare mirror payload
+      - name: Prepare official mirror payloads
         run: |
           SYNCED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           python3 tools/prepare_docs_mirror.py \
             --root . \
             --output "$RUNNER_TEMP/filora-doc-mirror" \
+            --claude-output "$RUNNER_TEMP/filora-claude-mirror" \
             --sha "${{ github.sha }}" \
             --branch main \
             --synced-at "$SYNCED_AT"
@@ -128,6 +183,16 @@ jobs:
             --config "$RUNNER_TEMP/rclone.conf" \
             --create-empty-src-dirs
 
+      - name: Publish official Google Docs for Claude project
+        run: |
+          rclone copy \
+            "$RUNNER_TEMP/filora-claude-mirror" \
+            "filora_drive:Filora-Claude-Mirror/ClaudeProject" \
+            --config "$RUNNER_TEMP/rclone.conf" \
+            --drive-import-formats txt \
+            --drive-export-formats txt \
+            --create-empty-src-dirs
+
       - name: Verify remote payload against source
         run: |
           rclone check \
@@ -138,3 +203,44 @@ jobs:
           cmp \
             "$RUNNER_TEMP/filora-doc-mirror/SYNC_INFO.md" \
             <(rclone cat "filora_drive:Filora-Claude-Mirror/SYNC_INFO.md" --config "$RUNNER_TEMP/rclone.conf")
+
+      - name: Verify official Google Docs are exact and native
+        run: |
+          for name in PROJECT_STATE PRODUCT DATA ARCHITECTURE DEVELOPMENT SYNC_INFO; do
+            cmp \
+              "$RUNNER_TEMP/filora-claude-mirror/${name}.txt" \
+              <(rclone cat \
+                "filora_drive:Filora-Claude-Mirror/ClaudeProject/${name}.txt" \
+                --config "$RUNNER_TEMP/rclone.conf" \
+                --drive-export-formats txt)
+          done
+          REMOTE_JSON="$(rclone lsjson \
+            "filora_drive:Filora-Claude-Mirror/ClaudeProject" \
+            --config "$RUNNER_TEMP/rclone.conf" \
+            --files-only \
+            --drive-export-formats txt)"
+          export REMOTE_JSON
+          python3 - <<'PY'
+          import json
+          import os
+
+          expected = {
+              "PROJECT_STATE.txt",
+              "PRODUCT.txt",
+              "DATA.txt",
+              "ARCHITECTURE.txt",
+              "DEVELOPMENT.txt",
+              "SYNC_INFO.txt",
+          }
+          items = json.loads(os.environ["REMOTE_JSON"])
+          actual = {item["Name"] for item in items}
+          if actual != expected:
+              raise SystemExit(f"unexpected ClaudeProject payload: {sorted(actual)}")
+          non_docs = [
+              item["Name"]
+              for item in items
+              if item.get("MimeType") != "application/vnd.google-apps.document"
+          ]
+          if non_docs:
+              raise SystemExit(f"ClaudeProject files are not native Google Docs: {non_docs}")
+          PY
