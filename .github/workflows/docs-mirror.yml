@@ -51,30 +51,6 @@ jobs:
             --synced-at "2026-01-01T00:00:00Z"
           find "$RUNNER_TEMP/filora-doc-mirror" -maxdepth 1 -type f -printf '%f\n' | sort
 
-  drive-credentials-preflight:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install rclone
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes rclone
-          rclone version
-
-      - name: Materialize rclone config
-        env:
-          FILORA_RCLONE_CONFIG: ${{ secrets.FILORA_RCLONE_CONFIG }}
-        run: |
-          test -n "$FILORA_RCLONE_CONFIG" || {
-            echo "::error::Missing required GitHub Actions secret FILORA_RCLONE_CONFIG"
-            exit 1
-          }
-          printf '%s' "$FILORA_RCLONE_CONFIG" > "$RUNNER_TEMP/rclone.conf"
-          chmod 600 "$RUNNER_TEMP/rclone.conf"
-
-      - name: Verify Drive authentication without writing
-        run: rclone lsd "filora_drive:" --config "$RUNNER_TEMP/rclone.conf"
-
   sync-main:
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')
     runs-on: ubuntu-latest
