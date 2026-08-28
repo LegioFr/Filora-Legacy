@@ -1,96 +1,91 @@
-# BATCH2.md — Miroir documentaire Google Drive
+# BATCH2.md — Paquet documentaire de contre-vérification Claude
 
-**Statut : en validation sur `test-preview`**  
+**Statut : correction en cours avant nouvelle validation sur `test-preview`**  
 **Date de préparation : 2026-08-28**
 
 ## Intention
 
-Permettre à Claude de consulter un miroir documentaire à jour de Filora pendant la validation sur `test-preview` puis, séparément, de l’état officiel après promotion sur `main`, sans créer de seconde source de vérité.
+Permettre une contre-vérification documentaire indépendante de l’état candidat `test-preview` avant promotion vers `main`, sans créer de seconde source de vérité et sans dépendre d’un forfait Claude supérieur.
 
-GitHub reste autoritatif. Google Drive est uniquement un miroir de lecture.
+GitHub reste autoritatif.
 
-## Décision structurante
+## Décision structurante et correction
 
-Le 2026-08-28, Mickaël a explicitement validé l’option A définie dans l’Issue #21 : synchronisation automatique des documents Filora vers Google Drive via GitHub Actions + rclone + OAuth Google utilisateur, avec credentials conservés uniquement dans des GitHub Actions Environment Secrets.
+L’option initiale de l’Issue #21 utilisait GitHub Actions + rclone + OAuth Google avec deux miroirs Drive. Les validations réelles ont établi que cette architecture ne satisfait pas simplement le besoin Claude : les `.md` Drive ne sont pas ajoutables comme connaissances synchronisées dans la configuration utilisée, la tentative Google Docs ajoute une conversion non exacte, et le connecteur GitHub Claude disponible charge `main` sans accès exploitable à `test-preview`. L’accès GitHub plus avancé nécessiterait un forfait Claude supérieur que Mickaël a refusé pour raison de coût.
 
-Le périmètre a été précisé pour rendre Claude utile avant promotion :
+Cette architecture Drive est donc **abandonnée**, sans présenter ses synchronisations techniques réussies comme une preuve de satisfaction du besoin utilisateur.
 
-- `test-preview` alimente un miroir de validation séparé `Filora-Claude-Preview` ;
-- `main` alimente le miroir officiel `Filora-Claude-Mirror` ;
-- les deux miroirs ne doivent jamais être confondus.
+La solution de remplacement est volontairement plus simple :
 
-Une première synchronisation réelle a ensuite montré une incompatibilité fonctionnelle : les fichiers Markdown ordinaires créés par rclone dans Drive sont lisibles dans Drive mais ne peuvent pas être ajoutés comme connaissances synchronisées d’un projet Claude. La documentation Anthropic établit que les Google Docs ajoutés à un projet restent synchronisés depuis Drive.
+- GitHub reste l’unique source de vérité ;
+- une Action sur `test-preview` génère un artefact éphémère contenant un seul `FILORA_CLAUDE_REVIEW_PACKAGE.md` ;
+- ce paquet contient les cinq documents de référence et les métadonnées `source_branch` + `source_sha` du commit exact ;
+- le même artefact contient `CLAUDE_REVIEW_PROMPT.md`, rendu depuis un template versionné avec la branche et le SHA exacts ;
+- le paquet est importé ponctuellement dans Claude pour la contre-vérification avant `main` ;
+- aucune synchronisation Drive, OAuth, rclone ou secret externe n’est nécessaire.
 
-La correction retenue conserve donc le miroir Markdown existant pour la preuve technique et ajoute, dans chaque miroir, un sous-dossier `ClaudeProject` contenant six **Google Docs natifs** importés depuis des copies texte exactes des cinq documents canoniques et de `SYNC_INFO.md`. GitHub reste la seule source de vérité ; les Google Docs ne sont qu’une représentation de transport destinée à Claude.
+## Findings / Issues examinés
 
-Cette correction reste dans le périmètre externe déjà autorisé : même compte Google, même OAuth, mêmes Environments et mêmes branches sources. Elle ne change ni le contrat produit ni les documents canoniques.
-
-## Findings / Issues examinés avant démarrage et correction
-
-- Issue #21 — **traitée dans ce Batch** : miroir documentaire Google Drive destiné à Claude.
-- Findings de revue sur l’exposition du secret aux workflows PR — **traités dans ce Batch** : aucun workflow déclenché par `pull_request` ne doit recevoir le credential Drive ; les jobs de synchronisation doivent utiliser des Environments dédiés et restreints à leur branche source.
-- Finding d’intégration Claude découvert en validation — **traité dans ce Batch** : un fichier `.md` Drive ordinaire n’est pas une connaissance de projet Claude synchronisée. La correction publie une représentation Google Docs native dans `ClaudeProject`.
-- Aucun autre Issue/finding ouvert pertinent identifié lors de la reprise du Batch 2.
+- Issue #21 — **traitée dans ce Batch** : besoin d’accès documentaire Claude avant `main`; solution technique révisée après validation réelle.
+- Finding secret PR de l’ancienne architecture — **résolu puis rendu sans objet par suppression de la mécanique Drive**.
+- Finding intégration Claude `.md` Drive — **traité par abandon de Drive**.
+- Finding conversion Google Docs — **traité par abandon de la conversion** : le contrôle d’identité documentaire ne doit pas être affaibli pour accepter une représentation lossy.
+- Limitation connecteur GitHub Claude — **acceptée** : `main` est lisible, mais `test-preview` n’est pas exploitable avec le forfait actuel ; aucun abonnement supérieur n’est requis par Filora.
+- Finding prompt Claude — **traité mécaniquement** : toute mission documentaire Claude versionnée doit déclarer sa source autorisée et son état attendu, et refuser un paquet obsolète.
 
 ## Dans le périmètre
 
-- synchronisation de `PROJECT_STATE.md`, `PRODUCT.md`, `DATA.md`, `ARCHITECTURE.md` et `DEVELOPMENT.md` depuis `test-preview` vers `Filora-Claude-Preview` ;
-- synchronisation des mêmes cinq documents depuis `main` vers `Filora-Claude-Mirror` ;
-- génération d’un `SYNC_INFO.md` contenant au minimum le SHA synchronisé, la branche source et l’horodatage de synchronisation ;
-- conservation du payload Markdown exact pour la preuve distante ;
-- génération de copies texte exactes puis import rclone en Google Docs natifs dans `ClaudeProject` ;
-- vérification que les six objets `ClaudeProject` sont des Google Docs natifs et que leur texte exporté est identique au payload source ;
-- GitHub Actions limité au périmètre documentaire retenu ;
-- rclone avec OAuth Google utilisateur ;
-- credentials lus depuis des GitHub Actions Environment Secrets et jamais versionnés ;
-- séparation mécanique des credentials par Environments `drive-mirror-preview` et `drive-mirror-production`, chacun limité à sa branche source ;
-- preuves de transfert et de correspondance entre chaque miroir Drive et le SHA annoncé.
+- génération déterministe d’un paquet unique depuis `test-preview` contenant `PROJECT_STATE.md`, `PRODUCT.md`, `DATA.md`, `ARCHITECTURE.md` et `DEVELOPMENT.md` ;
+- inclusion de la branche source et du SHA complet dans le paquet ;
+- template de prompt Claude versionné dans `claude/REVIEW_PROMPT.md` ;
+- garde-fou mécanique vérifiant les clauses minimales du prompt : source autorisée, branche/SHA attendus, contrôle préalable, `ÉTAT OBSOLÈTE`, interdiction de substituer connaissances Claude/Drive/GitHub supposé et distinction des éléments invérifiables ;
+- rendu automatique du prompt avec le SHA exact du paquet ;
+- Action GitHub sans secret générant les deux fichiers comme artefact temporaire ;
+- tests du générateur et du garde-fou.
 
 ## Hors périmètre
 
-- synchronisation d’une branche de travail ou d’une PR directement vers Drive ;
-- utilisation de `test-preview` comme source du miroir officiel `Filora-Claude-Mirror` ;
-- utilisation de `main` comme source du miroir de validation `Filora-Claude-Preview` ;
-- modification sémantique de `PRODUCT.md`, `DATA.md`, `ARCHITECTURE.md` ou `DEVELOPMENT.md` ;
-- édition manuelle des Google Docs comme source ;
+- synchronisation automatique vers Google Drive ;
+- OAuth Google, rclone, Environment Secrets et miroirs distants ;
+- accès payant Claude Team/Enterprise ;
+- faire de Claude ou du paquet une source de vérité ;
+- modification sémantique des quatre documents canoniques ;
 - changement fonctionnel de l’application ;
-- persistance métier, mutations de stock, migrations ou recovery ;
-- adoption d’un autre cloud ou d’une seconde source de vérité ;
-- synchronisation bidirectionnelle Drive → GitHub.
+- persistance métier, mutations de stock, migrations ou recovery.
+
+## Règle de preuve Claude
+
+Une mission Claude utilisée comme preuve Filora doit déclarer explicitement ses sources autorisées et l’état de référence attendu. Elle doit demander à Claude de vérifier cet état avant l’analyse et imposer `ÉTAT OBSOLÈTE` en cas de divergence. Claude ne doit présenter comme vérifié que ce que les sources autorisées permettent réellement d’établir.
+
+Le template versionné est soumis à `tools/check_claude_review_prompt.py` dans `Filora guard`. Une modification qui retire une clause minimale requise fait échouer la CI.
 
 ## Classification
 
-- **F4.2 : Sensible** — le changement touche CI, secrets/credentials, synchronisation, réseau/cloud et compte distant.
-- **F4.3 : Sensible** après correction des findings d’exposition PR : aucun workflow PR ne doit recevoir le credential Drive ; les synchronisations utilisent des Environments dédiés restreints à `test-preview` ou `main`. Cette classification doit être réévaluée si cette frontière de confiance n’est pas effectivement configurée ou si un autre critère Critique apparaît.
-- **F4.4 : décision Mickaël requise pour l’adoption du compte/service externe et de la synchronisation durable — OBTENUE le 2026-08-28.**
-- La conversion technique en Google Docs natifs n’ajoute pas de nouveau fournisseur, compte, credential ou destination durable ; elle reste dans cette décision déjà obtenue.
+- **F4.2 : Sensible** — le Batch modifie CI et un mécanisme de preuve/revue.
+- L’ancienne surface secrets/cloud/réseau est supprimée, ce qui réduit le risque.
+- La modification du garde-fou de prompt reste Sensitive et ne peut être clôturée sur ses seuls tests ; une contre-vérification indépendante est requise.
+- Aucun nouveau service externe durable, coût ou lock-in n’est introduit.
 
 ## Preuves requises avant clôture
 
-1. le workflow de validation ne s’exécute que depuis `test-preview` et écrit uniquement dans `Filora-Claude-Preview` ;
-2. le workflow officiel ne s’exécute que depuis `main` et écrit uniquement dans `Filora-Claude-Mirror` ;
-3. aucune branche de PR ou de travail ne reçoit le credential Drive ;
-4. les Environment Secrets `drive-mirror-preview` et `drive-mirror-production` sont chacun restreints à leur branche source ;
-5. aucun secret, token OAuth ou configuration rclone sensible n’est versionné ;
-6. `SYNC_INFO.md` est généré à partir de l’état réellement synchronisé et contient le SHA, la branche source et un horodatage ;
-7. une exécution réelle depuis `test-preview` réussit, le payload Markdown est vérifié contre la source et les six objets `ClaudeProject` sont prouvés comme Google Docs natifs au texte identique ;
-8. les six Google Docs Preview sont ajoutés une seule fois au projet Claude, puis une synchronisation ultérieure doit être visible par Claude **sans réajouter les documents** ; cette preuve end-to-end doit confirmer au minimum un nouveau `source_sha` dans `SYNC_INFO` ;
-9. après validation et promotion, une exécution réelle depuis `main` réussit avec les mêmes preuves sur `Filora-Claude-Mirror` ;
-10. les contrôles Filora existants restent verts ;
-11. une contre-vérification indépendante proportionnée au caractère Sensible du changement examine le diff, la classification et les preuves.
+1. `Filora guard` est vert sur le SHA candidat exact ;
+2. les tests prouvent que le générateur refuse une branche autre que `test-preview`, exige les cinq documents et inscrit le SHA complet ;
+3. le garde-fou rejette un prompt privé des clauses obligatoires ;
+4. le workflow de paquet ne possède aucun secret et vérifie le commit exact avant génération ;
+5. après intégration sur `test-preview`, une exécution réelle génère l’artefact pour le SHA exact ;
+6. le paquet généré et son prompt rendu portent le même SHA `test-preview` ;
+7. une contre-vérification Claude réelle utilise uniquement ce paquet et le prompt généré ;
+8. une contre-vérification technique indépendante examine le diff, le garde-fou et les preuves sans finding bloquant non résolu ;
+9. l’ancienne mécanique Drive versionnée est absente du candidat final.
 
 ## Dépendance humaine nécessaire
 
-La création/autorisation OAuth Google et l’enregistrement du credential résultant dans les GitHub Actions Environment Secrets nécessitent une intervention sur le compte Google/GitHub lorsque ces opérations ne sont pas accessibles à l’agent.
-
-L’ajout initial des six Google Docs `Filora-Claude-Preview/ClaudeProject` dans les connaissances du projet Claude nécessite également une action dans l’interface Claude lorsque cet accès n’est pas disponible à l’agent. Cette action doit être faite une seule fois ; la preuve attendue ensuite est la mise à jour automatique sans nouvel ajout manuel.
-
-Aucun secret ne doit être communiqué dans un document, une Issue, une PR ou un message destiné à être conservé comme preuve.
+L’import du paquet dans l’interface Claude et l’envoi du prompt généré nécessitent une action humaine lorsque Claude n’est pas accessible à l’agent. Aucun secret ne doit être transmis.
 
 ### Jalon humain requis — NON REQUIS
 
-Ce Batch ne modifie pas le comportement observable de l’application Filora. Il nécessite une décision de Mickaël sur l’adoption du service externe — déjà obtenue — mais pas une validation humaine applicative de type Preview.
+Ce Batch ne modifie pas le comportement observable de l’application Filora. La contre-vérification Claude est une preuve documentaire, pas une validation applicative humaine de Preview.
 
 ## Condition de clôture
 
-Le Batch 2 ne peut être déclaré clôturé que lorsque la synchronisation réelle `test-preview → Filora-Claude-Preview` a été prouvée, que les Google Docs `ClaudeProject` sont utilisables et restent à jour dans Claude sans réajout manuel, puis que la synchronisation réelle `main → Filora-Claude-Mirror` a été prouvée après promotion, avec contenu distant vérifié contre les SHA annoncés, contrôles applicables verts et aucun finding bloquant indépendant non résolu.
+Le Batch 2 ne peut être déclaré clôturé que lorsque la solution Drive abandonnée a été retirée du périmètre actif, que le paquet et le garde-fou de prompt ont passé leurs contrôles sur `test-preview`, qu’une contre-vérification Claude réelle a utilisé le paquet du SHA attendu, qu’une contre-vérification technique indépendante n’a plus de finding bloquant et que l’état réel du Batch est reflété dans `PROJECT_STATE.md` et l’Issue #21.
