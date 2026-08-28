@@ -1014,10 +1014,10 @@ Un finding doit être suffisamment explicite pour permettre une décision ultér
 
 Il peut être notamment :
 
-- à étudier ;
-- accepté pour plus tard ;
-- à intégrer dans un travail futur ;
-- rejeté après analyse.
+- à traiter ou intégrer dans le travail ;
+- reporté ;
+- accepté ;
+- rejeté.
 
 Un finding hors périmètre ne doit pas empêcher automatiquement la clôture d'un Batch lorsqu'il ne remet pas en cause les propriétés que ce Batch devait démontrer.
 
