@@ -36,6 +36,18 @@ class HumanValidationGuardTests(unittest.TestCase):
             result = self.run_guard(root)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_accepts_reopened_closure_with_pending_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_batch(
+                root,
+                1,
+                "intégré techniquement à main — clôture rouverte, validation humaine applicative en attente",
+                "EN ATTENTE",
+            )
+            result = self.run_guard(root)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_rejects_closed_batch_with_pending_validation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
