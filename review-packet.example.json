@@ -1,0 +1,17 @@
+{
+  "mission": "Vérifier un delta ciblé sur l'état Git exact indiqué",
+  "state_sha": "0000000000000000000000000000000000000000",
+  "context_budget_chars": 12000,
+  "inputs": [
+    {
+      "kind": "diff",
+      "purpose": "Examiner le changement réel",
+      "content": "Remplacer par le diff strictement nécessaire à la mission"
+    },
+    {
+      "kind": "canonical",
+      "purpose": "Comparer le changement à la règle applicable",
+      "content": "Remplacer par le passage canonique strictement nécessaire"
+    }
+  ]
+}
