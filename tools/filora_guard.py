@@ -25,7 +25,7 @@ CANONICAL_FILES = ("PRODUCT.md", "DATA.md", "ARCHITECTURE.md", "DEVELOPMENT.md")
 STATE_SECTION = "## Reprise structurée"
 STATE_KEYS = ("stage", "status", "git", "next_action")
 PLACEHOLDER_RE = re.compile(
-    r"^\s*(?:placeholder|todo|tbd|à compléter|a completer|<[^>]+>|\.\.\.)\s*$",
+    r"^\s*(?:placeholder(?:\b.*)?|todo(?:\b.*)?|tbd(?:\b.*)?|à compléter(?:\b.*)?|a completer(?:\b.*)?|<[^>]+>|\.\.\.)\s*$",
     re.IGNORECASE,
 )
 
@@ -123,7 +123,7 @@ def check_review_packet(path: Path, verify_git_sha: bool, repo_root: Path) -> in
             return fail(f"input #{index} content is a placeholder")
         if not has_content and not has_url:
             return fail(f"input #{index} requires embedded content or a verified-access URL")
-        if has_url and not has_content and access_verified is not True:
+        if has_url and access_verified is not True:
             return fail(f"input #{index} URL is not usable until access_verified is true")
 
         if has_content:
@@ -165,14 +165,24 @@ def parse_project_state(path: Path) -> dict[str, str]:
     start = section_indexes[0] + 1
     values: dict[str, str] = {}
     for line in lines[start:]:
+        stripped = line.strip()
         if line.startswith("## "):
             break
+        if not stripped:
+            continue
+        if stripped.startswith(("```", "~~~")):
+            raise ValueError("structured resume section cannot contain a fenced code block")
+        if stripped.startswith(">"):
+            raise ValueError("structured resume section cannot contain quoted/example state")
+
         match = re.fullmatch(r"-\s+([a-z_]+):\s*(.+?)\s*", line)
         if not match:
-            continue
+            raise ValueError(
+                "structured resume section must contain only the four direct key lines"
+            )
         key, value = match.groups()
         if key not in STATE_KEYS:
-            continue
+            raise ValueError(f"unexpected structured state key: {key}")
         if key in values:
             raise ValueError(f"duplicate structured state key: {key}")
         if not value.strip():
@@ -213,7 +223,7 @@ def check_project_state(
                 f"PROJECT_STATE structured {key} is {values[key]!r}, expected {expected.strip()!r}"
             )
 
-    print("PASS: PROJECT_STATE.md has one unambiguous structured resume state")
+    print("PASS: PROJECT_STATE.md has one direct, unique structured resume state")
     return 0
 
 
