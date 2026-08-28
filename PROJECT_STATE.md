@@ -8,16 +8,16 @@ Ce fichier sert à reprendre Filora dans un nouveau contexte sans dépendre de l
 Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas d’écart, vérifier GitHub et les documents canoniques concernés avant d’agir.
 
 ## Reprise structurée
-- stage: Batch 0
-- status: clôture démontrée — promotion vers main autorisée
-- git: test-preview contient l’état Batch 0 validé ; Issue #7 et Issue #10 sont résolues ; lire les SHA, PR et branches courants directement depuis GitHub
-- next_action: si Batch 0 n’est pas encore présent sur main, promouvoir test-preview vers main ; s’il est déjà présent sur main, reprendre depuis GitHub et examiner les findings ouverts pertinents avant tout nouveau Batch
+- stage: post-Batch 0
+- status: Batch 0 clôturé et présent sur main
+- git: main contient Batch 0 ; test-preview doit rester synchronisée avec l’état officiel avant toute nouvelle préparation ; lire les SHA, PR et branches courants directement depuis GitHub
+- next_action: avant tout nouveau Batch, vérifier GitHub et les findings ouverts puis déterminer le prochain périmètre depuis les documents canoniques ; ne rien démarrer automatiquement
 
 ## État courant
 
-- **Étape :** Batch 0 clôturable et prêt pour promotion vers `main`.
+- **Étape :** post-Batch 0.
 - **Phase F :** clôturée.
-- **Batch 0 :** garde-fous opérationnels minimaux validés sur `test-preview`.
+- **Batch 0 :** clôturé et intégré à `main` après validation sur `test-preview`.
 - **Branche officielle :** `main`.
 - **Branche de validation :** `test-preview`.
 - **État Git pertinent :** les détails volatils (HEAD, PR courante, commit de merge) doivent être lus directement depuis GitHub et ne sont pas recopiés ici comme vérité persistante.
@@ -30,7 +30,7 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 - Issue #12 — résolue et fermée après restauration des documents canoniques manquants.
 - Issues #2, #3, #4 et #5 — résolues et fermées.
 
-Toujours vérifier l’état réel des Issues dans GitHub avant de préparer ou démarrer un nouveau Batch.
+Au moment de cette clôture, GitHub ne signale aucun finding/Issue ouvert dans le dépôt. Toujours revérifier l’état réel des Issues avant de préparer ou démarrer un nouveau Batch.
 
 ## Réserves / limites connues
 
@@ -39,10 +39,10 @@ Toujours vérifier l’état réel des Issues dans GitHub avant de préparer ou 
 
 ## Prochaine action
 
-1. Vérifier sur GitHub si Batch 0 est déjà présent sur `main`.
-2. S’il ne l’est pas, effectuer la promotion `test-preview` → `main` après CI conforme.
-3. S’il l’est, reconstruire l’état courant depuis GitHub et examiner les Issues/findings ouverts pertinents avant toute préparation d’un nouveau Batch.
-4. Ne pas démarrer de nouveau Batch uniquement parce que Batch 0 semble terminé : vérifier d’abord ses conditions réelles de clôture et l’état GitHub courant.
+1. Repartir de l’état réel de `main` et vérifier que `test-preview` est synchronisée avant toute préparation.
+2. Vérifier les Issues/findings ouverts pertinents ; s’il n’y en a pas, ne rien inventer.
+3. Consulter les documents canoniques nécessaires pour déterminer le prochain objectif concret.
+4. Définir un périmètre de Batch seulement lorsqu’un travail réel et vérifiable est identifié.
 
 ## Documents canoniques
 
