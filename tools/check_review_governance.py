@@ -16,6 +16,10 @@ REQUIRED_DEVELOPMENT_CONTRACTS = (
     "Claude ne doit présenter comme vérifié que ce que les sources autorisées permettent réellement d'établir ; les éléments nécessaires mais non démontrables doivent rester explicitement `INVÉRIFIABLE`.",
     "Lorsqu'une mission est explicitement une contre-vérification Codex Security, le prompt doit demander explicitement à Codex d'utiliser le plugin Security.",
     "Une revue Codex ne peut pas être comptée comme preuve `Codex Security` si l'utilisation du plugin Security n'est pas explicitement demandée dans le prompt de mission.",
+    "Avant de préparer une mission Codex, l'agent doit choisir le niveau de revue proportionné à la propriété à vérifier et au risque réel.",
+    "Le plugin Security ne doit être demandé que lorsqu'une contre-vérification Codex Security est réellement nécessaire pour couvrir une propriété de sécurité ou un risque que Codex normal ne couvre pas suffisamment.",
+    "Lorsqu'une revue Codex normale suffit, le prompt ne doit pas demander l'utilisation du plugin Security.",
+    "Le surclassement vers Codex Security par défaut, par simple précaution générale ou sans gain de preuve identifié est interdit.",
     "Lorsque des templates de prompts versionnés matérialisent ces contrats, leurs clauses obligatoires doivent être protégées par un contrôle mécanique proportionné. Une CI verte ne prouve cependant que la présence des clauses contrôlées ; elle ne prouve pas qu'un reviewer externe a effectivement exécuté le plugin ou respecté toutes les instructions.",
 )
 
