@@ -152,18 +152,6 @@ Il peut être :
 
 Une découverte réalisée pendant un Batch ne constitue pas à elle seule une autorisation.
 
-## 4.1 Validation humaine des changements applicatifs observables
-
-Lorsqu’un Batch produit ou modifie un comportement de l’application observable par Mickaël, même partiel, ce comportement doit être identifié comme un jalon de validation humaine lorsqu’une appréciation réelle de son fonctionnement, de son comportement ou de son expérience utilisateur est nécessaire.
-
-La validation humaine ne doit pas être reportée artificiellement à la toute fin du Batch lorsqu’un travail ultérieur dépend d’un comportement observable encore non validé. Dans ce cas, le jalon devient bloquant pour les travaux qui dépendent de ce comportement : le résultat testable est présenté à Mickaël, et un échec est corrigé avant de construire davantage dessus.
-
-Cette règle n’impose pas une sollicitation humaine après chaque micro-changement. Une validation intermédiaire est requise lorsqu’elle apporte une information pertinente qu’un contrôle technique ne peut pas remplacer et que poursuivre sans elle créerait un risque raisonnable de construire sur un comportement ou une expérience non validés.
-
-Avant la clôture d’un Batch applicatif, tous les jalons de validation humaine requis par son périmètre doivent avoir été explicitement validés. Une CI verte, un build réussi, des tests ou une revue indépendante ne remplacent pas cette validation sur les propriétés réellement observables par Mickaël.
-
-Un Batch purement documentaire, infrastructurel ou interne ne déclenche pas cette exigence en l’absence de comportement applicatif observable à valider.
-
 ---
 
 # 5. Règles permanentes des Batches
@@ -193,8 +181,6 @@ Les règles suivantes s’appliquent à tous les Batches.
 9. Les preuves requises sont adaptées à la propriété que l’on cherche à démontrer.
 
 10. Une modification ne peut pas être rendue acceptable en supprimant ou en affaiblissant le contrôle qui révèle son problème.
-
-11. Un Batch comportant des jalons de validation humaine applicative requis ne peut pas être déclaré clôturé tant que ces jalons ne sont pas explicitement validés.
 
 ## 5.1 Branches de validation et branche officielle
 
@@ -655,8 +641,7 @@ Mickaël valide :
 - les décisions produit qui lui appartiennent ;
 - les compromis qui lui appartiennent ;
 - les décisions identifiées par F4.4 ;
-- l’accord exigé par le plancher Critique ;
-- les comportements applicatifs observables pour lesquels un jalon de validation humaine a été identifié selon §4.1.
+- l’accord exigé par le plancher Critique.
 
 Il n’est pas chargé de certifier une propriété technique qu’il ne peut raisonnablement pas évaluer.
 
@@ -718,8 +703,7 @@ Le rapport de clôture d’un Batch doit déclarer explicitement :
 
 - sa classification selon F4.2/F4.3 ;
 - sa classification selon F4.4 ;
-- la justification de chacune ;
-- pour un Batch applicatif, les jalons de validation humaine requis, leur état et la preuve de leur validation avant clôture.
+- la justification de chacune.
 
 Ces deux classifications sont indépendantes.
 
@@ -730,8 +714,6 @@ Pour un changement Sensible ou Critique soumis à revue indépendante, le review
 Pour un changement Ordinaire, la déclaration reste obligatoire mais n’entraîne pas automatiquement une revue indépendante supplémentaire.
 
 Lorsqu’une décision appartient à Mickaël, les exigences correspondantes s’appliquent indépendamment du niveau de risque technique.
-
-Un Batch applicatif ne peut pas être déclaré clôturé si un jalon de validation humaine requis est absent, en attente ou a échoué sans correction et nouvelle validation.
 
 ## 10.9 Intégrité des preuves
 
@@ -917,148 +899,275 @@ Pour un changement Critique ou une étape structurelle majeure, plusieurs mécan
 
 L’utilisation de plusieurs reviewers ne doit pas devenir une boucle de validation infinie.
 
-Lorsqu’une même divergence entre l’agent d’implémentation et un reviewer indépendant persiste après un cycle de correction et de contre-vérification, elle ne doit pas déclencher automatiquement une nouvelle boucle identique. Elle est alors escaladée selon la hiérarchie de résolution applicable : preuve mécanique lorsqu’elle peut trancher la propriété, décision de Mickaël lorsqu’elle lui appartient, ou réserve explicite lorsqu’aucun mécanisme disponible ne permet de conclure. Un défaut nouveau et distinct découvert lors d’une contre-vérification ne constitue pas la répétition de la même divergence et peut recevoir son propre traitement proportionné.
+Un même désaccord non résolu entre reviewers ne peut donner lieu qu'à un seul cycle de correction et de contre-vérification avant escalade selon la hiérarchie ci-dessus. La découverte ultérieure d'un défaut distinct, factuel et nouvellement établi n'est pas considérée comme la répétition du même cycle.
+
+Lorsqu’un désaccord persiste :
+
+1. les arguments sont comparés aux contrats canoniques et aux preuves ;
+2. une propriété objectivement vérifiable est tranchée par la preuve appropriée lorsqu’elle existe ;
+3. une décision appartenant à Mickaël lui est présentée ;
+4. une incertitude technique non résolue reste explicitement une réserve.
+
+La répétition de reviews ne doit pas servir à chercher indéfiniment un reviewer qui donne la réponse souhaitée.
 
 ---
 
-# 16. Findings
+# 16. Contexte permanent et contexte de mission
 
-Un finding doit être traité explicitement.
+Les documents canoniques constituent le contexte durable du projet.
 
-Il peut être :
+Lorsqu'un environnement de reviewer permet de conserver ou de mettre en cache un contexte permanent, ces mécanismes peuvent être utilisés afin d'éviter de retransmettre inutilement l'intégralité des contrats à chaque revue.
 
-- corrigé ;
-- accepté ;
+Le contexte permanent ne remplace cependant pas les éléments propres à l'état examiné.
+
+Chaque mission de revue doit encore recevoir les informations variables nécessaires, par exemple :
+
+- SHA ;
+- diff ;
+- fichiers concernés ;
+- résultats de tests ;
+- preuves spécifiques.
+
+Les procédures opérationnelles peuvent être adaptées aux outils disponibles sans modifier cette règle canonique.
+
+---
+
+# 17. Procédure opérationnelle actuelle des contre-revues
+
+Cette section décrit une procédure pratique et peut évoluer lorsque les outils disponibles changent.
+
+Elle ne modifie pas les règles normatives précédentes.
+
+## 17.1 Claude
+
+Claude est utilisé principalement comme contradicteur indépendant et second avis.
+
+Un projet Claude dédié à Filora peut conserver les instructions permanentes de rôle du reviewer. Ses `Connaissances du projet` ne doivent pas servir de copies statiques des documents canoniques susceptibles de devenir obsolètes.
+
+Le flux normal de contre-revue Claude ne dépend pas d’un accès direct à GitHub.
+
+Le coordinateur vérifie d’abord l’état réel dans GitHub puis prépare un paquet de mission minimal rattaché à cet état.
+
+Même si un accès direct à GitHub devient techniquement possible pour Claude, il n’est utilisé que lorsqu’il apporte un gain de preuve réel et proportionné à son coût ou à sa consommation de contexte.
+
+Claude n'a pas besoin de conserver l'historique d'une conversation unique entre plusieurs revues. Une nouvelle conversation peut être ouverte pour chaque contre-revue ou avis indépendant.
+
+Chaque conversation reçoit uniquement le contexte spécifique nécessaire à la mission courante, par exemple :
+
+- SHA ou état concerné ;
+- diff ou passages canoniques strictement nécessaires ;
+- fichiers pertinents ;
+- résultats de tests ou CI ;
+- preuves nécessaires ;
+- question précise à examiner.
+
+L'objectif est que Claude reconstruise un avis indépendant à partir des éléments effectivement fournis pour la mission, sans dépendre de l'historique d'une conversation précédente ni d’une copie potentiellement périmée du dépôt.
+
+Lorsqu'il ne dispose pas d'un élément nécessaire pour vérifier une propriété, Claude doit distinguer ce qu'il peut réellement vérifier de ce qui reste INVÉRIFIABLE.
+
+## 17.2 Codex
+
+Lorsqu'un environnement Codex dispose d'un accès direct au dépôt et à l'état Git concerné, il est privilégié pour les propriétés nécessitant l'examen direct :
+
+- du HEAD ;
+- du diff réel ;
+- des fichiers ;
+- de l'historique pertinent ;
+- ou des tests disponibles dans cet environnement.
+
+Il doit lui aussi identifier précisément l'état examiné et ne pas revendiquer des propriétés que son environnement ne permet pas de démontrer.
+
+## 17.3 Orchestration
+
+L'outil ou l'agent qui coordonne les reviews ne devient pas une autorité supérieure simplement parce qu'il compare leurs conclusions.
+
+Son rôle consiste à :
+
+- préparer la mission ;
+- fournir le contexte nécessaire ;
+- vérifier que les reviewers ont examiné le bon état ;
+- comparer leurs conclusions aux contrats canoniques et aux preuves ;
+- identifier les contradictions ;
+- présenter à Mickaël les décisions qui lui appartiennent.
+
+Une contradiction entre reviewers ne se résout pas par vote.
+
+---
+
+# 18. Prévention du fractionnement entre Batches
+
+Lors de la clôture d'un Batch sensible ou lorsqu'un doute existe sur un fractionnement, le rapport doit rendre visibles les travaux récents pertinents qui participent potentiellement à la même décision.
+
+L'objectif n'est pas d'imposer une surveillance globale permanente de tout l'historique.
+
+L'objectif est de permettre au reviewer de détecter qu'une modification sensible aurait été artificiellement divisée entre plusieurs Batches, commits ou sous-tâches.
+
+Lorsqu'un ensemble de changements participe à une même décision sensible, sa classification doit être évaluée sur cet ensemble pertinent plutôt que sur chaque fragment isolé.
+
+---
+
+# 19. Findings et réserves
+
+Un finding est un problème ou une observation qui mérite d'être conservé sans être nécessairement corrigé dans le Batch courant.
+
+Un finding doit être suffisamment explicite pour permettre une décision ultérieure.
+
+Il peut être notamment :
+
+- à traiter ou intégrer dans le travail ;
 - reporté ;
-- rejeté avec justification.
+- accepté ;
+- rejeté.
 
-Un finding non traité ne disparaît pas parce qu’il n’est plus mentionné.
+Un finding hors périmètre ne doit pas empêcher automatiquement la clôture d'un Batch lorsqu'il ne remet pas en cause les propriétés que ce Batch devait démontrer.
 
-Les findings pertinents doivent être revus avant :
-
-- démarrage d’un nouveau Batch ;
-- clôture du Batch concerné ;
-- changement structurel important.
+Une réserve affectant directement une propriété obligatoire de clôture ne peut cependant pas être transformée en simple finding afin de contourner cette propriété.
 
 ---
 
-# 17. Rapport de clôture
+# 20. Preview et validation humaine
 
-Le rapport de clôture d’un Batch doit distinguer au minimum :
+Lorsqu'un Batch modifie un comportement observable pertinent, la Preview constitue un moyen de vérification de ce comportement.
 
-1. intention initiale ;
-2. périmètre réellement modifié ;
-3. fichiers ou zones sensibles touchés ;
-4. classification F4.2/F4.3 et justification ;
-5. classification F4.4 et justification ;
-6. décisions de Mickaël obtenues ;
-7. tests exécutés ;
-8. résultats CI ;
-9. validations humaines applicatives requises, jalons concernés et résultats ;
-10. validations indépendantes ;
-11. état des migrations ;
-12. état backup/restore ;
-13. findings ouverts ;
-14. findings corrigés ;
-15. réserves connues ;
-16. état Git concerné ;
-17. conclusion : clôturable ou non clôturable.
+La validation humaine doit porter uniquement sur les propriétés que Mickaël peut raisonnablement évaluer.
 
-Une conclusion de clôture ne peut pas contredire silencieusement une validation obligatoire manquante.
+Elle peut notamment concerner :
 
-## 17.1 Présentation à Mickaël
+- compréhension ;
+- comportement observable ;
+- ergonomie ;
+- choix produit ;
+- compromis explicitement présentés.
 
-Le rapport de clôture présenté à Mickaël doit rester compréhensible et orienté décision. Les détails techniques nécessaires à la preuve peuvent rester dans les artefacts ou annexes ; le rapport principal doit exposer clairement ce qui a changé, ce qui a été prouvé, ce qui reste incertain, les validations humaines réellement effectuées et les décisions éventuellement attendues de Mickaël.
+Elle ne doit pas être utilisée comme preuve de :
+
+- correction d'une migration ;
+- absence de corruption ;
+- respect d'une frontière architecturale invisible ;
+- sécurité technique ;
+- propriété interne non observable.
 
 ---
 
-# 18. Preuves minimales selon le type de changement
+# 21. Clôture d'un Batch
 
-Il n’existe pas une matrice rigide couvrant tous les cas.
+Un Batch ne peut être déclaré clôturé que lorsque les exigences applicables à son périmètre sont satisfaites.
 
-Cependant :
+Le rapport de clôture doit permettre de vérifier au minimum :
 
-- changement UI : preuve fonctionnelle ou visuelle adaptée et validation humaine lorsqu’un jalon §4.1 s’applique ;
-- changement de logique métier : tests métier adaptés ;
-- changement de données persistantes : tests de migration + backup/restore selon le risque ;
-- changement architectural : contrôle adapté ou revue structurée ;
-- changement de permission : preuve d’accès autorisé et refus non autorisé ;
-- changement de garde-fou : preuve que le garde-fou fonctionne et qu’il n’a pas été affaibli ;
-- changement documentaire canonique : cohérence avec les contrats voisins.
+1. l'intention et le périmètre du Batch ;
+2. l'état technique exact concerné ;
+3. les changements réalisés ;
+4. les changements sensibles détectés ;
+5. la classification F4.2/F4.3 ;
+6. la classification F4.4 ;
+7. la justification de ces classifications ;
+8. les tests et contrôles applicables ;
+9. leur résultat réel ;
+10. les preuves supplémentaires exigées par le risque ;
+11. la vérification Preview lorsqu'elle est applicable ;
+12. les décisions appartenant à Mickaël et leur état ;
+13. les reviews indépendantes exigées et leur état ;
+14. les findings et réserves ;
+15. les modifications éventuelles de documents canoniques ;
+16. les validations indisponibles ou invérifiables.
 
-Cette section ne remplace pas le jugement adapté au risque.
+Un Batch ne peut pas être clôturé par simple déclaration de l'agent d'implémentation.
 
----
+Une propriété obligatoire non démontrée reste :
 
-# 19. Anti-accumulation procédurale
+- non validée ;
+- en attente ;
+- échouée ;
+- ou invérifiable,
 
-Une nouvelle règle, abstraction, validation ou étape de processus ne doit pas être ajoutée sans besoin concret.
+selon la situation réelle.
 
-Avant d’ajouter un mécanisme permanent, il faut pouvoir expliquer :
-
-- quel risque réel il traite ;
-- pourquoi les mécanismes existants sont insuffisants ;
-- quel coût opérationnel il ajoute ;
-- comment éviter qu’il devienne une cérémonie sans valeur.
-
-Une règle inutilisée ou impossible à appliquer correctement doit être réexaminée plutôt qu’empilée avec une nouvelle règle.
-
----
-
-# 20. Évolution de la gouvernance
-
-Ce document peut évoluer.
-
-Toute modification sémantique de `DEVELOPMENT.md` est sensible selon F4.2.
-
-Une évolution de gouvernance doit :
-
-- identifier le problème réel ;
-- rester proportionnée ;
-- éviter de multiplier les règles redondantes ;
-- préserver l’intention des protections existantes ;
-- être validée selon son propre niveau de risque.
+Elle n'est pas transformée en réussite pour permettre la clôture.
 
 ---
 
-# 21. Condition de clôture de DEVELOPMENT.md V0.1
+# 22. Documents canoniques
 
-`DEVELOPMENT.md` V0.1 est considéré suffisamment défini lorsque :
+Les documents canoniques sont :
 
-- les règles d’autorité IA sont explicites ;
-- les critères de sensibilité sont objectifs autant que raisonnablement possible ;
-- les niveaux Ordinaire / Sensible / Critique sont distingués ;
-- la propriété des décisions est explicite ;
-- les validations sont adaptées au risque ;
-- l’indépendance des contrôles est définie ;
-- les cas d’indisponibilité sont couverts ;
-- les contre-revues sont encadrées ;
-- les règles anti-contournement sont explicites ;
-- les règles peuvent être appliquées sans dépendre d’une mémoire conversationnelle.
+- `PRODUCT.md` ;
+- `DATA.md` ;
+- `ARCHITECTURE.md` ;
+- `DEVELOPMENT.md`.
+
+Ils ne doivent être modifiés que lorsqu'une modification de leur contrat est réellement nécessaire.
+
+Une modification de code ne doit pas entraîner automatiquement une modification documentaire destinée uniquement à faire correspondre le contrat au code après coup.
+
+Lorsque le code révèle une contradiction avec un contrat canonique, la contradiction doit être traitée explicitement.
+
+Le code n'obtient pas automatiquement raison parce qu'il existe déjà.
+
+Inversement, un document canonique peut évoluer lorsqu'une décision valide justifie réellement son évolution.
 
 ---
 
-# 22. Résumé opérationnel
+# 23. Hiérarchie entre décisions, contrats et implémentation
 
-Avant de modifier Filora :
+Une décision réellement prise ne devient une règle durable que lorsqu'elle est enregistrée à l'endroit approprié lorsque cette conservation est nécessaire.
 
-1. reconstruire l’état réel ;
-2. lire les contrats concernés ;
-3. vérifier les findings ouverts ;
-4. définir le périmètre ;
-5. classifier le risque selon F4.2/F4.3 ;
-6. classifier la propriété de décision selon F4.4 ;
-7. identifier les preuves nécessaires ;
-8. identifier les jalons de validation humaine applicative nécessaires et les placer avant les travaux qui en dépendent ;
-9. obtenir les décisions de Mickaël avant leur frontière temporelle ;
-10. implémenter sans élargissement silencieux ;
-11. exécuter les contrôles adaptés ;
-12. obtenir les validations indépendantes nécessaires ;
-13. traiter les findings ;
-14. vérifier toutes les validations humaines applicatives requises ;
-15. produire un rapport de clôture honnête ;
-16. ne clôturer que l’état réellement prouvé et validé.
+Les documents canoniques définissent les contrats durables.
 
-La règle générale est simple :
+Les Batches appliquent ou font évoluer ces contrats selon les règles de gouvernance.
 
-> **plus un changement peut affecter durablement les données, l’autorité, la sécurité, l’architecture, les contrôles ou l’expérience réellement observable de Filora, plus sa preuve et sa validation doivent être indépendantes et explicites.**
+L'implémentation doit respecter les contrats applicables à l'état concerné.
+
+Lorsqu'une contradiction apparaît entre :
+
+- intention du Batch ;
+- document canonique ;
+- implémentation ;
+- preuve ;
+
+elle doit être rendue explicite plutôt que résolue silencieusement par l'agent.
+
+---
+
+# 24. Proportionnalité de la gouvernance
+
+La gouvernance existe pour réduire les risques réels du développement par IA.
+
+Elle ne doit pas devenir un objectif autonome.
+
+Une opération locale, réversible et ordinaire ne doit pas recevoir la même procédure qu'une migration destructive ou qu'une modification d'un garde-fou.
+
+Les mécanismes doivent rester :
+
+- compréhensibles ;
+- vérifiables ;
+- proportionnés ;
+- réellement applicables.
+
+Une règle qui ajoute de la procédure sans réduire suffisamment un risque doit pouvoir être remise en question selon les mêmes mécanismes de gouvernance.
+
+Filora ne doit pas accumuler des contrôles uniquement parce qu'ils donnent l'apparence d'un processus plus professionnel.
+
+---
+
+# 25. Règle finale
+
+Filora avance lorsque la prochaine étape :
+
+- apporte une valeur réelle ;
+- répond à un besoin démontré ;
+- ou couvre un risque réel.
+
+Filora n'avance pas parce qu'un processus, un template, une architecture théorique ou une IA réclame davantage de complexité.
+
+La gouvernance doit permettre aux IA de travailler efficacement sans leur permettre :
+
+- d'élargir silencieusement leur autorité ;
+- de modifier les règles qui les bloquent pour obtenir le résultat souhaité ;
+- de masquer une incertitude ;
+- de transformer une absence de preuve en réussite ;
+- de faire porter à Mickaël la responsabilité de certifier des propriétés techniques qu'il ne peut raisonnablement pas vérifier.
+
+Le but n'est pas de supprimer tout risque.
+
+Le but est que les risques importants soient détectés, rendus visibles, traités au bon niveau et jamais masqués pour permettre au développement de continuer.
