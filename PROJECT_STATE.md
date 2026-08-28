@@ -8,17 +8,17 @@ Ce fichier sert à reprendre Filora dans un nouveau contexte sans dépendre de l
 Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas d’écart, vérifier GitHub et les documents canoniques concernés avant d’agir.
 
 ## Reprise structurée
-- stage: Batch 1 — clôture après validation humaine
-- status: validation humaine applicative obtenue ; clôture en cours de validation CI et promotion
+- stage: post-Batch 1
+- status: Batch 1 clôturé et intégré à main après validation humaine applicative
 - git: lire les HEAD, PR et branches courants directement depuis GitHub ; ne pas mémoriser ici les SHA ou PR volatiles
-- next_action: faire passer cette clôture sur test-preview puis main ; seulement ensuite considérer Batch 1 réellement clôturé et reprendre l’Issue #21
+- next_action: reconstruire l’état GitHub et examiner l’Issue #21 dans son périmètre dédié avant toute nouvelle implémentation
 
 ## État courant
 
-- **Étape :** Batch 1 — clôture après validation humaine.
+- **Étape :** post-Batch 1.
 - **Phase F :** clôturée.
 - **Batch 0 :** clôturé et intégré à `main`.
-- **Batch 1 :** implémentation, preuves techniques, contre-vérification indépendante, promotion technique à `main` et validation humaine applicative réalisées ; mise à jour de clôture en cours de validation.
+- **Batch 1 :** clôturé et intégré à `main` après preuves techniques, contre-vérification indépendante, accord Critique et validation humaine applicative.
 - **Validation humaine Batch 1 :** **VALIDÉE** le 2026-08-28 sur une Preview temporaire ouverte par Mickaël sur tablette. Filora s’est affichée, l’écran `Stock de filament` et l’état vide `spools` ont été observés et aucun défaut bloquant n’a été demandé à corriger pour le périmètre Batch 1.
 - **Garde-fou de clôture humaine :** actif dans `filora_guard.py` et la CI ; le `BATCH<n>.md` le plus récent doit déclarer exactement un jalon humain `EN ATTENTE`, `VALIDÉ` ou `NON REQUIS`, et un Batch déclaré clôturé ne peut pas rester `EN ATTENTE`.
 - **Socle disponible :** React + TypeScript + Vite, premier écran exécutable, structure `app` / `domains/spools`, contrôle mécanique minimal de direction d’import, typecheck et build en CI.
@@ -30,8 +30,8 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 
 ## Findings / Issues pertinents
 
-- Finding de processus Batch 1 : la validation humaine avait initialement été omise avant la première déclaration de clôture. Ce finding a été traité : la clôture a été rouverte, la validation humaine a ensuite été réalisée, et un garde-fou mécanique de cohérence de clôture est actif.
-- Issue #21 — ouverte : miroir documentaire Google Drive destiné à Claude, synchronisé depuis `main`. Elle reste reportée jusqu’à la clôture réelle de Batch 1 sur `main`.
+- Finding de processus Batch 1 — **traité** : la validation humaine avait initialement été omise avant la première déclaration de clôture ; la clôture a été rouverte, la validation humaine a été réalisée, puis un garde-fou mécanique de cohérence de clôture a été intégré.
+- Issue #21 — **ouverte et désormais prioritaire après Batch 1** : miroir documentaire Google Drive destiné à Claude, synchronisé depuis `main`. Elle reste un périmètre dédié et ne constitue pas à elle seule une autorisation d’implémentation.
 - Issue #8 — fermée `not_planned` ; à réévaluer seulement si l’outillage d’édition ciblée évolue ou devient nécessaire.
 - Revue indépendante Batch 1 — findings techniques initiaux corrigés ou explicitement classés ; contre-vérification finale `ACCEPTABLE` pour la promotion technique.
 
@@ -47,10 +47,10 @@ Toujours revérifier les Issues/findings réels avant toute transition ou nouvea
 
 ## Prochaine action
 
-1. Valider cette clôture sur `test-preview` avec la CI et le garde-fou humain.
-2. Promouvoir ensuite le même état vers `main` si aucun finding bloquant n’apparaît.
-3. Reconstruire l’état Git réel et seulement alors déclarer Batch 1 clôturé.
-4. Après cette clôture réelle, reprendre l’Issue #21 dans son périmètre dédié.
+1. Reconstruire l’état réel de `main`, `test-preview` et des Issues avant le prochain périmètre.
+2. Examiner l’Issue #21, ses conditions d’autorisation, ses risques, les secrets/credentials nécessaires et les preuves attendues.
+3. Obtenir la décision explicite de Mickaël requise avant toute intégration cloud/synchronisation durable.
+4. Garder ce travail séparé d’un futur Batch fonctionnel de gestion du stock.
 
 ## Documents canoniques
 
@@ -59,4 +59,4 @@ Toujours revérifier les Issues/findings réels avant toute transition ou nouvea
 - `ARCHITECTURE.md`
 - `DEVELOPMENT.md`
 
-`BATCH1.md` conserve le dossier du Batch 1 mais ne remplace aucun document canonique.
+`BATCH1.md` conserve le dossier de clôture du Batch 1 mais ne remplace aucun document canonique.
