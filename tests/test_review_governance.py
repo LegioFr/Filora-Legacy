@@ -46,6 +46,24 @@ class ReviewGovernanceTests(unittest.TestCase):
             "Claude ne doit présenter comme vérifié que ce que les sources autorisées permettent réellement d'établir ; les éléments nécessaires mais non démontrables doivent rester explicitement `INVÉRIFIABLE`."
         )
 
+    def test_development_guard_rejects_codex_security_overuse(self):
+        self._assert_development_rejects_replacement(
+            "Le plugin Security ne doit être demandé que lorsqu'une contre-vérification Codex Security est réellement nécessaire pour couvrir une propriété de sécurité ou un risque que Codex normal ne couvre pas suffisamment.",
+            "Le plugin Security peut être demandé par défaut pour renforcer toute revue Codex.",
+        )
+
+    def test_development_guard_rejects_security_plugin_in_normal_codex_prompt(self):
+        self._assert_development_rejects_replacement(
+            "Lorsqu'une revue Codex normale suffit, le prompt ne doit pas demander l'utilisation du plugin Security.",
+            "Lorsqu'une revue Codex normale suffit, le prompt peut néanmoins demander l'utilisation du plugin Security par précaution.",
+        )
+
+    def test_development_guard_rejects_default_security_escalation(self):
+        self._assert_development_rejects_replacement(
+            "Le surclassement vers Codex Security par défaut, par simple précaution générale ou sans gain de preuve identifié est interdit.",
+            "Le surclassement vers Codex Security peut être utilisé par défaut en cas de doute.",
+        )
+
     def test_development_guard_rejects_removed_ci_evidence_limit(self):
         self._assert_development_rejects_replacement(
             "Lorsque des templates de prompts versionnés matérialisent ces contrats, leurs clauses obligatoires doivent être protégées par un contrôle mécanique proportionné. Une CI verte ne prouve cependant que la présence des clauses contrôlées ; elle ne prouve pas qu'un reviewer externe a effectivement exécuté le plugin ou respecté toutes les instructions."
