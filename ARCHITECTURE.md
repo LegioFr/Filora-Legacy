@@ -1,7 +1,7 @@
 # ARCHITECTURE.md — Filora
 
 **Version : V0.1**  
-**Statut : candidat à validation — Phase F3**  
+**Statut : validé — Phase F3**  
 **Portée : architecture logique et règles structurelles de Filora**  
 **Référence complémentaire : `DATA.md`**
 
@@ -813,13 +813,10 @@ Et lorsqu'une modification structurelle devient réellement nécessaire, elle do
 
 # 42. Statut de validation
 
-Ce document constitue la consolidation de la Phase F3.
+Ce document constitue la consolidation validée de la Phase F3.
 
-Il ne doit être considéré comme canonique qu'après :
+La validation explicite de F3 a été donnée par Mickaël le 28 août 2026 pour le contenu de la PR #13 au HEAD `5399bd1fff8376afe67aafdf039d2a02d220081c`.
 
-1. relecture complète ;
-2. contre-vérification de cohérence avec `DATA.md` ;
-3. résolution des éventuelles réserves ;
-4. validation explicite de F3.
+Les conditions de validation de cette section sont donc satisfaites pour ce contenu, qui constitue le contrat architectural canonique de Filora.
 
 Aucun choix appartenant à F4 ou F5 ne doit être déduit de ce document au-delà des contraintes explicitement formulées.
