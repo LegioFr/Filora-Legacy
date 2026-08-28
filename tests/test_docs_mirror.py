@@ -37,19 +37,38 @@ class PrepareDocsMirrorTests(unittest.TestCase):
             self.assertIn("synchronized_at_utc: 2026-08-28T18:00:00Z", sync_info)
             self.assertNotIn("stale.txt", sync_info)
 
-    def test_rejects_non_main_source(self) -> None:
+    def test_accepts_test_preview_source(self) -> None:
         with TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "repo"
             output = Path(temp_dir) / "mirror"
             root.mkdir()
             self.make_root(root)
 
-            with self.assertRaisesRegex(ValueError, "source branch must be main"):
+            prepare_mirror(
+                root=root,
+                output=output,
+                sha="preview123",
+                branch="test-preview",
+                synced_at="2026-08-28T18:00:00Z",
+            )
+
+            sync_info = (output / "SYNC_INFO.md").read_text(encoding="utf-8")
+            self.assertIn("source_branch: test-preview", sync_info)
+            self.assertIn("source_sha: preview123", sync_info)
+
+    def test_rejects_unapproved_source(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            output = Path(temp_dir) / "mirror"
+            root.mkdir()
+            self.make_root(root)
+
+            with self.assertRaisesRegex(ValueError, "main or test-preview"):
                 prepare_mirror(
                     root=root,
                     output=output,
                     sha="abc123",
-                    branch="test-preview",
+                    branch="feature/example",
                     synced_at="2026-08-28T18:00:00Z",
                 )
 
