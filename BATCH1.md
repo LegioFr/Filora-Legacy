@@ -54,8 +54,9 @@ Avant promotion vers `test-preview` :
 3. les tests du contrôle architectural passent et ses cas négatifs sont démontrés, y compris pour les imports dynamiques littéraux ;
 4. l’application passe le typecheck ;
 5. le build Vite de production réussit ;
-6. une revue indépendante examine les dépendances, la CI, la règle architecturale, ses angles morts et les classifications F4.3/F4.4 ;
-7. l’accord explicite de Mickaël requis par le plancher Critique est obtenu avant merge.
+6. les dépendances npm sont reproductibles via un `package-lock.json` versionné et `npm ci` en CI ;
+7. une revue indépendante examine les dépendances, la CI, la règle architecturale, ses angles morts et les classifications F4.3/F4.4 ;
+8. l’accord explicite de Mickaël requis par le plancher Critique est obtenu avant merge.
 
 La présence d’un contrôle ne prouve que la propriété qu’il teste. Le contrôle architectural actuel vérifie uniquement les dépendances internes exprimées par imports/exports relatifs statiques ou imports dynamiques littéraux dans les fichiers `.ts`/`.tsx`, selon les couches `app`, `domains` et `shared`. Il ne prétend pas actuellement couvrir des alias TypeScript non configurés, des imports dynamiques calculés ou des cycles entre plusieurs domaines inexistants dans ce Batch. Si un de ces objets apparaît, le contrôle doit être réévalué avant de revendiquer leur couverture.
 
@@ -70,7 +71,9 @@ Une première revue indépendante a conclu `À CORRIGER` et a identifié notamme
 - une preuve insuffisante, dans le paquet transmis, de l’exécution réelle des tests architecturaux en CI ;
 - une classification F4.3 initialement trop basse (`Sensible` au lieu de `Critique`).
 
-Ces findings ne sont pas effacés : ils ont été corrigés ou explicitement classés et doivent encore être soumis à une contre-vérification ciblée sur le nouvel état avant promotion.
+Une contre-revue ultérieure a confirmé ces corrections mais a maintenu un finding bloquant de reproductibilité npm : absence de `package-lock.json`. Ce finding est maintenant traité par un lockfile généré par npm, versionné, et l’usage de `npm ci` dans le workflow final. Les ruptures de traçabilité du paquet précédent doivent être redémontrées sur le HEAD final, sans réutiliser des extraits périmés.
+
+Ces findings ne sont pas effacés : ils doivent être vérifiés sur le HEAD final avant promotion.
 
 ## Condition de clôture
 
