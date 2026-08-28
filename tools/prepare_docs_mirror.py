@@ -12,10 +12,12 @@ DOCUMENTS = (
     "DEVELOPMENT.md",
 )
 
+ALLOWED_SOURCE_BRANCHES = {"main", "test-preview"}
+
 
 def prepare_mirror(root: Path, output: Path, sha: str, branch: str, synced_at: str) -> None:
-    if branch != "main":
-        raise ValueError("official documentation mirror source branch must be main")
+    if branch not in ALLOWED_SOURCE_BRANCHES:
+        raise ValueError("documentation mirror source branch must be main or test-preview")
 
     if not sha.strip():
         raise ValueError("sha must not be empty")
