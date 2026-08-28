@@ -7,9 +7,10 @@ import re
 import sys
 from pathlib import Path
 
-IMPORT_RE = re.compile(
+STATIC_IMPORT_RE = re.compile(
     r"(?:import|export)\s+(?:type\s+)?(?:[^'\"]*?\s+from\s+)?['\"]([^'\"]+)['\"]"
 )
+DYNAMIC_IMPORT_RE = re.compile(r"import\s*\(\s*['\"]([^'\"]+)['\"]\s*\)")
 
 
 def layer_for(path: Path, src_root: Path) -> str | None:
@@ -26,6 +27,10 @@ def resolve_relative(source: Path, specifier: str) -> Path | None:
     return (source.parent / specifier).resolve()
 
 
+def import_specifiers(text: str) -> list[str]:
+    return STATIC_IMPORT_RE.findall(text) + DYNAMIC_IMPORT_RE.findall(text)
+
+
 def violations(src_root: Path) -> list[str]:
     found: list[str] = []
     for source in sorted((*src_root.rglob('*.ts'), *src_root.rglob('*.tsx'))):
@@ -33,7 +38,7 @@ def violations(src_root: Path) -> list[str]:
         if source_layer is None:
             continue
         text = source.read_text(encoding='utf-8')
-        for specifier in IMPORT_RE.findall(text):
+        for specifier in import_specifiers(text):
             target = resolve_relative(source, specifier)
             if target is None:
                 continue
