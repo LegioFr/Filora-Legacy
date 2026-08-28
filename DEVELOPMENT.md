@@ -90,6 +90,26 @@ Une déclaration de correspondance entre un artefact et un état Git n’est pas
 
 Dans ce cas, cette propriété reste explicitement invérifiable par ce reviewer.
 
+## 3.1 Reprise du projet dans un nouveau contexte
+
+Le dépôt maintient `PROJECT_STATE.md` comme point d’entrée opérationnel court pour reprendre Filora sans dépendre de la mémoire d’une conversation ou d’un agent.
+
+Avant de reprendre ou poursuivre Filora dans un nouveau contexte, l’agent doit reconstruire l’état courant à partir de ce point d’entrée et des sources GitHub qu’il référence, plutôt que supposer que son contexte conversationnel est exact.
+
+Ce point d’entrée doit permettre d’identifier au minimum :
+
+- la phase ou le Batch courant ;
+- son état ;
+- la prochaine action connue ;
+- l’état Git pertinent lorsque nécessaire ;
+- les Issues/findings ouverts pertinents ;
+- les réserves ou blocages connus ;
+- les documents canoniques à consulter pour la mission.
+
+`PROJECT_STATE.md` est un index de reprise, pas une seconde source de vérité. Les faits GitHub et les documents canoniques auxquels il renvoie restent autoritatifs pour leurs propriétés respectives.
+
+Il doit être mis à jour aux transitions pertinentes afin qu’un état ancien ne soit pas présenté silencieusement comme l’état courant.
+
 ---
 
 # 4. Fonctionnement par Batch
@@ -105,6 +125,16 @@ Chaque Batch possède :
 Les preuves importantes doivent être déterminées avant l’implémentation lorsque leur nécessité peut raisonnablement être connue.
 
 Un Batch n’autorise pas implicitement toute modification qui pourrait faciliter sa réalisation.
+
+Avant la préparation ou le démarrage d’un nouveau Batch, les Issues/findings GitHub ouverts pertinents doivent être consultés.
+
+Chaque finding pertinent doit recevoir une décision explicite :
+
+- traiter dans le Batch ;
+- reporter ;
+- rejeter.
+
+La simple existence d’un finding ne l’autorise pas automatiquement à entrer dans le périmètre du Batch.
 
 Lorsqu’un problème hors périmètre est découvert :
 
@@ -151,6 +181,19 @@ Les règles suivantes s’appliquent à tous les Batches.
 
 10. Une modification ne peut pas être rendue acceptable en supprimant ou en affaiblissant le contrôle qui révèle son problème.
 
+## 5.1 Branches de validation et branche officielle
+
+Filora distingue explicitement :
+
+- `test-preview`, branche/version de développement et de validation utilisée pour intégrer et tester les changements avant promotion ;
+- `main`, branche/version officielle, qui ne reçoit que des changements ayant franchi les validations applicables.
+
+Le flux normal de développement va vers `test-preview` avant promotion vers `main`.
+
+Le développement ou le push direct sur `main` ne constitue pas le chemin ordinaire.
+
+Les conditions de promotion de `test-preview` vers `main` réutilisent les règles de preuve, de risque et de clôture définies dans ce document ; elles ne créent pas une gouvernance parallèle.
+
 ---
 
 # 6. F4.1 — Autorité et périmètre de l’IA
@@ -164,6 +207,10 @@ Capacité technique et autorisation sont deux choses distinctes.
 Ce qui est hors périmètre n’est pas implicitement autorisé.
 
 3. Les opérations ordinaires nécessaires à l’exécution du périmètre approuvé peuvent être réalisées autonomement tant qu’elles ne changent ni contrat, ni invariant, ni frontière, ni décision structurante.
+
+Lorsqu’un agent dispose des accès, outils et autorisations nécessaires pour effectuer lui-même une opération relevant du périmètre approuvé, il doit l’exécuter directement plutôt que demander à Mickaël de réaliser manuellement cette opération.
+
+L’intervention de Mickaël n’est demandée que lorsqu’elle est réellement nécessaire, notamment pour une décision qui lui appartient, une autorisation explicite requise, une action techniquement inaccessible à l’agent ou une validation humaine pertinente.
 
 4. Une décision sensible peut être analysée et proposée par une IA, mais son identification ne constitue jamais son autorisation.
 
@@ -894,22 +941,28 @@ Elle ne modifie pas les règles normatives précédentes.
 
 Claude est utilisé principalement comme contradicteur indépendant et second avis.
 
-Un projet Claude dédié à Filora est créé afin de fournir un contexte permanent contenant les documents canoniques utiles.
+Un projet Claude dédié à Filora peut conserver les instructions permanentes de rôle du reviewer. Ses `Connaissances du projet` ne doivent pas servir de copies statiques des documents canoniques susceptibles de devenir obsolètes.
+
+Le flux normal de contre-revue Claude ne dépend pas d’un accès direct à GitHub.
+
+Le coordinateur vérifie d’abord l’état réel dans GitHub puis prépare un paquet de mission minimal rattaché à cet état.
+
+Même si un accès direct à GitHub devient techniquement possible pour Claude, il n’est utilisé que lorsqu’il apporte un gain de preuve réel et proportionné à son coût ou à sa consommation de contexte.
 
 Claude n'a pas besoin de conserver l'historique d'une conversation unique entre plusieurs revues. Une nouvelle conversation peut être ouverte pour chaque contre-revue ou avis indépendant.
 
 Chaque conversation reçoit uniquement le contexte spécifique nécessaire à la mission courante, par exemple :
 
 - SHA ou état concerné ;
-- diff ;
+- diff ou passages canoniques strictement nécessaires ;
 - fichiers pertinents ;
 - résultats de tests ou CI ;
 - preuves nécessaires ;
 - question précise à examiner.
 
-L'objectif est que Claude reconstruise un avis indépendant à partir du contexte canonique du projet et des éléments propres à la mission, sans dépendre de l'historique d'une conversation précédente.
+L'objectif est que Claude reconstruise un avis indépendant à partir des éléments effectivement fournis pour la mission, sans dépendre de l'historique d'une conversation précédente ni d’une copie potentiellement périmée du dépôt.
 
-Lorsqu'il ne dispose pas d'un accès direct vérifiable au dépôt, Claude doit distinguer ce qu'il peut réellement vérifier de ce qui reste INVÉRIFIABLE.
+Lorsqu'il ne dispose pas d'un élément nécessaire pour vérifier une propriété, Claude doit distinguer ce qu'il peut réellement vérifier de ce qui reste INVÉRIFIABLE.
 
 ## 17.2 Codex
 
