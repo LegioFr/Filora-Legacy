@@ -1,0 +1,59 @@
+name: Filora Claude review package
+
+on:
+  push:
+    branches:
+      - test-preview
+    paths:
+      - PROJECT_STATE.md
+      - PRODUCT.md
+      - DATA.md
+      - ARCHITECTURE.md
+      - DEVELOPMENT.md
+      - claude/REVIEW_PROMPT.md
+      - tools/prepare_claude_review.py
+      - tools/check_claude_review_prompt.py
+      - .github/workflows/claude-review-package.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact test-preview commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Assert exact source
+        run: |
+          test "${{ github.ref_name }}" = "test-preview"
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+
+      - name: Guard Claude review prompt
+        run: python3 tools/check_claude_review_prompt.py --file claude/REVIEW_PROMPT.md
+
+      - name: Build review package and guarded prompt
+        run: |
+          mkdir -p "$RUNNER_TEMP/filora-claude-review"
+          python3 tools/prepare_claude_review.py \
+            --root . \
+            --output "$RUNNER_TEMP/filora-claude-review/FILORA_CLAUDE_REVIEW_PACKAGE.md" \
+            --prompt-template claude/REVIEW_PROMPT.md \
+            --prompt-output "$RUNNER_TEMP/filora-claude-review/CLAUDE_REVIEW_PROMPT.md" \
+            --branch test-preview \
+            --sha "${{ github.sha }}"
+          grep -F "source_branch: test-preview" "$RUNNER_TEMP/filora-claude-review/FILORA_CLAUDE_REVIEW_PACKAGE.md"
+          grep -F "source_sha: ${{ github.sha }}" "$RUNNER_TEMP/filora-claude-review/FILORA_CLAUDE_REVIEW_PACKAGE.md"
+          grep -F "${{ github.sha }}" "$RUNNER_TEMP/filora-claude-review/CLAUDE_REVIEW_PROMPT.md"
+
+      - name: Upload Claude review artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: filora-claude-review-${{ github.sha }}
+          path: ${{ runner.temp }}/filora-claude-review/
+          if-no-files-found: error
+          retention-days: 14
