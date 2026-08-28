@@ -5,33 +5,44 @@
 
 ## Intention
 
-Permettre à Claude de consulter un miroir documentaire à jour de l’état officiel de Filora sans créer une seconde source de vérité.
+Permettre à Claude de consulter un miroir documentaire à jour de Filora pendant la validation sur `test-preview` puis, séparément, de l’état officiel après promotion sur `main`, sans créer de seconde source de vérité.
 
-GitHub `main` reste autoritatif. Google Drive est uniquement un miroir de lecture.
+GitHub reste autoritatif. Google Drive est uniquement un miroir de lecture.
 
 ## Décision structurante
 
-Le 2026-08-28, Mickaël a explicitement validé l’option A définie dans l’Issue #21 : synchronisation automatique des documents officiels depuis `main` vers un dossier Google Drive dédié via GitHub Actions + rclone + OAuth Google utilisateur, avec credentials conservés uniquement dans GitHub Actions Secrets.
+Le 2026-08-28, Mickaël a explicitement validé l’option A définie dans l’Issue #21 : synchronisation automatique des documents Filora vers Google Drive via GitHub Actions + rclone + OAuth Google utilisateur, avec credentials conservés uniquement dans des GitHub Actions Environment Secrets.
+
+Le 2026-08-28, le périmètre a été précisé pour rendre Claude utile avant promotion :
+
+- `test-preview` alimente un miroir de validation séparé `Filora-Claude-Preview` ;
+- `main` alimente le miroir officiel `Filora-Claude-Mirror` ;
+- les deux miroirs ne doivent jamais être confondus.
 
 Cette décision autorise l’implémentation de ce périmètre. Elle ne constitue pas une preuve technique de son bon fonctionnement.
 
 ## Findings / Issues examinés avant démarrage
 
-- Issue #21 — **traitée dans ce Batch** : miroir documentaire Google Drive synchronisé depuis `main`.
+- Issue #21 — **traitée dans ce Batch** : miroir documentaire Google Drive destiné à Claude.
+- Findings de revue sur l’exposition du secret aux workflows PR — **traités dans ce Batch** : aucun workflow déclenché par `pull_request` ne doit recevoir le credential Drive ; les jobs de synchronisation doivent utiliser des Environments dédiés et restreints à leur branche source.
 - Aucun autre Issue/finding ouvert pertinent identifié lors de la préparation du Batch 2.
 
 ## Dans le périmètre
 
-- synchronisation de `PROJECT_STATE.md`, `PRODUCT.md`, `DATA.md`, `ARCHITECTURE.md` et `DEVELOPMENT.md` depuis `main` ;
-- génération d’un `SYNC_INFO.md` contenant au minimum le SHA synchronisé, la branche `main` et l’horodatage de synchronisation ;
-- GitHub Actions limité au périmètre documentaire retenu pour la synchronisation officielle ;
+- synchronisation de `PROJECT_STATE.md`, `PRODUCT.md`, `DATA.md`, `ARCHITECTURE.md` et `DEVELOPMENT.md` depuis `test-preview` vers `Filora-Claude-Preview` ;
+- synchronisation des mêmes cinq documents depuis `main` vers `Filora-Claude-Mirror` ;
+- génération d’un `SYNC_INFO.md` contenant au minimum le SHA synchronisé, la branche source et l’horodatage de synchronisation ;
+- GitHub Actions limité au périmètre documentaire retenu ;
 - rclone avec OAuth Google utilisateur ;
-- credentials lus depuis GitHub Actions Secrets et jamais versionnés ;
-- preuves de transfert et de correspondance entre le miroir Drive et le SHA annoncé.
+- credentials lus depuis des GitHub Actions Environment Secrets et jamais versionnés ;
+- séparation mécanique des credentials par Environments `drive-mirror-preview` et `drive-mirror-production`, chacun limité à sa branche source ;
+- preuves de transfert et de correspondance entre chaque miroir Drive et le SHA annoncé.
 
 ## Hors périmètre
 
-- synchronisation de `test-preview` vers le miroir officiel ;
+- synchronisation d’une branche de travail ou d’une PR directement vers Drive ;
+- utilisation de `test-preview` comme source du miroir officiel `Filora-Claude-Mirror` ;
+- utilisation de `main` comme source du miroir de validation `Filora-Claude-Preview` ;
 - modification sémantique de `PRODUCT.md`, `DATA.md`, `ARCHITECTURE.md` ou `DEVELOPMENT.md` ;
 - changement fonctionnel de l’application ;
 - persistance métier, mutations de stock, migrations ou recovery ;
@@ -41,23 +52,25 @@ Cette décision autorise l’implémentation de ce périmètre. Elle ne constitu
 ## Classification
 
 - **F4.2 : Sensible** — le changement touche CI, secrets/credentials, synchronisation, réseau/cloud et compte distant.
-- **F4.3 : Sensible** à ce stade : aucun affaiblissement de garde-fou ni modification des règles déterminant l’autorité des agents n’est prévu. Cette classification doit être réévaluée si l’implémentation touche simultanément un objet protégé et son mécanisme de contrôle ou introduit un autre critère Critique.
+- **F4.3 : Sensible** après correction des findings d’exposition PR : aucun workflow PR ne doit recevoir le credential Drive ; les synchronisations utilisent des Environments dédiés restreints à `test-preview` ou `main`. Cette classification doit être réévaluée si cette frontière de confiance n’est pas effectivement configurée ou si un autre critère Critique apparaît.
 - **F4.4 : décision Mickaël requise pour l’adoption du compte/service externe et de la synchronisation durable — OBTENUE le 2026-08-28.**
 
 ## Preuves requises avant clôture
 
-1. le workflow officiel de synchronisation ne s’exécute que depuis `main` et seulement lorsque l’un des cinq documents suivis change ;
-2. `test-preview` n’est jamais utilisé comme source du miroir officiel ;
-3. aucun secret, token OAuth ou configuration rclone sensible n’est versionné ;
-4. `SYNC_INFO.md` est généré à partir de l’état réellement synchronisé et contient le SHA, `main` et un horodatage ;
-5. une exécution réelle réussit avec les credentials configurés dans GitHub Actions Secrets ;
-6. le contenu du dossier Drive obtenu est vérifié et correspond aux cinq documents du SHA annoncé ainsi qu’au `SYNC_INFO.md` ;
-7. les contrôles Filora existants restent verts ;
-8. une contre-vérification indépendante proportionnée au caractère Sensible du changement examine le diff, la classification et les preuves.
+1. le workflow de validation ne s’exécute que depuis `test-preview` et écrit uniquement dans `Filora-Claude-Preview` ;
+2. le workflow officiel ne s’exécute que depuis `main` et écrit uniquement dans `Filora-Claude-Mirror` ;
+3. aucune branche de PR ou de travail ne reçoit le credential Drive ;
+4. les Environment Secrets `drive-mirror-preview` et `drive-mirror-production` sont chacun restreints à leur branche source ;
+5. aucun secret, token OAuth ou configuration rclone sensible n’est versionné ;
+6. `SYNC_INFO.md` est généré à partir de l’état réellement synchronisé et contient le SHA, la branche source et un horodatage ;
+7. une exécution réelle depuis `test-preview` réussit et le contenu de `Filora-Claude-Preview` est vérifié contre le SHA annoncé ;
+8. après validation et promotion, une exécution réelle depuis `main` réussit et le contenu de `Filora-Claude-Mirror` est vérifié contre le SHA annoncé ;
+9. les contrôles Filora existants restent verts ;
+10. une contre-vérification indépendante proportionnée au caractère Sensible du changement examine le diff, la classification et les preuves.
 
 ## Dépendance humaine nécessaire
 
-La création/autorisation OAuth Google et l’enregistrement du credential résultant dans GitHub Actions Secrets nécessitent une intervention sur le compte Google/GitHub lorsque ces opérations ne sont pas accessibles à l’agent.
+La création/autorisation OAuth Google et l’enregistrement du credential résultant dans les GitHub Actions Environment Secrets nécessitent une intervention sur le compte Google/GitHub lorsque ces opérations ne sont pas accessibles à l’agent.
 
 Aucun secret ne doit être communiqué dans un document, une Issue, une PR ou un message destiné à être conservé comme preuve.
 
@@ -67,4 +80,4 @@ Ce Batch ne modifie pas le comportement observable de l’application Filora. Il
 
 ## Condition de clôture
 
-Le Batch 2 ne peut être déclaré clôturé que lorsque la synchronisation réelle `main → Google Drive` a été prouvée, que le contenu distant a été vérifié contre le SHA annoncé, que les contrôles applicables sont verts et que la contre-vérification indépendante requise ne laisse aucun finding bloquant non résolu.
+Le Batch 2 ne peut être déclaré clôturé que lorsque la synchronisation réelle `test-preview → Filora-Claude-Preview` a été prouvée, que Claude peut vérifier l’état candidat avant promotion, puis que la synchronisation réelle `main → Filora-Claude-Mirror` a été prouvée après promotion, avec contenu distant vérifié contre les SHA annoncés, contrôles applicables verts et aucun finding bloquant indépendant non résolu.
