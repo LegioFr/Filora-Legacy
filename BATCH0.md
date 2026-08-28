@@ -2,7 +2,7 @@
 
 ## Statut
 
-Batch 0 est **validé sur `test-preview`** après correction des bloqueurs et contre-vérification indépendante conforme du HEAD final de la PR #14. La promotion vers `main` n’est pas encore effectuée et la clôture définitive reste conditionnée à la vérification des conditions de résolution #7/#10 et à la synchronisation finale de `PROJECT_STATE.md`.
+Batch 0 est **validé sur `test-preview`** après correction des bloqueurs et contre-vérification indépendante conforme du HEAD final de la PR #14. La promotion vers `main` n’est pas encore effectuée. L’Issue #7 a désormais sa condition de résolution démontrée ; l’Issue #10 reste le seul bloqueur de clôture après qu’un premier test de reprise indépendante a détecté un `PROJECT_STATE.md` encore périmé par rapport au merge de la PR #15.
 
 ## Intention
 
@@ -32,7 +32,7 @@ Lorsqu’un futur Batch introduit un objet couvert par une règle objectivement 
 
 ## Décisions sur les findings pertinents
 
-### Issue #7 — traiter dans Batch 0
+### Issue #7 — résolue techniquement et démontrée
 
 Le mécanisme est volontairement qualifié de **lint de forme**, pas de preuve de minimalité ou de suffisance sémantique.
 
@@ -49,11 +49,13 @@ Il vérifie notamment :
 
 Ce contrôle **ne prouve pas** que le paquet est sémantiquement suffisant, réellement minimal, authentique ou correctement interprété. Ces propriétés restent à reviewer.
 
+Un test réel de délégation sur `test-preview` au SHA `044411a9d9ad6e3b0bd59b715c08b135ce804665` a produit `LINT ISSUE #7 : PASS` et la contre-vérification indépendante a conclu `PAQUET CIBLÉ ET EXÉCUTABLE : oui`. La condition de résolution de #7 est donc considérée démontrée.
+
 ### Issue #8 — report maintenu
 
 Le finding reste reporté/fermé `not_planned` : l’outillage disponible ne fournit pas encore d’édition ciblée sûre et la création d’une abstraction dédiée serait disproportionnée. Réévaluer si l’outillage change ou avant une modification ciblée importante d’un document volumineux.
 
-### Issue #10 — traiter dans Batch 0
+### Issue #10 — mécanisme présent, preuve finale à refaire
 
 `PROJECT_STATE.md` contient une section `## Reprise structurée` avec exactement quatre clés d’autorité opérationnelle :
 
@@ -65,6 +67,8 @@ Le finding reste reporté/fermé `not_planned` : l’outillage disponible ne fou
 Le lint exige une section unique, des clés uniques, rejette les représentations ambiguës (dont blocs de code et citations) et permet de comparer exactement les valeurs attendues. Les anciens textes ailleurs dans le fichier ne peuvent donc plus satisfaire le contrôle à la place du champ d’autorité.
 
 Les findings et réserves pertinents restent une responsabilité de revue ; le parseur ne prétend pas les déduire automatiquement.
+
+Le premier test indépendant de reprise finale a correctement détecté que `PROJECT_STATE.md` décrivait encore l’état antérieur au merge de la PR #15. Il a conclu `REPRISE ISSUE #10 : NON CONFORME` et `ÉTAT RETROUVÉ SANS RÉPARATION : non`. Cette détection confirme l’utilité du garde-fou, mais la condition de résolution #10 exige encore une nouvelle preuve réussie après synchronisation du point de reprise.
 
 ## Traçabilité légère
 
@@ -78,18 +82,21 @@ Les contrôles mécaniques durables doivent référencer la règle ou le finding
 - GitHub Actions run `33174923364` a terminé `success` sur ce HEAD ; les étapes `Checkout exact PR HEAD`, `Assert exact PR HEAD`, présence des canoniques, état structuré et tests ont toutes réussi.
 - La contre-vérification indépendante ciblée du HEAD final a conclu `CONFORME`, `BLOQUEURS PRÉCÉDENTS : RÉSOLUS`, `NOUVEAU BLOQUEUR INTRODUIT : non` et `MERGE VERS test-preview : ACCEPTABLE`.
 - La PR #14 a été mergée vers `test-preview` au commit `d9686456cfe9505ca3ff1cba8f803b220d4e1d77`.
+- La PR #15 de mise à jour de l’état de clôture a passé la CI puis a été mergée vers `test-preview` au commit `044411a9d9ad6e3b0bd59b715c08b135ce804665`.
+- Le test réel Issue #7 a passé le lint avec SHA vérifié et a été jugé ciblé/exécutable par revue indépendante.
+- Le premier test final Issue #10 a échoué pour une raison réelle et explicite : point de reprise encore antérieur au merge de #15. La synchronisation correspondante est maintenant préparée pour nouveau test.
 - L’absence de ruleset/protection bloquante reste explicitement une limite : le workflow contrôle automatiquement les PR concernées mais ne constitue pas une impossibilité technique absolue de merge manuel.
 
 ## Propriétés à démontrer avant clôture définitive
 
 1. `test-preview` et le HEAD du Batch contiennent `PRODUCT.md`, `DATA.md`, `ARCHITECTURE.md` et `DEVELOPMENT.md` — **démontré**.
-2. Le lint #7 rejette les faux positifs ciblés : budget arbitrairement énorme, placeholder, payload hors `content`, URL sans accès établi et état non vérifié — **démontré par tests et contre-vérification**.
+2. Le lint #7 rejette les faux positifs ciblés et un paquet réel passe après prévalidation — **démontré**.
 3. Le lint #10 rejette doublons, sections concurrentes, historique non autoritaire, blocs de code et citations — **démontré par tests et contre-vérification**.
 4. Les contrôles n’affirment pas démontrer davantage que ce qu’ils vérifient objectivement — **contre-vérifié conforme**.
 5. Le runner automatique est rattaché au HEAD exact de PR et l’assertion de SHA a réussi — **démontré**.
 6. **F4.2/F4.3 : Sensible** et **F4.4 : décision technique dans le périmètre approuvé du Batch 0** — **contre-vérifié acceptable**.
-7. `PROJECT_STATE.md` est synchronisé avec l’état validé sur `test-preview` — **mis à jour dans la préparation de clôture**.
-8. Les Issues #7 et #10 ne sont fermées que lorsque leurs conditions de résolution complètes sont explicitement démontrées — **encore à vérifier avant clôture définitive**.
+7. Issue #7 — **condition de résolution démontrée**.
+8. Issue #10 — **nouveau test de reprise sans contexte préalable encore requis après synchronisation**.
 
 ## Classification finale proposée
 
@@ -98,4 +105,4 @@ Les contrôles mécaniques durables doivent référencer la règle ou le finding
 
 ## Condition de clôture
 
-Batch 0 n’est clôturable définitivement que lorsque les conditions de résolution de #7 et #10 sont explicitement vérifiées, que le point de reprise final est cohérent avec GitHub, et que la promotion applicable respecte le flux `test-preview` → `main`. Une propriété obligatoire non démontrée reste non validée.
+Batch 0 n’est clôturable définitivement que lorsque le nouveau test indépendant de reprise confirme que l’état post-clôture est retrouvé directement sans réparation, que le point de reprise final est cohérent avec GitHub, et que la promotion applicable respecte le flux `test-preview` → `main`. Une propriété obligatoire non démontrée reste non validée.
