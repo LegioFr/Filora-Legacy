@@ -25,6 +25,7 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 - **Limitation Claude/GitHub établie :** le connecteur disponible charge l’état `main`; l’accès exploitable à `test-preview` nécessiterait une capacité liée à un forfait supérieur qui n’est pas retenu.
 - **Solution de remplacement :** un workflow sans secret génère depuis le SHA exact de `test-preview` un artefact temporaire contenant un unique paquet documentaire et un prompt Claude rendu avec la même branche et le même SHA.
 - **Garde-fou Claude :** le prompt de revue est versionné et contrôlé mécaniquement ; il doit déclarer la source autorisée, vérifier branche/SHA avant analyse, imposer `ÉTAT OBSOLÈTE` en cas de divergence, interdire les sources de substitution non autorisées et distinguer l’invérifiable du vérifié.
+- **Pérennisation canonique :** la règle est d’abord validée dans Batch 2 avec son garde-fou ; son intégration éventuelle dans `DEVELOPMENT.md` sera décidée après contre-vérification indépendante, afin de ne pas modifier simultanément un document canonique et le contrôle qui le matérialise.
 - **Classification Batch 2 :** Sensible, car le changement touche CI, gouvernance de preuve et garde-fous. L’ancienne surface cloud/secrets/réseau est supprimée.
 - **Validation humaine applicative Batch 2 :** non requise ; aucun comportement observable de l’application Filora n’est modifié.
 - **Branche officielle :** `main`.
@@ -58,7 +59,7 @@ Toujours revérifier les Issues/findings réels avant toute transition ou nouvea
 3. Après intégration sur `test-preview`, vérifier une exécution réelle du workflow de paquet et récupérer l’artefact du SHA exact.
 4. Utiliser ce paquet et son prompt rendu pour une contre-vérification Claude réelle.
 5. Obtenir la contre-vérification technique indépendante requise sur le diff et le garde-fou.
-6. Seulement après absence de finding bloquant, réévaluer la clôture de Batch 2 et de l’Issue #21 avant toute promotion vers `main`.
+6. Seulement après absence de finding bloquant, réévaluer la pérennisation canonique de la règle Claude, puis la clôture de Batch 2 et de l’Issue #21 avant toute promotion vers `main`.
 
 ## Documents canoniques
 
