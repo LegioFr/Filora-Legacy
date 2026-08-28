@@ -40,8 +40,10 @@ Dépendances directes initiales épinglées : React 19.2.8, React DOM 19.2.8, Vi
 
 ## Classification
 
-- **F4.2 / F4.3 : Sensible** — introduction d’un framework/build tool et modification du workflow CI.
+- **F4.2 : Sensible** — introduction d’un framework/build tool, création d’une première frontière architecturale implémentée et modification du workflow CI.
+- **F4.3 : Critique** — le Batch introduit simultanément du code soumis à une nouvelle règle architecturale automatisée et modifie le mécanisme de contrôle chargé de vérifier cette règle. Conformément à DEVELOPMENT §8.3 et §10.6, le succès du contrôle modifié ne suffit pas à valider ce changement.
 - **F4.4 : décision Mickaël pour le choix de stack**, obtenue avant intégration ; les détails internes du scaffold restent techniques dans le périmètre approuvé.
+- Le plancher Critique exige en plus un accord explicite de Mickaël sur l’intention, les conséquences et les compromis avant promotion/clôture. Cet accord Critique reste à obtenir après la reclassification.
 
 ## Propriétés attendues / preuves
 
@@ -49,12 +51,26 @@ Avant promotion vers `test-preview` :
 
 1. GitHub Actions travaille sur le HEAD exact de la PR ;
 2. les contrôles Batch 0 restent verts ;
-3. les tests du contrôle architectural passent et ses cas négatifs sont démontrés ;
+3. les tests du contrôle architectural passent et ses cas négatifs sont démontrés, y compris pour les imports dynamiques littéraux ;
 4. l’application passe le typecheck ;
 5. le build Vite de production réussit ;
-6. une revue indépendante proportionnée vérifie la modification sensible des dépendances et de la CI avant merge.
+6. une revue indépendante examine les dépendances, la CI, la règle architecturale, ses angles morts et les classifications F4.3/F4.4 ;
+7. l’accord explicite de Mickaël requis par le plancher Critique est obtenu avant merge.
 
-La présence d’un contrôle ne prouve que la propriété qu’il teste. Aucun de ces contrôles ne vaut preuve de persistance, recovery ou invariants DATA, car ces objets n’existent pas encore dans ce Batch.
+La présence d’un contrôle ne prouve que la propriété qu’il teste. Le contrôle architectural actuel vérifie uniquement les dépendances internes exprimées par imports/exports relatifs statiques ou imports dynamiques littéraux dans les fichiers `.ts`/`.tsx`, selon les couches `app`, `domains` et `shared`. Il ne prétend pas actuellement couvrir des alias TypeScript non configurés, des imports dynamiques calculés ou des cycles entre plusieurs domaines inexistants dans ce Batch. Si un de ces objets apparaît, le contrôle doit être réévalué avant de revendiquer leur couverture.
+
+Aucun de ces contrôles ne vaut preuve de persistance, recovery ou invariants DATA, car ces objets n’existent pas encore dans ce Batch.
+
+## Revue indépendante
+
+Une première revue indépendante a conclu `À CORRIGER` et a identifié notamment :
+
+- un paquet de preuve insuffisant pour établir que les garde-fous Batch 0 restaient intacts ;
+- une non-détection des `import(...)` dynamiques par le contrôle architectural ;
+- une preuve insuffisante, dans le paquet transmis, de l’exécution réelle des tests architecturaux en CI ;
+- une classification F4.3 initialement trop basse (`Sensible` au lieu de `Critique`).
+
+Ces findings ne sont pas effacés : ils doivent être corrigés puis soumis à une contre-vérification ciblée sur le nouvel état.
 
 ## Condition de clôture
 
