@@ -30,6 +30,9 @@ jobs:
       - name: Structured project state
         run: python3 tools/filora_guard.py project-state --file PROJECT_STATE.md
 
+      - name: Human app validation state
+        run: python3 tools/filora_guard.py batch-human-validation --root .
+
       - name: Guard tests
         run: python3 -m unittest discover -s tests -v
 
