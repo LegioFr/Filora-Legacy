@@ -101,6 +101,7 @@ jobs:
                 --config "$RUNNER_TEMP/rclone.conf" \
                 --drive-export-formats txt)
           done
+
           REMOTE_JSON="$(rclone lsjson \
             "filora_drive:Filora-Claude-Preview/ClaudeProject" \
             --config "$RUNNER_TEMP/rclone.conf" \
@@ -123,10 +124,42 @@ jobs:
           actual = {item["Name"] for item in items}
           if actual != expected:
               raise SystemExit(f"unexpected ClaudeProject payload: {sorted(actual)}")
+          PY
+
+          FOLDER_JSON="$(rclone lsjson \
+            "filora_drive:Filora-Claude-Preview/ClaudeProject" \
+            --config "$RUNNER_TEMP/rclone.conf" \
+            --stat)"
+          export FOLDER_JSON
+          FOLDER_ID="$(python3 - <<'PY'
+          import json
+          import os
+
+          item = json.loads(os.environ["FOLDER_JSON"])
+          folder_id = item.get("ID")
+          if not folder_id:
+              raise SystemExit("ClaudeProject folder has no Drive ID")
+          print(folder_id)
+          PY
+          )"
+
+          DRIVE_JSON="$(rclone backend query \
+            filora_drive: \
+            "'${FOLDER_ID}' in parents and trashed = false" \
+            --config "$RUNNER_TEMP/rclone.conf")"
+          export DRIVE_JSON
+          python3 - <<'PY'
+          import json
+          import os
+
+          result = json.loads(os.environ["DRIVE_JSON"])
+          items = result.get("files", result) if isinstance(result, dict) else result
+          if len(items) != 6:
+              raise SystemExit(f"expected 6 native Google Docs, got {len(items)}")
           non_docs = [
-              item["Name"]
+              item.get("name", item.get("id", "unknown"))
               for item in items
-              if item.get("MimeType") != "application/vnd.google-apps.document"
+              if item.get("mimeType") != "application/vnd.google-apps.document"
           ]
           if non_docs:
               raise SystemExit(f"ClaudeProject files are not native Google Docs: {non_docs}")
@@ -214,6 +247,7 @@ jobs:
                 --config "$RUNNER_TEMP/rclone.conf" \
                 --drive-export-formats txt)
           done
+
           REMOTE_JSON="$(rclone lsjson \
             "filora_drive:Filora-Claude-Mirror/ClaudeProject" \
             --config "$RUNNER_TEMP/rclone.conf" \
@@ -236,10 +270,42 @@ jobs:
           actual = {item["Name"] for item in items}
           if actual != expected:
               raise SystemExit(f"unexpected ClaudeProject payload: {sorted(actual)}")
+          PY
+
+          FOLDER_JSON="$(rclone lsjson \
+            "filora_drive:Filora-Claude-Mirror/ClaudeProject" \
+            --config "$RUNNER_TEMP/rclone.conf" \
+            --stat)"
+          export FOLDER_JSON
+          FOLDER_ID="$(python3 - <<'PY'
+          import json
+          import os
+
+          item = json.loads(os.environ["FOLDER_JSON"])
+          folder_id = item.get("ID")
+          if not folder_id:
+              raise SystemExit("ClaudeProject folder has no Drive ID")
+          print(folder_id)
+          PY
+          )"
+
+          DRIVE_JSON="$(rclone backend query \
+            filora_drive: \
+            "'${FOLDER_ID}' in parents and trashed = false" \
+            --config "$RUNNER_TEMP/rclone.conf")"
+          export DRIVE_JSON
+          python3 - <<'PY'
+          import json
+          import os
+
+          result = json.loads(os.environ["DRIVE_JSON"])
+          items = result.get("files", result) if isinstance(result, dict) else result
+          if len(items) != 6:
+              raise SystemExit(f"expected 6 native Google Docs, got {len(items)}")
           non_docs = [
-              item["Name"]
+              item.get("name", item.get("id", "unknown"))
               for item in items
-              if item.get("MimeType") != "application/vnd.google-apps.document"
+              if item.get("mimeType") != "application/vnd.google-apps.document"
           ]
           if non_docs:
               raise SystemExit(f"ClaudeProject files are not native Google Docs: {non_docs}")
