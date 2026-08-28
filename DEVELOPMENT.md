@@ -911,6 +911,14 @@ Lorsqu'une mission est explicitement une contre-vérification Codex Security, le
 
 Une revue Codex ne peut pas être comptée comme preuve `Codex Security` si l'utilisation du plugin Security n'est pas explicitement demandée dans le prompt de mission.
 
+Avant de préparer une mission Codex, l'agent doit choisir le niveau de revue proportionné à la propriété à vérifier et au risque réel.
+
+Le plugin Security ne doit être demandé que lorsqu'une contre-vérification Codex Security est réellement nécessaire pour couvrir une propriété de sécurité ou un risque que Codex normal ne couvre pas suffisamment.
+
+Lorsqu'une revue Codex normale suffit, le prompt ne doit pas demander l'utilisation du plugin Security.
+
+Le surclassement vers Codex Security par défaut, par simple précaution générale ou sans gain de preuve identifié est interdit.
+
 Lorsque des templates de prompts versionnés matérialisent ces contrats, leurs clauses obligatoires doivent être protégées par un contrôle mécanique proportionné. Une CI verte ne prouve cependant que la présence des clauses contrôlées ; elle ne prouve pas qu'un reviewer externe a effectivement exécuté le plugin ou respecté toutes les instructions.
 
 ---
@@ -1197,7 +1205,3 @@ La gouvernance doit permettre aux IA de travailler efficacement sans leur permet
 - de masquer une incertitude ;
 - de transformer une absence de preuve en réussite ;
 - de faire porter à Mickaël la responsabilité de certifier des propriétés techniques qu'il ne peut raisonnablement pas vérifier.
-
-Le but n'est pas de supprimer tout risque.
-
-Le but est que les risques importants soient détectés, rendus visibles, traités au bon niveau et jamais masqués pour permettre au développement de continuer.
