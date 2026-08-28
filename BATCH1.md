@@ -95,7 +95,7 @@ Cette validation ne certifie pas les propriétés techniques, de persistance ou 
 
 ## Clôture
 
-**Batch 1 est clôturable et clôturé** sous réserve du passage de la CI sur cette mise à jour de clôture et de sa promotion selon le flux `test-preview → main`.
+**Batch 1 est clôturé.** La mise à jour de clôture a passé la CI sur `test-preview`, puis le même état a été promu vers `main` avec le garde-fou humain, les tests, le contrôle architectural, le typecheck et le build tous verts.
 
 Les preuves techniques, la contre-vérification indépendante, l’accord Critique et la validation humaine requise sont acquis pour le périmètre du Batch 1. L’Issue #21 reste hors Batch 1 et doit être traitée séparément.
 
