@@ -38,6 +38,14 @@ class ArchitectureGuardTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn('domains must not depend on app', result.stderr)
 
+    def test_domain_dynamic_import_must_not_depend_on_app(self) -> None:
+        result = self.run_checker({
+            'domains/spools/model.ts': "export const loadApp = () => import('../../app/App')\n",
+            'app/App.tsx': 'export const App = true\n',
+        })
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('domains must not depend on app', result.stderr)
+
     def test_shared_must_not_depend_on_domain(self) -> None:
         result = self.run_checker({
             'shared/value.ts': "export { value } from '../domains/spools/value'\n",
@@ -45,6 +53,14 @@ class ArchitectureGuardTests(unittest.TestCase):
         })
         self.assertEqual(result.returncode, 1)
         self.assertIn('shared must not depend on domains', result.stderr)
+
+    def test_shared_dynamic_import_must_not_depend_on_app(self) -> None:
+        result = self.run_checker({
+            'shared/value.ts': "export const loadApp = () => import('../app/App')\n",
+            'app/App.tsx': 'export const App = true\n',
+        })
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('shared must not depend on app', result.stderr)
 
 
 if __name__ == '__main__':
