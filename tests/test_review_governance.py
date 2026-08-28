@@ -25,6 +25,12 @@ class ReviewGovernanceTests(unittest.TestCase):
             "Une réponse tronquée suffit à conclure que la donnée complète est inaccessible.",
         )
 
+    def test_development_guard_rejects_premature_manual_transfer(self):
+        self._assert_development_rejects_replacement(
+            "L'agent ne doit déclarer une opération techniquement inaccessible qu'après avoir vérifié qu'aucun moyen raisonnable disponible dans son environnement ne permet de l'accomplir sans transfert manuel inutile.",
+            "L'agent peut déclarer une opération techniquement inaccessible après l'échec d'un premier chemin disponible.",
+        )
+
     def test_development_guard_rejects_removed_permission_boundary(self):
         self._assert_development_rejects_replacement(
             "Cette règle n'oblige pas à contourner une permission, une restriction de sécurité, un périmètre autorisé ou une limitation réelle de l'outil."
