@@ -2,7 +2,7 @@
 
 ## Statut
 
-Batch 0 est **validé sur `test-preview`** après correction des bloqueurs et contre-vérification indépendante conforme du HEAD final de la PR #14. La promotion vers `main` n’est pas encore effectuée. L’Issue #7 a désormais sa condition de résolution démontrée ; l’Issue #10 reste le seul bloqueur de clôture après qu’un premier test de reprise indépendante a détecté un `PROJECT_STATE.md` encore périmé par rapport au merge de la PR #15.
+Batch 0 est **validé sur `test-preview`** après correction des bloqueurs et contre-vérification indépendante conforme du HEAD final de la PR #14. La promotion vers `main` n’est pas encore effectuée. L’Issue #7 est résolue. L’Issue #10 reste le seul bloqueur de clôture jusqu’à réussite d’un test indépendant de reprise.
 
 ## Intention
 
@@ -32,7 +32,7 @@ Lorsqu’un futur Batch introduit un objet couvert par une règle objectivement 
 
 ## Décisions sur les findings pertinents
 
-### Issue #7 — résolue techniquement et démontrée
+### Issue #7 — résolue
 
 Le mécanisme est volontairement qualifié de **lint de forme**, pas de preuve de minimalité ou de suffisance sémantique.
 
@@ -49,7 +49,7 @@ Il vérifie notamment :
 
 Ce contrôle **ne prouve pas** que le paquet est sémantiquement suffisant, réellement minimal, authentique ou correctement interprété. Ces propriétés restent à reviewer.
 
-Un test réel de délégation sur `test-preview` au SHA `044411a9d9ad6e3b0bd59b715c08b135ce804665` a produit `LINT ISSUE #7 : PASS` et la contre-vérification indépendante a conclu `PAQUET CIBLÉ ET EXÉCUTABLE : oui`. La condition de résolution de #7 est donc considérée démontrée.
+Un test réel de délégation a produit `LINT ISSUE #7 : PASS` et la contre-vérification indépendante a conclu `PAQUET CIBLÉ ET EXÉCUTABLE : oui`. L’Issue #7 est fermée comme résolue.
 
 ### Issue #8 — report maintenu
 
@@ -66,9 +66,9 @@ Le finding reste reporté/fermé `not_planned` : l’outillage disponible ne fou
 
 Le lint exige une section unique, des clés uniques, rejette les représentations ambiguës (dont blocs de code et citations) et permet de comparer exactement les valeurs attendues. Les anciens textes ailleurs dans le fichier ne peuvent donc plus satisfaire le contrôle à la place du champ d’autorité.
 
-Les findings et réserves pertinents restent une responsabilité de revue ; le parseur ne prétend pas les déduire automatiquement.
+Les tests indépendants de reprise ont révélé un défaut de conception supplémentaire : inscrire dans `PROJECT_STATE.md` le SHA ou la PR qui effectue sa propre synchronisation rend le fichier mécaniquement périmé juste après le merge. Cette auto-référence volatile est supprimée. Le point de reprise décrit désormais des faits durables (`test-preview` contient Batch 0 ; `main` ne le contient pas encore ; #10 reste à valider) et laisse GitHub fournir les SHA/PR courants.
 
-Le premier test indépendant de reprise finale a correctement détecté que `PROJECT_STATE.md` décrivait encore l’état antérieur au merge de la PR #15. Il a conclu `REPRISE ISSUE #10 : NON CONFORME` et `ÉTAT RETROUVÉ SANS RÉPARATION : non`. Cette détection confirme l’utilité du garde-fou, mais la condition de résolution #10 exige encore une nouvelle preuve réussie après synchronisation du point de reprise.
+La condition de résolution #10 reste inchangée : un nouveau contexte doit retrouver directement l’état courant sans réparer une transition périmée.
 
 ## Traçabilité légère
 
@@ -76,27 +76,23 @@ Les contrôles mécaniques durables doivent référencer la règle ou le finding
 
 ## Preuves obtenues
 
-- `test-preview` a été réalignée sur le `main` canonique `b634903da4197937f3200396a13a4a0612f472fe` avant reprise du Batch 0.
-- La PR #14 a remplacé la PR #11 historique et a été construite sur cette base réalignée.
-- Le HEAD final vérifié de la PR #14 est `43a084b6cffc824b716756b2906fdad4213308f7`.
-- GitHub Actions run `33174923364` a terminé `success` sur ce HEAD ; les étapes `Checkout exact PR HEAD`, `Assert exact PR HEAD`, présence des canoniques, état structuré et tests ont toutes réussi.
-- La contre-vérification indépendante ciblée du HEAD final a conclu `CONFORME`, `BLOQUEURS PRÉCÉDENTS : RÉSOLUS`, `NOUVEAU BLOQUEUR INTRODUIT : non` et `MERGE VERS test-preview : ACCEPTABLE`.
-- La PR #14 a été mergée vers `test-preview` au commit `d9686456cfe9505ca3ff1cba8f803b220d4e1d77`.
-- La PR #15 de mise à jour de l’état de clôture a passé la CI puis a été mergée vers `test-preview` au commit `044411a9d9ad6e3b0bd59b715c08b135ce804665`.
-- Le test réel Issue #7 a passé le lint avec SHA vérifié et a été jugé ciblé/exécutable par revue indépendante.
-- Le premier test final Issue #10 a échoué pour une raison réelle et explicite : point de reprise encore antérieur au merge de #15. La synchronisation correspondante est maintenant préparée pour nouveau test.
+- `test-preview` a été réalignée sur le `main` canonique avant reprise du Batch 0.
+- La PR #14 a remplacé la PR #11 historique et a été contre-vérifiée `CONFORME` avant merge vers `test-preview`.
+- Le workflow GitHub Actions a démontré le checkout et l’assertion du HEAD exact, la présence des canoniques, l’état structuré et les tests.
+- L’Issue #7 a été démontrée par un paquet réel prévalidé puis fermée.
+- Les tests Issue #10 ont correctement détecté deux reprises périmées successives ; la cause commune identifiée est l’auto-référence du point de reprise à son propre merge futur. La correction actuelle retire cette dépendance circulaire au lieu de répéter une nouvelle synchronisation auto-référente.
 - L’absence de ruleset/protection bloquante reste explicitement une limite : le workflow contrôle automatiquement les PR concernées mais ne constitue pas une impossibilité technique absolue de merge manuel.
 
 ## Propriétés à démontrer avant clôture définitive
 
 1. `test-preview` et le HEAD du Batch contiennent `PRODUCT.md`, `DATA.md`, `ARCHITECTURE.md` et `DEVELOPMENT.md` — **démontré**.
 2. Le lint #7 rejette les faux positifs ciblés et un paquet réel passe après prévalidation — **démontré**.
-3. Le lint #10 rejette doublons, sections concurrentes, historique non autoritaire, blocs de code et citations — **démontré par tests et contre-vérification**.
+3. Le lint #10 rejette doublons, sections concurrentes, historique non autoritaire, blocs de code et citations — **démontré**.
 4. Les contrôles n’affirment pas démontrer davantage que ce qu’ils vérifient objectivement — **contre-vérifié conforme**.
 5. Le runner automatique est rattaché au HEAD exact de PR et l’assertion de SHA a réussi — **démontré**.
 6. **F4.2/F4.3 : Sensible** et **F4.4 : décision technique dans le périmètre approuvé du Batch 0** — **contre-vérifié acceptable**.
-7. Issue #7 — **condition de résolution démontrée**.
-8. Issue #10 — **nouveau test de reprise sans contexte préalable encore requis après synchronisation**.
+7. Issue #7 — **résolue**.
+8. Issue #10 — **test indépendant final encore requis sur le point de reprise sans auto-référence volatile**.
 
 ## Classification finale proposée
 
@@ -105,4 +101,4 @@ Les contrôles mécaniques durables doivent référencer la règle ou le finding
 
 ## Condition de clôture
 
-Batch 0 n’est clôturable définitivement que lorsque le nouveau test indépendant de reprise confirme que l’état post-clôture est retrouvé directement sans réparation, que le point de reprise final est cohérent avec GitHub, et que la promotion applicable respecte le flux `test-preview` → `main`. Une propriété obligatoire non démontrée reste non validée.
+Batch 0 n’est clôturable définitivement que lorsque le nouveau test indépendant de reprise confirme que l’état courant est retrouvé directement sans réparation, que le point de reprise est cohérent avec GitHub sans dupliquer comme vérité persistante des identifiants volatils, et que la promotion applicable respecte le flux `test-preview` → `main`. Une propriété obligatoire non démontrée reste non validée.
