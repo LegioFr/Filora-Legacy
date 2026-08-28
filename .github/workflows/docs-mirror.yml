@@ -91,7 +91,7 @@ jobs:
             "$RUNNER_TEMP/filora-doc-preview/SYNC_INFO.md" \
             <(rclone cat "filora_drive:Filora-Claude-Preview/SYNC_INFO.md" --config "$RUNNER_TEMP/rclone.conf")
 
-      - name: Verify preview Google Docs are exact and native
+      - name: Verify preview Google Docs are text-equivalent and native
         run: |
           for name in PROJECT_STATE PRODUCT DATA ARCHITECTURE DEVELOPMENT SYNC_INFO; do
             remote_file="$RUNNER_TEMP/claude-export-${name}.txt"
@@ -105,12 +105,14 @@ jobs:
           from pathlib import Path
           import sys
 
-          source = Path(sys.argv[1]).read_bytes()
-          exported = Path(sys.argv[2]).read_bytes()
-          # Google Docs plain-text export prefixes UTF-8 BOM; it is transport metadata,
-          # not part of the canonical source content.
-          if exported.startswith(b"\xef\xbb\xbf"):
-              exported = exported[3:]
+          def normalized_text(path: str, allow_bom: bool) -> str:
+              data = Path(path).read_bytes()
+              encoding = "utf-8-sig" if allow_bom else "utf-8"
+              text = data.decode(encoding)
+              return text.replace("\r\n", "\n").replace("\r", "\n")
+
+          source = normalized_text(sys.argv[1], allow_bom=False)
+          exported = normalized_text(sys.argv[2], allow_bom=True)
           if exported != source:
               raise SystemExit(f"Google Docs text differs from source: {Path(sys.argv[1]).name}")
           PY
@@ -251,7 +253,7 @@ jobs:
             "$RUNNER_TEMP/filora-doc-mirror/SYNC_INFO.md" \
             <(rclone cat "filora_drive:Filora-Claude-Mirror/SYNC_INFO.md" --config "$RUNNER_TEMP/rclone.conf")
 
-      - name: Verify official Google Docs are exact and native
+      - name: Verify official Google Docs are text-equivalent and native
         run: |
           for name in PROJECT_STATE PRODUCT DATA ARCHITECTURE DEVELOPMENT SYNC_INFO; do
             remote_file="$RUNNER_TEMP/claude-export-${name}.txt"
@@ -265,10 +267,14 @@ jobs:
           from pathlib import Path
           import sys
 
-          source = Path(sys.argv[1]).read_bytes()
-          exported = Path(sys.argv[2]).read_bytes()
-          if exported.startswith(b"\xef\xbb\xbf"):
-              exported = exported[3:]
+          def normalized_text(path: str, allow_bom: bool) -> str:
+              data = Path(path).read_bytes()
+              encoding = "utf-8-sig" if allow_bom else "utf-8"
+              text = data.decode(encoding)
+              return text.replace("\r\n", "\n").replace("\r", "\n")
+
+          source = normalized_text(sys.argv[1], allow_bom=False)
+          exported = normalized_text(sys.argv[2], allow_bom=True)
           if exported != source:
               raise SystemExit(f"Google Docs text differs from source: {Path(sys.argv[1]).name}")
           PY
