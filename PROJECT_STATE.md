@@ -9,18 +9,21 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 
 ## État courant
 
-- **Étape :** préparation de Batch 0 après clôture de la Phase F.
+- **Étape :** Batch 0 — garde-fous opérationnels minimaux.
 - **Phase F :** formellement clôturée ; PR #9 mergée et `DEVELOPMENT.md` porte le statut `validé — Phase F`.
-- **Batch 0 :** non démarré.
+- **Batch 0 :** préparation définie sur `batch0/operational-guardrails` ; implémentation et preuves non encore clôturées.
 - **Branche officielle :** `main`.
-- **Branche de validation prévue :** `test-preview`.
-- **État Git pertinent :** PR #9 mergée dans `main` par le commit `7cf4028b08fa1d1eb6ae81313a065f2d078744fb` après contre-vérification Codex conforme sur le HEAD `8d64d4ba0c26971bf6c7c7b9f05b3510b2a42f77`.
+- **Branche de validation :** `test-preview`, créée depuis `main` au commit `75409c6b27079748bc94431c65f80de8d569437a`.
+- **Branche de travail Batch 0 :** `batch0/operational-guardrails`.
+- **État Git pertinent :** définition initiale de Batch 0 enregistrée par le commit `e24adaf346f544b4ffb12314babc2e698ebc02a6` sur la branche de travail.
 
 ## Findings / Issues pertinents
 
-- Issue #7 — éviter les consommations externes inutiles avant délégation : à décider explicitement avant ou pendant la préparation de Batch 0.
-- Issue #8 — édition GitHub ciblée sans réécriture complète des fichiers : à décider explicitement avant ou pendant la préparation de Batch 0.
-- Issue #10 — maintenir mécaniquement le point de reprise lors des clôtures : à intégrer/décider dans Batch 0 afin qu’une clôture ne laisse pas `PROJECT_STATE.md` périmé.
+- Issue #7 — **traiter dans Batch 0** : rendre vérifiable le contrôle d’exécutabilité et de minimisation avant délégation externe payante/limitée.
+- Issue #8 — **reporter** : l’outillage GitHub actuel ne fournit pas d’écriture ciblée de type patch/`old_text -> new_text`; ne pas créer maintenant une abstraction supplémentaire disproportionnée.
+- Issue #10 — **traiter dans Batch 0** : rendre vérifiable la synchronisation de `PROJECT_STATE.md` avant clôture d’une Phase ou d’un Batch.
+
+Les décisions, le périmètre, les preuves attendues et la condition de clôture sont enregistrés dans `BATCH0.md` sur la branche de travail.
 
 Les Issues #2, #3, #4 et #5 ont été vérifiées après merge de la PR #6 puis fermées comme résolues. L’Issue #4 a été fermée après un test de reprise équivalent exécuté à partir de ce point d’entrée et des sources GitHub.
 
@@ -29,14 +32,14 @@ Toujours vérifier l’état réel des Issues dans GitHub. Ne pas considérer un
 ## Réserves / blocages connus
 
 - Aucun blocage connu sur la clôture de la Phase F.
-- Batch 0 n’est pas démarré.
-- Les findings ouverts pertinents doivent recevoir une décision explicite avant ou pendant sa préparation.
+- Les Issues #7 et #10 restent ouvertes jusqu’à production des preuves prévues dans Batch 0.
+- L’Issue #8 est explicitement reportée ; elle ne justifie pas la création d’un nouvel outil dans Batch 0.
 
 ## Prochaine action
 
-1. Consulter l’ensemble des Issues/findings ouverts pertinents pour Batch 0.
-2. Décider explicitement pour chacun : traiter/intégrer, reporter, accepter ou rejeter.
-3. Définir ensuite le périmètre et les preuves de Batch 0 avant de le démarrer.
+1. Implémenter les garde-fous simples prévus pour #7 et #10 sans modifier les contrats canoniques.
+2. Exécuter les scénarios de preuve reproductibles définis dans `BATCH0.md`.
+3. Vérifier l’état exact, le diff, les classifications et les conditions de promotion vers `test-preview`, puis de clôture.
 
 ## Documents canoniques
 
