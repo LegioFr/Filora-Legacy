@@ -130,8 +130,9 @@ Avant la préparation ou le démarrage d’un nouveau Batch, les Issues/findings
 
 Chaque finding pertinent doit recevoir une décision explicite :
 
-- traiter dans le Batch ;
+- traiter ou intégrer dans le travail ;
 - reporter ;
+- accepter ;
 - rejeter.
 
 La simple existence d’un finding ne l’autorise pas automatiquement à entrer dans le périmètre du Batch.
