@@ -5,41 +5,44 @@
 
 Ce fichier sert à reprendre Filora dans un nouveau contexte sans dépendre de la mémoire d’une conversation ou d’un agent.
 
-Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas d’écart, vérifier les sources GitHub et les documents canoniques concernés avant d’agir.
+Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas d’écart, vérifier GitHub et les documents canoniques concernés avant d’agir.
+
+## Reprise structurée
+- stage: Batch 0
+- status: clôture démontrée — promotion vers main autorisée
+- git: test-preview contient l’état Batch 0 validé ; Issue #7 et Issue #10 sont résolues ; lire les SHA, PR et branches courants directement depuis GitHub
+- next_action: si Batch 0 n’est pas encore présent sur main, promouvoir test-preview vers main ; s’il est déjà présent sur main, reprendre depuis GitHub et examiner les findings ouverts pertinents avant tout nouveau Batch
 
 ## État courant
 
-- **Étape :** préparation de Batch 0 après clôture de la Phase F.
-- **Phase F :** formellement clôturée ; PR #9 mergée et `DEVELOPMENT.md` porte le statut `validé — Phase F`.
-- **Batch 0 :** non démarré.
+- **Étape :** Batch 0 clôturable et prêt pour promotion vers `main`.
+- **Phase F :** clôturée.
+- **Batch 0 :** garde-fous opérationnels minimaux validés sur `test-preview`.
 - **Branche officielle :** `main`.
-- **Branche de validation prévue :** `test-preview`.
-- **État Git pertinent :** PR #13 mergée dans `main` par le commit `640c042211c048870395d9440c56cea2929aa0e3` après validation humaine explicite de F3 pour `ARCHITECTURE.md` et contre-vérification finale Codex `CONFORME` / `MERGE ACCEPTABLE` sur le HEAD `66a695d5a9a83016e50ff1f0759e3f36990fe519`.
+- **Branche de validation :** `test-preview`.
+- **État Git pertinent :** les détails volatils (HEAD, PR courante, commit de merge) doivent être lus directement depuis GitHub et ne sont pas recopiés ici comme vérité persistante.
 
 ## Findings / Issues pertinents
 
-- Issue #7 — éviter les consommations externes inutiles avant délégation : à décider explicitement avant ou pendant la préparation de Batch 0.
-- Issue #8 — édition GitHub ciblée sans réécriture complète des fichiers : à décider explicitement avant ou pendant la préparation de Batch 0.
-- Issue #10 — maintenir mécaniquement le point de reprise lors des clôtures : à intégrer/décider dans Batch 0 afin qu’une clôture ne laisse pas `PROJECT_STATE.md` périmé.
+- Issue #7 — fermée comme résolue après preuve réelle d’un paquet de délégation ciblé et prévalidé.
+- Issue #8 — fermée `not_planned` avec report explicite ; à réévaluer seulement si l’outillage d’édition ciblée évolue.
+- Issue #10 — fermée comme résolue après test indépendant réussi : reprise sans réparation, aucune auto-référence volatile et aucune contradiction avec GitHub.
+- Issue #12 — résolue et fermée après restauration des documents canoniques manquants.
+- Issues #2, #3, #4 et #5 — résolues et fermées.
 
-L’Issue #12 — documents canoniques référencés mais absents du dépôt — est résolue et fermée après restauration de `PRODUCT.md`, `DATA.md` et `ARCHITECTURE.md` via la PR #13, validation explicite de F3 pour `ARCHITECTURE.md`, contre-vérification Codex conforme et merge dans `main`.
+Toujours vérifier l’état réel des Issues dans GitHub avant de préparer ou démarrer un nouveau Batch.
 
-Les Issues #2, #3, #4 et #5 ont été vérifiées après merge de la PR #6 puis fermées comme résolues. L’Issue #4 a été fermée après un test de reprise équivalent exécuté à partir de ce point d’entrée et des sources GitHub.
+## Réserves / limites connues
 
-Toujours vérifier l’état réel des Issues dans GitHub. Ne pas considérer une Issue comme résolue sur la seule base de ce fichier.
-
-## Réserves / blocages connus
-
-- Aucun blocage connu sur la clôture de la Phase F.
-- Aucun blocage connu lié à l’absence des documents canoniques : les quatre documents canoniques référencés sont présents dans `main`.
-- Batch 0 n’est pas démarré.
-- Les findings ouverts pertinents doivent recevoir une décision explicite avant ou pendant sa préparation.
+- Aucun ruleset/protection de branche n’est établi comme preuve d’interdiction mécanique absolue d’un merge manuel ; le workflow GitHub Actions est un contrôle automatique, pas une barrière technique totale.
+- Les contrôles de données, persistance, recovery, architecture et UI restent reportés jusqu’à apparition de leur objet ; ils ne doivent pas être implémentés dans le vide.
 
 ## Prochaine action
 
-1. Consulter l’ensemble des Issues/findings ouverts pertinents pour Batch 0.
-2. Décider explicitement pour chacun : traiter/intégrer, reporter, accepter ou rejeter.
-3. Définir ensuite le périmètre et les preuves de Batch 0 avant de le démarrer.
+1. Vérifier sur GitHub si Batch 0 est déjà présent sur `main`.
+2. S’il ne l’est pas, effectuer la promotion `test-preview` → `main` après CI conforme.
+3. S’il l’est, reconstruire l’état courant depuis GitHub et examiner les Issues/findings ouverts pertinents avant toute préparation d’un nouveau Batch.
+4. Ne pas démarrer de nouveau Batch uniquement parce que Batch 0 semble terminé : vérifier d’abord ses conditions réelles de clôture et l’état GitHub courant.
 
 ## Documents canoniques
 
@@ -48,4 +51,4 @@ Toujours vérifier l’état réel des Issues dans GitHub. Ne pas considérer un
 - `ARCHITECTURE.md`
 - `DEVELOPMENT.md`
 
-Consulter uniquement les documents nécessaires à la mission courante, mais toujours vérifier leur version GitHub actuelle lorsque leur contenu est déterminant.
+Consulter uniquement les documents nécessaires à la mission courante, mais vérifier leur version GitHub actuelle lorsque leur contenu est déterminant.

@@ -1,0 +1,31 @@
+name: Filora guard
+
+on:
+  pull_request:
+    branches:
+      - test-preview
+      - main
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Assert exact PR HEAD
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          git status --short --branch
+
+      - name: Canonical presence
+        run: python3 tools/filora_guard.py canonical-presence --root .
+
+      - name: Structured project state
+        run: python3 tools/filora_guard.py project-state --file PROJECT_STATE.md
+
+      - name: Guard tests
+        run: python3 -m unittest discover -s tests -v
