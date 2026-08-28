@@ -1,0 +1,75 @@
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import unittest
+
+from tools.prepare_docs_mirror import DOCUMENTS, prepare_mirror
+
+
+class PrepareDocsMirrorTests(unittest.TestCase):
+    def make_root(self, path: Path) -> None:
+        for name in DOCUMENTS:
+            (path / name).write_text(f"content for {name}\n", encoding="utf-8")
+
+    def test_prepares_only_expected_documents_and_sync_info(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            output = Path(temp_dir) / "mirror"
+            root.mkdir()
+            output.mkdir()
+            self.make_root(root)
+            (output / "stale.txt").write_text("stale", encoding="utf-8")
+
+            prepare_mirror(
+                root=root,
+                output=output,
+                sha="abc123",
+                branch="main",
+                synced_at="2026-08-28T18:00:00Z",
+            )
+
+            self.assertEqual(
+                sorted(path.name for path in output.iterdir()),
+                sorted((*DOCUMENTS, "SYNC_INFO.md")),
+            )
+            sync_info = (output / "SYNC_INFO.md").read_text(encoding="utf-8")
+            self.assertIn("source_branch: main", sync_info)
+            self.assertIn("source_sha: abc123", sync_info)
+            self.assertIn("synchronized_at_utc: 2026-08-28T18:00:00Z", sync_info)
+            self.assertNotIn("stale.txt", sync_info)
+
+    def test_rejects_non_main_source(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            output = Path(temp_dir) / "mirror"
+            root.mkdir()
+            self.make_root(root)
+
+            with self.assertRaisesRegex(ValueError, "source branch must be main"):
+                prepare_mirror(
+                    root=root,
+                    output=output,
+                    sha="abc123",
+                    branch="test-preview",
+                    synced_at="2026-08-28T18:00:00Z",
+                )
+
+    def test_fails_when_required_document_is_missing(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            output = Path(temp_dir) / "mirror"
+            root.mkdir()
+            self.make_root(root)
+            (root / "DATA.md").unlink()
+
+            with self.assertRaisesRegex(FileNotFoundError, "DATA.md"):
+                prepare_mirror(
+                    root=root,
+                    output=output,
+                    sha="abc123",
+                    branch="main",
+                    synced_at="2026-08-28T18:00:00Z",
+                )
+
+
+if __name__ == "__main__":
+    unittest.main()
