@@ -1,9 +1,9 @@
 {
   "schema_version": 2,
-  "current_batch": 3,
-  "batch_status": "closed",
+  "current_batch": 4,
+  "batch_status": "open",
   "risk": "sensitive",
-  "independent_review": "passed",
-  "owner_approval": "not_required",
-  "next_batch_allowed": true
+  "independent_review": "required",
+  "owner_approval": "required_for_human_validation",
+  "next_batch_allowed": false
 }
