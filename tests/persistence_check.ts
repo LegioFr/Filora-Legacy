@@ -43,10 +43,24 @@ class FakeTransaction {
     };
 
     return {
-      put: (value: StoredSpool) => {
-        this.records.set(value.id, { ...value });
-        completeImmediately();
-        return {} as IDBRequest<IDBValidKey>;
+      add: (value: StoredSpool) => {
+        const request = new FakeRequest<IDBValidKey>();
+        setTimeout(() => {
+          if (this.records.has(value.id)) {
+            const error = new DOMException('Key already exists', 'ConstraintError');
+            request.error = error;
+            this.error = error;
+            request.onerror?.(new Event('error'));
+            this.onabort?.(new Event('abort'));
+            return;
+          }
+
+          this.records.set(value.id, { ...value });
+          request.result = value.id;
+          request.onsuccess?.(new Event('success'));
+          completeImmediately();
+        }, 0);
+        return request as unknown as IDBRequest<IDBValidKey>;
       },
       get: (id: string) => {
         const request = new FakeRequest<StoredSpool | undefined>();
@@ -153,13 +167,44 @@ assert(
   'manufacturer tare must be used in the same stock calculation',
 );
 
-const zeroAvailable = await registerMeasuredSpool(store, {
-  id: 'spool-zero-available',
-  grossMeasuredWeightGrams: 150,
-  tareWeightGrams: 200,
+let tareExceedsGrossRejected = false;
+try {
+  await registerMeasuredSpool(store, {
+    id: 'spool-impossible-tare',
+    grossMeasuredWeightGrams: 150,
+    tareWeightGrams: 200,
+    tareSource: 'manufacturer',
+  });
+} catch (error) {
+  tareExceedsGrossRejected = error instanceof Error && error.message.includes('tare ne peut pas dépasser');
+}
+assert(tareExceedsGrossRejected, 'tare greater than gross measured weight must be rejected');
+assert(await store.get('spool-impossible-tare') === undefined, 'impossible tare must not be persisted');
+
+const originalDuplicateTarget = await registerMeasuredSpool(store, {
+  id: 'spool-duplicate',
+  grossMeasuredWeightGrams: 500,
+  tareWeightGrams: 100,
   tareSource: 'manufacturer',
 });
-assert(calculateAvailableFilamentGrams(zeroAvailable) === 0, 'displayed available filament must never become negative');
+assert(originalDuplicateTarget.grossMeasuredWeightGrams === 500, 'original duplicate target must be created');
+
+let duplicateIdRejected = false;
+try {
+  await registerMeasuredSpool(store, {
+    id: 'spool-duplicate',
+    grossMeasuredWeightGrams: 900,
+    tareWeightGrams: 120,
+    tareSource: 'measured_empty_support',
+  });
+} catch (error) {
+  duplicateIdRejected = error instanceof Error && error.message.includes('existe déjà');
+}
+assert(duplicateIdRejected, 'creating a spool with an existing id must fail explicitly');
+const afterDuplicateAttempt = await store.get('spool-duplicate');
+assert(afterDuplicateAttempt?.grossMeasuredWeightGrams === 500, 'duplicate create must not overwrite gross measured weight');
+assert(afterDuplicateAttempt.tareWeightGrams === 100, 'duplicate create must not overwrite tare');
+assert(afterDuplicateAttempt.tareSource === 'manufacturer', 'duplicate create must not overwrite tare source');
 
 let invalidGrossWeightRejected = false;
 try {
@@ -229,4 +274,4 @@ try {
 }
 assert(failureObserved, 'persistence failures must propagate instead of becoming success');
 
-console.log('PASS: measured spool gross/tare/source/available/write/read/validation/remove/error/transaction timing checks');
+console.log('PASS: measured spool gross/tare/source/available/write/read/validation/duplicate/remove/error/transaction timing checks');

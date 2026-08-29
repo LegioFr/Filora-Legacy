@@ -38,13 +38,21 @@ export class IndexedDbSpoolIdentityStore implements SpoolIdentityStore {
     return requestResult(request);
   }
 
-  async save(identity: PersistedSpoolIdentity): Promise<void> {
+  async create(identity: PersistedSpoolIdentity): Promise<void> {
     const database = await this.openDatabase();
     try {
       const transaction = database.transaction(SPOOL_IDENTITIES_STORE, 'readwrite');
       const done = transactionDone(transaction);
-      transaction.objectStore(SPOOL_IDENTITIES_STORE).put(identity);
-      await done;
+      const request = transaction.objectStore(SPOOL_IDENTITIES_STORE).add(identity);
+
+      try {
+        await Promise.all([requestResult(request), done]);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'ConstraintError') {
+          throw new Error('Une bobine avec cet ID existe déjà.');
+        }
+        throw error;
+      }
     } finally {
       database.close();
     }
