@@ -12,11 +12,8 @@ GUARD = ROOT / "tools" / "filora_guard.py"
 class WorkflowGuardTests(unittest.TestCase):
     def run_guard(self, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            [sys.executable, str(GUARD), *args],
-            cwd=ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
+            [sys.executable, str(GUARD), *args], cwd=ROOT,
+            text=True, capture_output=True, check=False,
         )
 
     def contract(self) -> dict:
@@ -49,17 +46,15 @@ class WorkflowGuardTests(unittest.TestCase):
                 "DEVELOPMENT.md",
                 "workflow/contract.json",
                 "tools/filora_guard.py",
+                "tools/check_architecture.py",
                 ".github/workflows/filora-guard.yml",
+                "tests/test_filora_guard.py",
+                "tests/test_human_validation_guard.py",
                 "tests/test_workflow_guard.py",
             ],
             "sensitive_paths": [
-                "workflow/state.json",
-                "PRODUCT.md",
-                "DATA.md",
-                "ARCHITECTURE.md",
-                ".github/workflows/",
-                "package.json",
-                "package-lock.json",
+                "workflow/state.json", "PRODUCT.md", "DATA.md", "ARCHITECTURE.md",
+                "package.json", "package-lock.json",
             ],
         }
 
@@ -77,66 +72,61 @@ class WorkflowGuardTests(unittest.TestCase):
         return value
 
     def write_fixture(
-        self,
-        root: Path,
-        state: dict | None = None,
-        batch2_status: str = "en validation",
-        human_marker: str = "NON REQUIS",
-        project_status: str = "en validation sur test-preview",
-        batch1_status: str = "clôturé",
-        include_batch1: bool = True,
-        add_batch3: bool = False,
+        self, root: Path, state: dict | None = None, batch2_status: str = "en validation",
+        human_marker: str = "NON REQUIS", project_status: str = "en validation sur test-preview",
+        batch1_status: str = "clôturé", include_batch1: bool = True, add_batch3: bool = False,
     ) -> tuple[Path, Path, Path]:
         workflow = root / "workflow"
-        workflow.mkdir()
+        workflow.mkdir(exist_ok=True)
         state_path = workflow / "state.json"
         contract_path = workflow / "contract.json"
         project_path = root / "PROJECT_STATE.md"
         state_payload = state or self.state()
         state_path.write_text(json.dumps(state_payload), encoding="utf-8")
         contract_path.write_text(json.dumps(self.contract()), encoding="utf-8")
-
         (root / "BATCH0.md").write_text(
-            "# Batch 0\n\n## Statut\n\nBatch 0 est **clôturé et intégré à `main`**.\n",
-            encoding="utf-8",
+            "# Batch 0\n\n## Statut\n\nBatch 0 est **clôturé et intégré à `main`**.\n", encoding="utf-8"
         )
         if include_batch1:
             (root / "BATCH1.md").write_text(
-                f"# BATCH1\n\n**Statut : {batch1_status}**\n\n"
-                "### Jalon humain requis — VALIDÉ\n",
+                f"# BATCH1\n\n**Statut : {batch1_status}**\n\n### Jalon humain requis — VALIDÉ\n",
                 encoding="utf-8",
             )
         (root / "BATCH2.md").write_text(
-            f"# BATCH2\n\n**Statut : {batch2_status}**\n\n"
-            f"### Jalon humain requis — {human_marker}\n",
+            f"# BATCH2\n\n**Statut : {batch2_status}**\n\n### Jalon humain requis — {human_marker}\n",
             encoding="utf-8",
         )
         if add_batch3:
             (root / "BATCH3.md").write_text(
-                "# BATCH3\n\n**Statut : en cours**\n\n"
-                "### Jalon humain requis — NON REQUIS\n",
+                "# BATCH3\n\n**Statut : en cours**\n\n### Jalon humain requis — NON REQUIS\n",
                 encoding="utf-8",
             )
         project_path.write_text(
-            "# PROJECT_STATE\n\n"
-            "## Reprise structurée\n"
+            "# PROJECT_STATE\n\n## Reprise structurée\n"
             f"- stage: Batch {state_payload['current_batch']} — validation\n"
             f"- status: {project_status}\n"
             "- git: lire GitHub\n"
-            "- next_action: poursuivre la première gate autorisée\n"
-            "\n## État courant\n",
+            "- next_action: poursuivre la première gate autorisée\n\n## État courant\n",
             encoding="utf-8",
         )
         return state_path, contract_path, project_path
 
-    def run_workflow(self, root: Path, state: Path, contract: Path, project: Path):
-        return self.run_guard(
-            "workflow-state",
-            "--root", str(root),
-            "--state", str(state),
-            "--contract", str(contract),
-            "--project-state", str(project),
-        )
+    def run_workflow(self, root: Path, state: Path, contract: Path, project: Path, base_ref: str | None = None):
+        args = [
+            "workflow-state", "--root", str(root), "--state", str(state),
+            "--contract", str(contract), "--project-state", str(project),
+        ]
+        if base_ref:
+            args.extend(["--base-ref", base_ref])
+        return self.run_guard(*args)
+
+    def init_git_base(self, root: Path) -> None:
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.name", "Filora Test"], cwd=root, check=True)
+        subprocess.run(["git", "add", "."], cwd=root, check=True)
+        subprocess.run(["git", "commit", "-qm", "base"], cwd=root, check=True)
+        subprocess.run(["git", "branch", "base"], cwd=root, check=True)
 
     def test_open_batch_is_coherent_and_next_batch_is_blocked(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -176,10 +166,7 @@ class WorkflowGuardTests(unittest.TestCase):
             root = Path(tmp)
             state3 = self.state(current_batch=3)
             state, contract, project = self.write_fixture(root, state3, add_batch3=True)
-            (root / "BATCH2.md").write_text(
-                "# BATCH2\n\nCe document ne peut pas être clôturé.\n",
-                encoding="utf-8",
-            )
+            (root / "BATCH2.md").write_text("# BATCH2\n\nCe document ne peut pas être clôturé.\n", encoding="utf-8")
             result = self.run_workflow(root, state, contract, project)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("invalid predecessor BATCH2.md", result.stderr)
@@ -188,10 +175,7 @@ class WorkflowGuardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             state, contract, project = self.write_fixture(
-                root,
-                self.state(batch_status="open"),
-                batch2_status="non clôturé",
-                project_status="non clôturé",
+                root, self.state(batch_status="open"), batch2_status="non clôturé", project_status="non clôturé"
             )
             result = self.run_workflow(root, state, contract, project)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -200,32 +184,45 @@ class WorkflowGuardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             state, contract, project = self.write_fixture(
-                root,
-                self.state(batch_status="open"),
-                batch2_status="pas encore clôturé",
-                project_status="pas encore clôturé",
+                root, self.state(batch_status="open"), batch2_status="pas encore clôturé", project_status="pas encore clôturé"
             )
             result = self.run_workflow(root, state, contract, project)
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_project_state_batch_number_must_be_exact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state, contract, project = self.write_fixture(root)
+            project.write_text(project.read_text(encoding="utf-8").replace("Batch 2 —", "Batch 20 —"), encoding="utf-8")
+            result = self.run_workflow(root, state, contract, project)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("identifies Batch 20, expected Batch 2", result.stderr)
 
     def test_rejects_closed_sensitive_batch_without_independent_review(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             closed = self.state(batch_status="closed", independent_review="pending", next_batch_allowed=True)
-            state, contract, project = self.write_fixture(
-                root, closed, batch2_status="clôturé", project_status="clôturé"
-            )
+            state, contract, project = self.write_fixture(root, closed, batch2_status="clôturé", project_status="clôturé")
             result = self.run_workflow(root, state, contract, project)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("requires independent_review=passed", result.stderr)
+
+    def test_contract_cannot_remove_sensitive_independent_review(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state, contract, project = self.write_fixture(root)
+            payload = self.contract()
+            payload["closure"]["independent_review_required_for"] = ["critical"]
+            contract.write_text(json.dumps(payload), encoding="utf-8")
+            result = self.run_workflow(root, state, contract, project)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("sensitive and critical work must require independent review", result.stderr)
 
     def test_accepts_closed_sensitive_batch_with_required_gates(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             closed = self.state(batch_status="closed", independent_review="passed", next_batch_allowed=True)
-            state, contract, project = self.write_fixture(
-                root, closed, batch2_status="clôturé", project_status="clôturé"
-            )
+            state, contract, project = self.write_fixture(root, closed, batch2_status="clôturé", project_status="clôturé")
             result = self.run_workflow(root, state, contract, project)
         self.assertEqual(result.returncode, 0, result.stderr)
 
@@ -237,11 +234,24 @@ class WorkflowGuardTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("PROJECT_STATE structured status contradicts", result.stderr)
 
-    def test_change_risk_classifies_guard_as_critical(self) -> None:
+    def test_change_risk_classifies_all_existing_guard_controls_as_critical(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             contract = Path(tmp) / "contract.json"
             contract.write_text(json.dumps(self.contract()), encoding="utf-8")
-            result = self.run_guard("change-risk", "--contract", str(contract), "--path", "tools/filora_guard.py")
+            for path in (
+                "tools/filora_guard.py", "tools/check_architecture.py",
+                "tests/test_filora_guard.py", "tests/test_human_validation_guard.py",
+                "tests/test_workflow_guard.py", ".github/workflows/anything.yml",
+            ):
+                result = self.run_guard("change-risk", "--contract", str(contract), "--path", path)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.strip(), "CRITICAL", path)
+
+    def test_new_check_script_is_structurally_critical(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            contract = Path(tmp) / "contract.json"
+            contract.write_text(json.dumps(self.contract()), encoding="utf-8")
+            result = self.run_guard("change-risk", "--contract", str(contract), "--path", "tools/check_future_rule.py")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "CRITICAL")
 
@@ -253,16 +263,29 @@ class WorkflowGuardTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "SENSITIVE")
 
-    def test_contract_cannot_remove_guard_from_critical_paths(self) -> None:
+    def test_contract_cannot_remove_existing_critical_control(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             state, contract, project = self.write_fixture(root)
             payload = self.contract()
-            payload["critical_control_paths"].remove("tools/filora_guard.py")
+            payload["critical_control_paths"].remove("tools/check_architecture.py")
             contract.write_text(json.dumps(payload), encoding="utf-8")
             result = self.run_workflow(root, state, contract, project)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("filora_guard.py must remain", result.stderr)
+        self.assertIn("missing critical control path", result.stderr)
+
+    def test_risk_cannot_decrease_within_same_batch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            critical = self.state(risk="critical")
+            state, contract, project = self.write_fixture(root, critical)
+            self.init_git_base(root)
+            state.write_text(json.dumps(self.state(risk="sensitive")), encoding="utf-8")
+            subprocess.run(["git", "add", "workflow/state.json"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "downgrade"], cwd=root, check=True)
+            result = self.run_workflow(root, state, contract, project, "base")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("risk cannot decrease within Batch 2", result.stderr)
 
     def test_review_route_uses_normal_when_security_is_not_needed(self) -> None:
         result = self.run_guard("review-route", "--security-property", "no", "--normal-sufficient", "yes")
@@ -286,48 +309,32 @@ class WorkflowGuardTests(unittest.TestCase):
 
     def test_first_tool_failure_does_not_allow_human_transfer(self) -> None:
         result = self.run_guard(
-            "human-transfer",
-            "--operation-authorized", "yes",
-            "--reasonable-means-exhausted", "no",
-            "--hard-limit", "no",
-            "--attempt-count", "1",
-            "--alternative-count", "0",
+            "human-transfer", "--operation-authorized", "yes", "--reasonable-means-exhausted", "no",
+            "--hard-limit", "no", "--attempt-count", "1", "--alternative-count", "0",
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("first tool/method failure is insufficient", result.stderr)
 
     def test_human_transfer_requires_alternative_and_exhaustion(self) -> None:
         result = self.run_guard(
-            "human-transfer",
-            "--operation-authorized", "yes",
-            "--reasonable-means-exhausted", "yes",
-            "--hard-limit", "no",
-            "--attempt-count", "2",
-            "--alternative-count", "1",
+            "human-transfer", "--operation-authorized", "yes", "--reasonable-means-exhausted", "yes",
+            "--hard-limit", "no", "--attempt-count", "2", "--alternative-count", "1",
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "HUMAN_TRANSFER_ALLOWED")
 
     def test_known_hard_limit_can_allow_transfer_without_fake_retries(self) -> None:
         result = self.run_guard(
-            "human-transfer",
-            "--operation-authorized", "yes",
-            "--reasonable-means-exhausted", "yes",
-            "--hard-limit", "yes",
-            "--attempt-count", "0",
-            "--alternative-count", "0",
+            "human-transfer", "--operation-authorized", "yes", "--reasonable-means-exhausted", "yes",
+            "--hard-limit", "yes", "--attempt-count", "0", "--alternative-count", "0",
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "HUMAN_TRANSFER_ALLOWED")
 
     def test_unknown_hard_limit_fails_closed(self) -> None:
         result = self.run_guard(
-            "human-transfer",
-            "--operation-authorized", "yes",
-            "--reasonable-means-exhausted", "unknown",
-            "--hard-limit", "unknown",
-            "--attempt-count", "1",
-            "--alternative-count", "0",
+            "human-transfer", "--operation-authorized", "yes", "--reasonable-means-exhausted", "unknown",
+            "--hard-limit", "unknown", "--attempt-count", "1", "--alternative-count", "0",
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("uncertain", result.stderr)
