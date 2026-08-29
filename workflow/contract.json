@@ -1,10 +1,24 @@
 {
   "schema_version": 2,
-  "validation_states": ["pending", "passed", "failed", "not_required"],
-  "risk_levels": ["ordinary", "sensitive", "critical"],
+  "validation_states": [
+    "pending",
+    "passed",
+    "failed",
+    "not_required"
+  ],
+  "risk_levels": [
+    "ordinary",
+    "sensitive",
+    "critical"
+  ],
   "closure": {
-    "independent_review_required_for": ["sensitive", "critical"],
-    "owner_approval_required_for": ["critical"],
+    "independent_review_required_for": [
+      "sensitive",
+      "critical"
+    ],
+    "owner_approval_required_for": [
+      "critical"
+    ],
     "human_validation_must_not_be_pending": true
   },
   "next_batch": {
@@ -27,11 +41,13 @@
     "DEVELOPMENT.md",
     "workflow/contract.json",
     "tools/filora_guard.py",
+    "tools/filora_guard_impl.py",
     "tools/check_architecture.py",
     ".github/workflows/filora-guard.yml",
     "tests/test_filora_guard.py",
     "tests/test_human_validation_guard.py",
-    "tests/test_workflow_guard.py"
+    "tests/test_workflow_guard.py",
+    "tests/test_workflow_transition_wrapper.py"
   ],
   "sensitive_paths": [
     "workflow/state.json",
