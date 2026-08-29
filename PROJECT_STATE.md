@@ -9,7 +9,7 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 
 ## Reprise structurée
 - stage: Batch 3 — persistance locale et premier flux métier de bobine pesée
-- status: clôturé et intégré à `test-preview`
+- status: clôturé
 - git: lire les HEAD, PR, workflows, artefacts, rulesets et Issues courants directement depuis GitHub ; ne pas mémoriser ici les SHA ou PR volatiles
 - next_action: déterminer explicitement la transition suivante depuis l’état intégré de `test-preview` avant toute nouvelle modification ou tout nouveau Batch ; consulter d’abord les Issues/findings ouverts pertinents et les conditions applicables
 
