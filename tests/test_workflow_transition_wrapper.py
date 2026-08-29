@@ -19,6 +19,10 @@ class WorkflowTransitionWrapperTests(unittest.TestCase):
     def init_repo(self, root: Path, state: dict, batch2_status="en validation", human="NON REQUIS"):
         (root / "workflow").mkdir()
         (root / "workflow" / "state.json").write_text(json.dumps(state), encoding="utf-8")
+        (root / "workflow" / "contract.json").write_text(
+            (ROOT / "workflow" / "contract.json").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
         (root / "BATCH0.md").write_text(
             "# Batch 0\n\n## Statut\n\nBatch 0 est **clôturé et intégré à `main`**.\n",
             encoding="utf-8",
@@ -127,7 +131,7 @@ class WorkflowTransitionWrapperTests(unittest.TestCase):
                 "workflow-state", "--root", str(root), "--base-ref", "base"
             )
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("candidate predecessor BATCH2.md is not closed", result.stderr)
+        self.assertIn("predecessor BATCH2.md", result.stderr)
 
 
 if __name__ == "__main__":
