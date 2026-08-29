@@ -11,16 +11,16 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 - stage: Batch 3 — persistance locale et premier flux métier de bobine pesée
 - status: clôturé
 - git: lire les HEAD, PR, workflows, artefacts, rulesets et Issues courants directement depuis GitHub ; ne pas mémoriser ici les SHA ou PR volatiles
-- next_action: vérifier que le commit de clôture est entièrement vert, puis intégrer la branche Batch 3 vers `test-preview` par la PR existante ; ne pas démarrer un Batch suivant avant cette intégration et sa vérification
+- next_action: déterminer explicitement la transition suivante depuis l’état intégré de `test-preview` avant toute nouvelle modification ou tout nouveau Batch ; consulter d’abord les Issues/findings ouverts pertinents et les conditions applicables
 
 ## État courant
 
-- **Étape :** Batch 3 clôturé sur sa branche de travail ; intégration vers `test-preview` encore à effectuer.
+- **Étape :** Batch 3 clôturé et intégré à `test-preview` ; intégration vérifiée.
 - **Phase F :** clôturée.
 - **Batch 0 :** clôturé et intégré à `main`.
 - **Batch 1 :** clôturé et intégré à `main`.
 - **Batch 2 :** clôturé, validé et promu vers `main`.
-- **Batch 3 :** clôturé après CI verte du candidat fonctionnel, validation humaine du premier flux métier, revue indépendante Codex conforme et décision de conserver IndexedDB direct pour ce périmètre. Le commit de clôture doit encore passer ses contrôles mécaniques avant intégration vers `test-preview`.
+- **Batch 3 :** clôturé après CI verte du candidat fonctionnel, validation humaine du premier flux métier, revue indépendante Codex conforme et décision de conserver IndexedDB direct pour ce périmètre ; intégré à `test-preview` par la PR #57 et état post-intégration vérifié.
 - **Issue #21 :** traitée et fermée après intégration des preuves de Batch 2.
 - **Issue #46 :** traitée et fermée après activation d’un ruleset GitHub externe et contre-vérification opérationnelle.
 - **Issues/findings ouverts pertinents au dernier contrôle GitHub :** aucun.
@@ -30,7 +30,7 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 - **Garde-fous permanents de revue IA :** actifs dans `DEVELOPMENT.md` et leurs contrôles associés.
 - **Branche officielle :** `main`.
 - **Branche de validation :** `test-preview`.
-- **Branche de travail Batch 3 :** `batch3/persistence-foundation`.
+- **Branche de travail Batch 3 :** `batch3/persistence-foundation` ; PR #57 mergée, branche désormais historique pour ce Batch.
 - **État Git pertinent :** les détails volatils doivent être lus directement depuis GitHub et ne sont pas recopiés ici comme vérité persistante.
 
 ## Batch 3 — résultat fonctionnel
@@ -96,14 +96,14 @@ Cette validation couvre uniquement le comportement implémenté dans le Batch 3.
 - Les consommations, corrections, pesées successives, recalages et historiques ne sont pas encore implémentés.
 - Les tests automatisés IndexedDB utilisent un moteur simulé ; la validation Preview complète la preuve pour le comportement réellement testé, sans établir une compatibilité universelle.
 - Le défaut d’encodage Windows signalé par Codex reste reporté hors Batch 3.
-- La clôture sur la branche de travail ne vaut pas encore intégration vers `test-preview` ou promotion vers `main`.
+- La clôture et l’intégration à `test-preview` ne valent pas promotion vers `main` ni autorisation implicite de démarrer une nouvelle étape sans vérifier ses conditions.
 
 ## Prochaine action
 
-1. Vérifier le résultat complet de la CI et du sentinel sur le commit de clôture.
-2. Si les contrôles sont verts, proposer puis effectuer séparément l’intégration de la branche Batch 3 vers `test-preview` par la PR existante.
-3. Vérifier l’état réel de `test-preview` après intégration avant toute étape suivante.
-4. Ne pas démarrer un nouveau Batch simplement parce que le Batch 3 est déclaré clôturé sur sa branche ; l’intégration et les conditions de transition doivent d’abord être confirmées.
+1. Considérer l’intégration du Batch 3 à `test-preview` comme effectuée et vérifiée.
+2. Reconstruire l’état GitHub courant et consulter les Issues/findings ouverts pertinents avant toute transition suivante.
+3. Déterminer explicitement la prochaine transition utile à Filora et ses conditions avant de préparer un nouveau Batch ou une promotion vers `main`.
+4. Ne créer aucun nouveau périmètre simplement parce que `workflow/state.json` autorise techniquement un Batch suivant.
 
 ## Règles opérationnelles Codex sous Windows
 
