@@ -1205,3 +1205,7 @@ La gouvernance doit permettre aux IA de travailler efficacement sans leur permet
 - de masquer une incertitude ;
 - de transformer une absence de preuve en réussite ;
 - de faire porter à Mickaël la responsabilité de certifier des propriétés techniques qu'il ne peut raisonnablement pas vérifier.
+
+Le but n'est pas de supprimer tout risque.
+
+Le but est que les risques importants soient détectés, rendus visibles, traités au bon niveau et jamais masqués pour permettre au développement de continuer.
