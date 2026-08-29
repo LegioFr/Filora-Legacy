@@ -14,6 +14,7 @@ class WorkflowGuardTests(unittest.TestCase):
     def run_guard(self, *args: str) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
         env.pop("GITHUB_EVENT_PATH", None)
+        env.pop("GITHUB_ACTIONS", None)
         return subprocess.run(
             [sys.executable, str(GUARD), *args], cwd=ROOT,
             text=True, capture_output=True, check=False, env=env,
@@ -87,8 +88,16 @@ class WorkflowGuardTests(unittest.TestCase):
         contract_path = workflow / "contract.json"
         project_path = root / "PROJECT_STATE.md"
         state_payload = state or self.state()
+        contract_payload = self.contract()
         state_path.write_text(json.dumps(state_payload), encoding="utf-8")
-        contract_path.write_text(json.dumps(self.contract()), encoding="utf-8")
+        contract_path.write_text(json.dumps(contract_payload), encoding="utf-8")
+        for rule in contract_payload["critical_control_paths"]:
+            target = root / rule.rstrip("/")
+            if rule.endswith("/"):
+                target.mkdir(parents=True, exist_ok=True)
+            elif not target.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text("fixture\n", encoding="utf-8")
         (root / "BATCH0.md").write_text(
             "# Batch 0\n\n## Statut\n\nBatch 0 est **clôturé et intégré à `main`**.\n", encoding="utf-8"
         )
@@ -300,6 +309,18 @@ class WorkflowGuardTests(unittest.TestCase):
             result = self.run_workflow(root, state, contract, project)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("tests/test_guard_entry_boundary.py", result.stderr)
+
+    def test_declared_critical_control_cannot_disappear_or_be_renamed_silently(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state, contract, project = self.write_fixture(root)
+            old = root / "tests/test_workflow_transition_wrapper.py"
+            new = root / "tests/test_workflow_transition.py"
+            old.rename(new)
+            result = self.run_workflow(root, state, contract, project)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("critical control path(s) declared in contract are missing", result.stderr)
+        self.assertIn("tests/test_workflow_transition_wrapper.py", result.stderr)
 
     def test_risk_cannot_decrease_within_same_batch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
