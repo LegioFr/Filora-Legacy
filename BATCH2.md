@@ -1,6 +1,6 @@
 # BATCH2.md — Paquet documentaire de contre-vérification Claude
 
-**Statut : correction en cours avant nouvelle validation sur `test-preview`**  
+**Statut : en validation sur `test-preview` — correction du paquet Claude en cours**  
 **Date de préparation : 2026-08-28**
 
 ## Intention
