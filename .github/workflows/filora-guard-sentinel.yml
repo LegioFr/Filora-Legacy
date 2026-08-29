@@ -1,0 +1,79 @@
+name: Filora guard sentinel
+
+on:
+  pull_request_target:
+    branches:
+      - test-preview
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  pull-requests: read
+
+jobs:
+  sentinel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject ordinary PR changes to critical guard surface
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const protectedExact = new Set([
+              '.github/workflows/filora-guard.yml',
+              '.github/workflows/filora-guard-sentinel.yml',
+              'DEVELOPMENT.md',
+              'workflow/contract.json',
+              'tools/filora_guard.py',
+              'tools/check_review_governance.py',
+              'tools/check_claude_review_prompt.py',
+              'tools/check_codex_security_prompt.py',
+              'tools/check_architecture.py',
+              'tests/test_filora_guard.py',
+              'tests/test_human_validation_guard.py',
+              'tests/test_workflow_guard.py',
+              'tests/test_workflow_transition_wrapper.py',
+              'tests/test_guard_entry_boundary.py',
+            ]);
+
+            const changedFiles = context.payload.pull_request.changed_files;
+            if (!Number.isInteger(changedFiles) || changedFiles < 0) {
+              core.setFailed('Cannot establish pull_request.changed_files; fail closed.');
+              return;
+            }
+            if (changedFiles > 3000) {
+              core.setFailed(
+                `PR changes ${changedFiles} files, exceeding the GitHub list-files inspection limit of 3000; fail closed.`
+              );
+              return;
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100,
+            });
+
+            if (files.length !== changedFiles) {
+              core.setFailed(
+                `GitHub returned ${files.length} changed files but PR metadata reports ${changedFiles}; fail closed.`
+              );
+              return;
+            }
+
+            const paths = files.flatMap((file) =>
+              [file.filename, file.previous_filename].filter(Boolean)
+            );
+            const blocked = [...new Set(paths.filter((path) => protectedExact.has(path)))];
+
+            if (blocked.length > 0) {
+              core.setFailed(
+                'Critical guard surface changed by an ordinary PR. ' +
+                'Use the explicit critical-governance path with an administrator ruleset bypass after independent validation. ' +
+                `Blocked paths: ${blocked.join(', ')}`
+              );
+            }
