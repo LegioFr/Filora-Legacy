@@ -1,11 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "current_batch": 2,
   "batch_status": "open",
-  "risk": "sensitive",
-  "mechanical_validation": "pending",
+  "risk": "critical",
   "independent_review": "pending",
   "owner_approval": "obtained",
-  "human_validation": "not_required",
   "next_batch_allowed": false
 }
