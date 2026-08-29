@@ -1,0 +1,60 @@
+{
+  "schema_version": 2,
+  "validation_states": [
+    "pending",
+    "passed",
+    "failed",
+    "not_required"
+  ],
+  "risk_levels": [
+    "ordinary",
+    "sensitive",
+    "critical"
+  ],
+  "closure": {
+    "independent_review_required_for": [
+      "sensitive",
+      "critical"
+    ],
+    "owner_approval_required_for": [
+      "critical"
+    ],
+    "human_validation_must_not_be_pending": true
+  },
+  "next_batch": {
+    "requires_current_batch_closed": true,
+    "requires_next_batch_allowed": true,
+    "requires_contiguous_batch_numbers": true
+  },
+  "review_routing": {
+    "default": "codex_normal",
+    "unknown_means_stop": true,
+    "normal_insufficient_without_security_means_stop": true
+  },
+  "human_transfer": {
+    "first_tool_failure_allows_transfer": false,
+    "unknown_equals_impossible": false,
+    "requires_reasonable_means_exhausted": true,
+    "failure_prefix": "BLOQUÉ:"
+  },
+  "critical_control_paths": [
+    "DEVELOPMENT.md",
+    "workflow/contract.json",
+    "tools/filora_guard.py",
+    "tools/check_architecture.py",
+    ".github/workflows/filora-guard.yml",
+    "tests/test_filora_guard.py",
+    "tests/test_human_validation_guard.py",
+    "tests/test_workflow_guard.py",
+    "tests/test_workflow_transition_wrapper.py",
+    "tests/test_guard_entry_boundary.py"
+  ],
+  "sensitive_paths": [
+    "workflow/state.json",
+    "PRODUCT.md",
+    "DATA.md",
+    "ARCHITECTURE.md",
+    "package.json",
+    "package-lock.json"
+  ]
+}
