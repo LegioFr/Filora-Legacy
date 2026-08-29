@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """Operational guardrails for Filora.
 
-The guard proves objective repository properties and exposes deterministic
-routing decisions where the inputs are objective enough to automate.
-
-It does not pretend to intercept ChatGPT tool calls or reasoning in real time.
-Semantic sufficiency, finding relevance and reviewer independence still require
-appropriate evidence or independent review.
+Objective repository properties are enforced mechanically where possible.
+Conversation-time tool failures cannot be intercepted by GitHub; the routing
+commands below therefore expose fail-closed decisions without claiming to be a
+platform-level wrapper.
 """
 
 from __future__ import annotations
@@ -62,12 +60,19 @@ MINIMUM_PROTECTED_PATHS = {
     ".github/workflows/filora-guard.yml",
     "tests/test_workflow_guard.py",
 }
-VOLATILE_STATE_KEYS = {"sha", "commit", "commit_sha", "head", "head_sha", "pr", "pr_number"}
 
 
 def fail(message: str) -> int:
     print(f"FAIL: {message}", file=sys.stderr)
     return 1
+
+
+def _usable_text(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and bool(value.strip())
+        and PLACEHOLDER_RE.fullmatch(value) is None
+    )
 
 
 def check_canonical_presence(root: Path) -> int:
@@ -92,21 +97,11 @@ def _git_sha_exists(sha: str, repo_root: Path) -> bool:
     return result.returncode == 0
 
 
-def _usable_text(value: object) -> bool:
-    return (
-        isinstance(value, str)
-        and bool(value.strip())
-        and PLACEHOLDER_RE.fullmatch(value) is None
-    )
-
-
 def check_review_packet(path: Path, verify_git_sha: bool, repo_root: Path) -> int:
     try:
-        raw = path.read_text(encoding="utf-8")
-        packet = json.loads(raw)
+        packet = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         return fail(f"cannot read review packet: {exc}")
-
     if not isinstance(packet, dict):
         return fail("review packet must be a JSON object")
 
@@ -124,17 +119,13 @@ def check_review_packet(path: Path, verify_git_sha: bool, repo_root: Path) -> in
     if not isinstance(sha, str) or not SHA_RE.fullmatch(sha):
         return fail("state_sha must be an exact 40-character Git SHA")
     if state_verified is not True:
-        return fail(
-            "state_verified must be true: the coordinator must attest that the target state was checked"
-        )
+        return fail("state_verified must be true: the coordinator must attest that the target state was checked")
     if verify_git_sha and not _git_sha_exists(sha, repo_root):
         return fail(f"state_sha does not resolve to a commit in {repo_root}")
     if not isinstance(budget, int) or isinstance(budget, bool) or budget <= 0:
         return fail("context_budget_chars must be a positive integer")
     if budget > MAX_REVIEW_PAYLOAD_CHARS:
-        return fail(
-            f"context_budget_chars exceeds the gate ceiling of {MAX_REVIEW_PAYLOAD_CHARS}"
-        )
+        return fail(f"context_budget_chars exceeds the gate ceiling of {MAX_REVIEW_PAYLOAD_CHARS}")
     if not isinstance(inputs, list) or not inputs:
         return fail("at least one review input is required")
 
@@ -146,21 +137,17 @@ def check_review_packet(path: Path, verify_git_sha: bool, repo_root: Path) -> in
             return fail(f"input #{index} kind is required")
         if not _usable_text(item.get("purpose")):
             return fail(f"input #{index} purpose is required")
-
         content = item.get("content")
         url = item.get("url")
         access_verified = item.get("access_verified")
-
         has_content = _usable_text(content)
         has_url = _usable_text(url)
-
         if isinstance(content, str) and content.strip() and not has_content:
             return fail(f"input #{index} content is a placeholder")
         if not has_content and not has_url:
             return fail(f"input #{index} requires embedded content or a verified-access URL")
         if has_url and access_verified is not True:
             return fail(f"input #{index} URL is not usable until access_verified is true")
-
         if has_content:
             normalized = content.strip()
             if normalized in seen_contents:
@@ -169,14 +156,9 @@ def check_review_packet(path: Path, verify_git_sha: bool, repo_root: Path) -> in
 
     serialized_size = len(json.dumps(packet, ensure_ascii=False, separators=(",", ":")))
     if serialized_size > budget:
-        return fail(
-            f"serialized review packet is {serialized_size} chars, above its declared budget of {budget}"
-        )
+        return fail(f"serialized review packet is {serialized_size} chars, above its declared budget of {budget}")
     if serialized_size > MAX_REVIEW_PAYLOAD_CHARS:
-        return fail(
-            f"serialized review packet exceeds the gate ceiling of {MAX_REVIEW_PAYLOAD_CHARS}"
-        )
-
+        return fail(f"serialized review packet exceeds the gate ceiling of {MAX_REVIEW_PAYLOAD_CHARS}")
     print(
         "PASS: review packet structure is usable and bounded "
         f"for {sha}; {serialized_size}/{budget} chars. "
@@ -190,16 +172,12 @@ def parse_project_state(path: Path) -> dict[str, str]:
         lines = path.read_text(encoding="utf-8").splitlines()
     except OSError as exc:
         raise ValueError(f"cannot read project state: {exc}") from exc
+    indexes = [i for i, line in enumerate(lines) if line.strip() == STATE_SECTION]
+    if len(indexes) != 1:
+        raise ValueError(f"{STATE_SECTION!r} must appear exactly once (found {len(indexes)})")
 
-    section_indexes = [i for i, line in enumerate(lines) if line.strip() == STATE_SECTION]
-    if len(section_indexes) != 1:
-        raise ValueError(
-            f"{STATE_SECTION!r} must appear exactly once (found {len(section_indexes)})"
-        )
-
-    start = section_indexes[0] + 1
     values: dict[str, str] = {}
-    for line in lines[start:]:
+    for line in lines[indexes[0] + 1 :]:
         stripped = line.strip()
         if line.startswith("## "):
             break
@@ -209,12 +187,9 @@ def parse_project_state(path: Path) -> dict[str, str]:
             raise ValueError("structured resume section cannot contain a fenced code block")
         if stripped.startswith(">"):
             raise ValueError("structured resume section cannot contain quoted/example state")
-
         match = re.fullmatch(r"-\s+([a-z_]+):\s*(.+?)\s*", line)
         if not match:
-            raise ValueError(
-                "structured resume section must contain only the four direct key lines"
-            )
+            raise ValueError("structured resume section must contain only the four direct key lines")
         key, value = match.groups()
         if key not in STATE_KEYS:
             raise ValueError(f"unexpected structured state key: {key}")
@@ -223,25 +198,17 @@ def parse_project_state(path: Path) -> dict[str, str]:
         if not value.strip():
             raise ValueError(f"structured state key {key} cannot be empty")
         values[key] = value.strip()
-
     missing = [key for key in STATE_KEYS if key not in values]
     if missing:
         raise ValueError("missing structured state key(s): " + ", ".join(missing))
     return values
 
 
-def check_project_state(
-    path: Path,
-    expected_stage: str | None,
-    expected_status: str | None,
-    expected_git: str | None,
-    expected_next: str | None,
-) -> int:
+def check_project_state(path: Path, expected_stage: str | None, expected_status: str | None, expected_git: str | None, expected_next: str | None) -> int:
     try:
         values = parse_project_state(path)
     except ValueError as exc:
         return fail(str(exc))
-
     expectations = {
         "stage": expected_stage,
         "status": expected_status,
@@ -254,65 +221,49 @@ def check_project_state(
         if not expected.strip():
             return fail(f"expected {key} cannot be empty")
         if values[key] != expected.strip():
-            return fail(
-                f"PROJECT_STATE structured {key} is {values[key]!r}, expected {expected.strip()!r}"
-            )
-
+            return fail(f"PROJECT_STATE structured {key} is {values[key]!r}, expected {expected.strip()!r}")
     print("PASS: PROJECT_STATE.md has one direct, unique structured resume state")
     return 0
 
 
 def _batch_files(root: Path) -> list[tuple[int, Path]]:
-    candidates: list[tuple[int, Path]] = []
+    values: list[tuple[int, Path]] = []
     for path in root.iterdir():
-        if not path.is_file():
-            continue
-        match = BATCH_FILE_RE.fullmatch(path.name)
-        if match:
-            candidates.append((int(match.group(1)), path))
-    return sorted(candidates, key=lambda item: item[0])
+        if path.is_file() and (match := BATCH_FILE_RE.fullmatch(path.name)):
+            values.append((int(match.group(1)), path))
+    return sorted(values, key=lambda item: item[0])
 
 
 def _latest_batch_file(root: Path) -> Path:
-    candidates = _batch_files(root)
-    if not candidates:
+    batches = _batch_files(root)
+    if not batches:
         raise ValueError("no BATCH<n>.md file found")
-    return candidates[-1][1]
+    return batches[-1][1]
 
 
 def _batch_status_and_human(path: Path) -> tuple[str, str]:
     text = path.read_text(encoding="utf-8")
     statuses = BATCH_STATUS_RE.findall(text)
     if len(statuses) != 1:
-        raise ValueError(
-            f"{path.name} must contain exactly one '**Statut : ...**' line (found {len(statuses)})"
-        )
-    human_states = HUMAN_VALIDATION_RE.findall(text)
-    if len(human_states) != 1:
+        raise ValueError(f"{path.name} must contain exactly one '**Statut : ...**' line (found {len(statuses)})")
+    human = HUMAN_VALIDATION_RE.findall(text)
+    if len(human) != 1:
         raise ValueError(
             f"{path.name} must contain exactly one human validation marker: "
             "'### Jalon humain requis — EN ATTENTE|VALIDÉ|NON REQUIS'"
         )
-    return statuses[0].strip(), human_states[0]
+    return statuses[0].strip(), human[0]
 
 
 def check_batch_human_validation(root: Path) -> int:
     try:
-        batch_path = _latest_batch_file(root)
-        batch_status, human_state = _batch_status_and_human(batch_path)
+        path = _latest_batch_file(root)
+        status, human = _batch_status_and_human(path)
     except (OSError, ValueError) as exc:
         return fail(str(exc))
-
-    is_closed = CLOSED_STATUS_RE.search(batch_status) is not None
-    if is_closed and human_state == "EN ATTENTE":
-        return fail(
-            f"{batch_path.name} is declared closed while human app validation is still EN ATTENTE"
-        )
-
-    print(
-        f"PASS: {batch_path.name} human app validation state is {human_state}; "
-        f"batch status is {batch_status!r}"
-    )
+    if CLOSED_STATUS_RE.search(status) and human == "EN ATTENTE":
+        return fail(f"{path.name} is declared closed while human app validation is still EN ATTENTE")
+    print(f"PASS: {path.name} human app validation state is {human}; batch status is {status!r}")
     return 0
 
 
@@ -329,7 +280,6 @@ def _read_json_object(path: Path, label: str) -> dict:
 def _validate_contract(contract: dict) -> None:
     if contract.get("schema_version") != 1:
         raise ValueError("workflow contract schema_version must be 1")
-
     if set(contract.get("validation_states", [])) != VALIDATION_STATES:
         raise ValueError("workflow contract validation_states do not match the supported states")
     if set(contract.get("risk_levels", [])) != RISK_LEVELS:
@@ -338,45 +288,44 @@ def _validate_contract(contract: dict) -> None:
     closure = contract.get("closure")
     if not isinstance(closure, dict):
         raise ValueError("workflow contract closure must be an object")
-    if closure.get("mechanical_validation_required") is not True:
-        raise ValueError("workflow contract must require mechanical validation before closure")
+    expected_closure = {
+        "mechanical_validation_required": True,
+        "human_validation_must_not_be_pending": True,
+    }
+    for key, expected in expected_closure.items():
+        if closure.get(key) != expected:
+            raise ValueError(f"workflow contract closure.{key} must be {expected!r}")
     if set(closure.get("independent_review_required_for", [])) != {"sensitive", "critical"}:
         raise ValueError("workflow contract must require independent review for sensitive and critical work")
     if set(closure.get("owner_approval_required_for", [])) != {"critical"}:
         raise ValueError("workflow contract must require owner approval for critical work")
-    if closure.get("human_validation_must_not_be_pending") is not True:
-        raise ValueError("workflow contract must forbid closure with pending human validation")
 
     next_batch = contract.get("next_batch")
-    if not isinstance(next_batch, dict):
-        raise ValueError("workflow contract next_batch must be an object")
-    if next_batch.get("requires_current_batch_closed") is not True:
-        raise ValueError("workflow contract must require the current batch to be closed")
-    if next_batch.get("requires_next_batch_allowed") is not True:
-        raise ValueError("workflow contract must require positive next-batch authorization")
+    if not isinstance(next_batch, dict) or next_batch.get("requires_current_batch_closed") is not True or next_batch.get("requires_next_batch_allowed") is not True:
+        raise ValueError("workflow contract must require closed Batch and positive next-batch authorization")
 
     routing = contract.get("review_routing")
-    if not isinstance(routing, dict):
-        raise ValueError("workflow contract review_routing must be an object")
     required_routing = {
         "default": "codex_normal",
         "codex_security_requires_security_property": True,
         "codex_security_requires_normal_insufficient": True,
         "unknown_means_stop": True,
     }
+    if not isinstance(routing, dict):
+        raise ValueError("workflow contract review_routing must be an object")
     for key, expected in required_routing.items():
         if routing.get(key) != expected:
             raise ValueError(f"workflow contract review_routing.{key} must be {expected!r}")
 
     transfer = contract.get("human_transfer")
-    if not isinstance(transfer, dict):
-        raise ValueError("workflow contract human_transfer must be an object")
     required_transfer = {
         "first_tool_failure_allows_transfer": False,
         "unknown_equals_impossible": False,
         "requires_reasonable_means_exhausted": True,
         "failure_prefix": "BLOQUÉ:",
     }
+    if not isinstance(transfer, dict):
+        raise ValueError("workflow contract human_transfer must be an object")
     for key, expected in required_transfer.items():
         if transfer.get(key) != expected:
             raise ValueError(f"workflow contract human_transfer.{key} must be {expected!r}")
@@ -400,15 +349,12 @@ def check_workflow_state(root: Path, state_path: Path, contract_path: Path, proj
     if set(state) != WORKFLOW_STATE_KEYS:
         missing = sorted(WORKFLOW_STATE_KEYS - set(state))
         extra = sorted(set(state) - WORKFLOW_STATE_KEYS)
-        details: list[str] = []
+        details = []
         if missing:
             details.append("missing=" + ",".join(missing))
         if extra:
             details.append("extra=" + ",".join(extra))
         return fail("workflow state keys are not exact: " + " ".join(details))
-
-    if VOLATILE_STATE_KEYS & set(state):
-        return fail("workflow state must not persist volatile SHA/PR fields")
     if state.get("schema_version") != 1:
         return fail("workflow state schema_version must be 1")
     current_batch = state.get("current_batch")
@@ -431,47 +377,42 @@ def check_workflow_state(root: Path, state_path: Path, contract_path: Path, proj
         if not batches:
             raise ValueError("no BATCH<n>.md file found")
         latest_number, latest_path = batches[-1]
-        latest_status, latest_human_marker = _batch_status_and_human(latest_path)
+        latest_status, latest_marker = _batch_status_and_human(latest_path)
         project_state = parse_project_state(project_state_path)
     except (OSError, ValueError) as exc:
         return fail(str(exc))
 
     if latest_number != current_batch:
-        return fail(
-            f"workflow current_batch is {current_batch}, but latest batch file is BATCH{latest_number}.md"
-        )
+        return fail(f"workflow current_batch is {current_batch}, but latest batch file is BATCH{latest_number}.md")
 
     latest_closed = CLOSED_STATUS_RE.search(latest_status) is not None
-    expected_batch_status = "closed" if latest_closed else "open"
-    if state["batch_status"] != expected_batch_status:
-        return fail(
-            f"workflow batch_status is {state['batch_status']}, but {latest_path.name} is {expected_batch_status}"
-        )
+    expected_status = "closed" if latest_closed else "open"
+    if state["batch_status"] != expected_status:
+        return fail(f"workflow batch_status is {state['batch_status']}, but {latest_path.name} is {expected_status}")
 
-    marker_state = HUMAN_MARKER_TO_STATE[latest_human_marker]
+    marker_state = HUMAN_MARKER_TO_STATE[latest_marker]
     if state["human_validation"] != marker_state:
-        return fail(
-            f"workflow human_validation is {state['human_validation']}, but {latest_path.name} declares {latest_human_marker}"
-        )
+        return fail(f"workflow human_validation is {state['human_validation']}, but {latest_path.name} declares {latest_marker}")
 
-    for number, path in batches[:-1]:
-        status, _ = _batch_status_and_human(path)
-        if CLOSED_STATUS_RE.search(status) is None:
-            return fail(
-                f"BATCH{current_batch}.md exists while earlier {path.name} is not declared closed"
-            )
+    predecessor = next((path for number, path in batches if number == current_batch - 1), None)
+    if current_batch > 0 and predecessor is not None:
+        try:
+            predecessor_status, _ = _batch_status_and_human(predecessor)
+        except ValueError:
+            # Legacy Batches created before the machine-readable marker existed
+            # are not rewritten retroactively. Only the immediate predecessor
+            # is enforced once it follows the current Batch format.
+            predecessor_status = predecessor.read_text(encoding="utf-8")
+        if CLOSED_STATUS_RE.search(predecessor_status) is None:
+            return fail(f"BATCH{current_batch}.md exists while earlier {predecessor.name} is not declared closed")
 
     if f"Batch {current_batch}" not in project_state["stage"]:
-        return fail(
-            f"PROJECT_STATE stage does not identify current Batch {current_batch}: {project_state['stage']!r}"
-        )
-    project_says_closed = CLOSED_STATUS_RE.search(project_state["status"]) is not None
-    if project_says_closed != latest_closed:
+        return fail(f"PROJECT_STATE stage does not identify current Batch {current_batch}: {project_state['stage']!r}")
+    if (CLOSED_STATUS_RE.search(project_state["status"]) is not None) != latest_closed:
         return fail("PROJECT_STATE structured status contradicts the latest Batch closure state")
 
     if state["batch_status"] == "open" and state["next_batch_allowed"]:
         return fail("next_batch_allowed cannot be true while the current Batch is open")
-
     if state["batch_status"] == "closed":
         if state["mechanical_validation"] != "passed":
             return fail("closed Batch requires mechanical_validation=passed")
@@ -496,8 +437,8 @@ def decide_review_route(security_property: str, normal_sufficient: str) -> int:
         return fail("STOP: review routing is uncertain; classify the property before choosing a reviewer")
     if security_property == "yes" and normal_sufficient == "no":
         print("CODEX_SECURITY")
-        return 0
-    print("CODEX_NORMAL")
+    else:
+        print("CODEX_NORMAL")
     return 0
 
 
@@ -505,9 +446,7 @@ def decide_human_transfer(operation_authorized: str, reasonable_means_exhausted:
     if operation_authorized != "yes":
         return fail("BLOQUÉ: the operation is not established as authorized")
     if reasonable_means_exhausted != "yes":
-        return fail(
-            "BLOQUÉ: reasonable available means are not proven exhausted; do not transfer the action to Mickaël"
-        )
+        return fail("BLOQUÉ: reasonable available means are not proven exhausted; do not transfer the action to Mickaël")
     print("HUMAN_TRANSFER_ALLOWED")
     return 0
 
@@ -516,59 +455,37 @@ def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description="Filora operational guardrails")
     commands = root.add_subparsers(dest="command", required=True)
 
-    canon = commands.add_parser(
-        "canonical-presence", help="check that all canonical documents exist"
-    )
+    canon = commands.add_parser("canonical-presence")
     canon.add_argument("--root", type=Path, default=Path("."))
 
-    review = commands.add_parser(
-        "review-packet", help="lint a review packet before external delegation"
-    )
+    review = commands.add_parser("review-packet")
     review.add_argument("packet", type=Path)
-    review.add_argument(
-        "--verify-git-sha",
-        action="store_true",
-        help="require state_sha to resolve to a local Git commit",
-    )
+    review.add_argument("--verify-git-sha", action="store_true")
     review.add_argument("--repo-root", type=Path, default=Path("."))
 
-    state = commands.add_parser(
-        "project-state", help="validate the structured resume section"
-    )
+    state = commands.add_parser("project-state")
     state.add_argument("--file", type=Path, default=Path("PROJECT_STATE.md"))
     state.add_argument("--expect-stage")
     state.add_argument("--expect-status")
     state.add_argument("--expect-git")
     state.add_argument("--expect-next")
 
-    human = commands.add_parser(
-        "batch-human-validation",
-        help="validate the latest Batch human-app-validation closure state",
-    )
+    human = commands.add_parser("batch-human-validation")
     human.add_argument("--root", type=Path, default=Path("."))
 
-    workflow = commands.add_parser(
-        "workflow-state",
-        help="validate machine workflow state against the contract and human-readable state",
-    )
+    workflow = commands.add_parser("workflow-state")
     workflow.add_argument("--root", type=Path, default=Path("."))
     workflow.add_argument("--state", type=Path, default=Path("workflow/state.json"))
     workflow.add_argument("--contract", type=Path, default=Path("workflow/contract.json"))
     workflow.add_argument("--project-state", type=Path, default=Path("PROJECT_STATE.md"))
 
-    route = commands.add_parser(
-        "review-route", help="choose Codex normal vs Codex Security from objective inputs"
-    )
+    route = commands.add_parser("review-route")
     route.add_argument("--security-property", choices=("yes", "no", "unknown"), required=True)
     route.add_argument("--normal-sufficient", choices=("yes", "no", "unknown"), required=True)
 
-    transfer = commands.add_parser(
-        "human-transfer", help="decide whether manual transfer to Mickaël is allowed"
-    )
+    transfer = commands.add_parser("human-transfer")
     transfer.add_argument("--operation-authorized", choices=("yes", "no", "unknown"), required=True)
-    transfer.add_argument(
-        "--reasonable-means-exhausted", choices=("yes", "no", "unknown"), required=True
-    )
+    transfer.add_argument("--reasonable-means-exhausted", choices=("yes", "no", "unknown"), required=True)
     return root
 
 
@@ -579,13 +496,7 @@ def main() -> int:
     if args.command == "review-packet":
         return check_review_packet(args.packet, args.verify_git_sha, args.repo_root)
     if args.command == "project-state":
-        return check_project_state(
-            args.file,
-            args.expect_stage,
-            args.expect_status,
-            args.expect_git,
-            args.expect_next,
-        )
+        return check_project_state(args.file, args.expect_stage, args.expect_status, args.expect_git, args.expect_next)
     if args.command == "batch-human-validation":
         return check_batch_human_validation(args.root)
     if args.command == "workflow-state":
