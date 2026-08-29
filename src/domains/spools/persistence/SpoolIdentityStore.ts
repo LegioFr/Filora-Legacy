@@ -1,5 +1,6 @@
 export interface PersistedSpoolIdentity {
   id: string;
+  measuredWeightGrams: number;
 }
 
 export interface SpoolIdentityStore {
