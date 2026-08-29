@@ -7,7 +7,8 @@
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
-    "check:architecture": "python3 tools/check_architecture.py src"
+    "check:architecture": "python3 tools/check_architecture.py src",
+    "test:persistence": "rm -rf .tmp-persistence-tests && tsc --outDir .tmp-persistence-tests --noEmit false --target ES2022 --module NodeNext --moduleResolution NodeNext --lib ES2022,DOM --skipLibCheck true tests/persistence_check.ts src/domains/spools/persistence/SpoolIdentityStore.ts src/domains/spools/persistence/IndexedDbSpoolIdentityStore.ts && node .tmp-persistence-tests/tests/persistence_check.js && rm -rf .tmp-persistence-tests"
   },
   "dependencies": {
     "react": "19.2.8",
