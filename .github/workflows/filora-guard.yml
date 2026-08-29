@@ -33,8 +33,8 @@ jobs:
       - name: Human app validation state
         run: python3 tools/filora_guard.py batch-human-validation --root .
 
-      - name: Machine workflow state
-        run: python3 tools/filora_guard.py workflow-state --root . --state workflow/state.json --contract workflow/contract.json --project-state PROJECT_STATE.md
+      - name: Machine workflow state and objective risk floor
+        run: python3 tools/filora_guard.py workflow-state --root . --state workflow/state.json --contract workflow/contract.json --project-state PROJECT_STATE.md --base-ref "origin/${{ github.base_ref }}"
 
       - name: Guard tests
         run: python3 -m unittest discover -s tests -v
