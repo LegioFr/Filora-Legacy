@@ -73,6 +73,21 @@ export class IndexedDbSpoolIdentityStore implements SpoolIdentityStore {
     }
   }
 
+  async list(): Promise<PersistedSpoolIdentity[]> {
+    const database = await this.openDatabase();
+    try {
+      const transaction = database.transaction(SPOOL_IDENTITIES_STORE, 'readonly');
+      const done = transactionDone(transaction);
+      const result = await requestResult(
+        transaction.objectStore(SPOOL_IDENTITIES_STORE).getAll() as IDBRequest<PersistedSpoolIdentity[]>,
+      );
+      await done;
+      return result;
+    } finally {
+      database.close();
+    }
+  }
+
   async remove(id: string): Promise<void> {
     const database = await this.openDatabase();
     try {
