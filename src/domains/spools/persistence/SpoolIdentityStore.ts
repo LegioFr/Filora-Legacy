@@ -1,6 +1,10 @@
+export type TareSource = 'measured_empty_support' | 'manufacturer';
+
 export interface PersistedSpoolIdentity {
   id: string;
-  measuredWeightGrams: number;
+  grossMeasuredWeightGrams: number;
+  tareWeightGrams: number;
+  tareSource: TareSource;
 }
 
 export interface SpoolIdentityStore {
