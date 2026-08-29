@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -11,9 +12,11 @@ GUARD = ROOT / "tools" / "filora_guard.py"
 
 class WorkflowTransitionWrapperTests(unittest.TestCase):
     def run_guard(self, *args):
+        env = os.environ.copy()
+        env.pop("GITHUB_EVENT_PATH", None)
         return subprocess.run(
             [sys.executable, str(GUARD), *args],
-            cwd=ROOT, text=True, capture_output=True, check=False,
+            cwd=ROOT, text=True, capture_output=True, check=False, env=env,
         )
 
     def init_repo(self, root: Path, state: dict, batch2_status="en validation", human="NON REQUIS"):
@@ -91,6 +94,8 @@ class WorkflowTransitionWrapperTests(unittest.TestCase):
                 "- next_action: continuer\n\n## État courant\n",
                 encoding="utf-8",
             )
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "candidate"], cwd=root, check=True)
             result = self.run_guard(
                 "workflow-state", "--root", str(root), "--base-ref", "base"
             )
