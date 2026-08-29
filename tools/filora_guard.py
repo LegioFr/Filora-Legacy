@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -28,13 +29,23 @@ REQUIRED_CRITICAL_PATHS = {
     "DEVELOPMENT.md", "workflow/contract.json", "tools/filora_guard.py",
     "tools/check_architecture.py", ".github/workflows/filora-guard.yml",
     "tests/test_filora_guard.py", "tests/test_human_validation_guard.py", "tests/test_workflow_guard.py",
+    "tests/test_workflow_transition_wrapper.py", "tests/test_guard_entry_boundary.py",
 }
 OPEN_PREFIXES = (
     "ouvert", "open", "en cours", "en validation", "en attente",
     "validation humaine en attente", "intégré techniquement à main — clôture rouverte",
     "non clôturé", "pas encore", "toujours pas",
 )
-CLOSED_PREFIXES = ("clôturé", "clôturée", "closed")
+CLOSED_STATUSES = {
+    "clôturé", "clôturée", "closed",
+    "clôturé et intégré à main", "clôturée et intégrée à main",
+    "clôturé et intégré à `main`", "clôturée et intégrée à `main`",
+}
+STRUCTURAL_OPTIONS = {
+    "--root", "--state", "--contract", "--project-state", "--base-ref", "--repo-root",
+    "--security-property", "--normal-sufficient", "--operation-authorized",
+    "--reasonable-means-exhausted", "--hard-limit", "--attempt-count", "--alternative-count",
+}
 
 
 def fail(message: str) -> int:
@@ -62,6 +73,13 @@ def _git_sha_exists(sha: str, repo_root: Path) -> bool:
     return r.returncode == 0
 
 
+def _resolve_commit(root: Path, ref: str) -> str:
+    r = subprocess.run(["git", "rev-parse", "--verify", f"{ref}^{{commit}}"], cwd=root, text=True, capture_output=True, check=False)
+    if r.returncode:
+        raise ValueError(f"base ref does not resolve to a commit: {ref}")
+    return r.stdout.strip()
+
+
 def _show(root: Path, ref: str, path: str) -> str | None:
     r = subprocess.run(["git", "show", f"{ref}:{path}"], cwd=root, text=True, capture_output=True, check=False)
     return r.stdout if r.returncode == 0 else None
@@ -72,6 +90,42 @@ def _changed_paths(root: Path, base_ref: str) -> list[str]:
     if r.returncode:
         raise ValueError(f"cannot compute changed paths against {base_ref}: {r.stderr.strip()}")
     return [x.strip() for x in r.stdout.splitlines() if x.strip()]
+
+
+def _validate_base_ref(root: Path, base_ref: str) -> str:
+    base_sha = _resolve_commit(root, base_ref)
+    head_sha = _resolve_commit(root, "HEAD")
+    if base_sha == head_sha:
+        raise ValueError("base ref must identify the PR base, not HEAD")
+
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if event_path:
+        try:
+            payload = json.loads(Path(event_path).read_text(encoding="utf-8"))
+            expected = payload["pull_request"]["base"]["sha"]
+        except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
+            raise ValueError(f"cannot authenticate PR base from GITHUB_EVENT_PATH: {exc}") from exc
+        if base_sha != expected:
+            raise ValueError(f"base ref does not match authenticated PR base SHA {expected}")
+        return base_sha
+
+    remote = subprocess.run(
+        ["git", "rev-parse", "--verify", "refs/remotes/origin/test-preview^{commit}"],
+        cwd=root, text=True, capture_output=True, check=False,
+    )
+    if remote.returncode == 0:
+        expected = remote.stdout.strip()
+        if base_sha != expected:
+            raise ValueError("base ref does not match origin/test-preview")
+        return base_sha
+
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", base_sha, head_sha],
+        cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+    )
+    if ancestor.returncode != 0:
+        raise ValueError("base ref is not an ancestor of HEAD")
+    return base_sha
 
 
 def check_canonical_presence(root: Path) -> int:
@@ -217,7 +271,7 @@ def _status_kind(value: str) -> str:
     normalized = " ".join(value.strip().lower().split())
     if normalized.startswith(OPEN_PREFIXES):
         return "open"
-    if normalized.startswith(CLOSED_PREFIXES):
+    if normalized in CLOSED_STATUSES:
         return "closed"
     raise ValueError(f"ambiguous lifecycle status: {value!r}")
 
@@ -378,9 +432,6 @@ def check_workflow_state(root: Path, state_path: Path, contract_path: Path, proj
         state = _read_json_object(state_path, "workflow state")
         contract = _read_json_object(contract_path, "workflow contract")
         _validate_contract(contract)
-        transition_test = root / "tests/test_workflow_transition_wrapper.py"
-        if transition_test.is_file() and "tests/test_workflow_transition_wrapper.py" not in set(contract["critical_control_paths"]):
-            raise ValueError("workflow contract is missing critical control path(s): tests/test_workflow_transition_wrapper.py")
         error = _validate_state_shape(state)
         if error:
             raise ValueError(error)
@@ -423,6 +474,7 @@ def check_workflow_state(root: Path, state_path: Path, contract_path: Path, proj
             return fail(f"BATCH{current_batch}.md exists while predecessor {predecessor.name} is not declared closed")
     if base_ref:
         try:
+            _validate_base_ref(root, base_ref)
             paths = _changed_paths(root, base_ref)
             required_risk = required_risk_for_paths(paths, contract)
             base = _base_state(root, base_ref)
@@ -518,51 +570,58 @@ def check_change_risk(paths: list[str], contract_path: Path) -> int:
     return 0
 
 
+def _canonical_option_token(token: str) -> str | None:
+    if not token.startswith("--"):
+        return None
+    name = token.split("=", 1)[0]
+    return name if name in STRUCTURAL_OPTIONS else None
+
+
 def _reject_duplicate_options(argv: list[str]) -> int | None:
-    structural = {
-        "--root", "--state", "--contract", "--project-state", "--base-ref", "--repo-root",
-        "--security-property", "--normal-sufficient", "--operation-authorized",
-        "--reasonable-means-exhausted", "--hard-limit", "--attempt-count", "--alternative-count",
-    }
-    for option in structural:
-        if argv.count(option) > 1:
+    counts: dict[str, int] = {}
+    for token in argv:
+        option = _canonical_option_token(token)
+        if option:
+            counts[option] = counts.get(option, 0) + 1
+    for option, count in counts.items():
+        if count > 1:
             return fail(f"STOP: duplicate structural option is forbidden: {option}")
     return None
 
 
 def parser() -> argparse.ArgumentParser:
-    root = argparse.ArgumentParser(description="Filora operational guardrails")
+    root = argparse.ArgumentParser(description="Filora operational guardrails", allow_abbrev=False)
     commands = root.add_subparsers(dest="command", required=True)
-    p = commands.add_parser("canonical-presence")
+    p = commands.add_parser("canonical-presence", allow_abbrev=False)
     p.add_argument("--root", type=Path, default=Path("."))
-    p = commands.add_parser("review-packet")
+    p = commands.add_parser("review-packet", allow_abbrev=False)
     p.add_argument("packet", type=Path)
     p.add_argument("--verify-git-sha", action="store_true")
     p.add_argument("--repo-root", type=Path, default=Path("."))
-    p = commands.add_parser("project-state")
+    p = commands.add_parser("project-state", allow_abbrev=False)
     p.add_argument("--file", type=Path, default=Path("PROJECT_STATE.md"))
     p.add_argument("--expect-stage")
     p.add_argument("--expect-status")
     p.add_argument("--expect-git")
     p.add_argument("--expect-next")
-    p = commands.add_parser("batch-human-validation")
+    p = commands.add_parser("batch-human-validation", allow_abbrev=False)
     p.add_argument("--root", type=Path, default=Path("."))
-    p = commands.add_parser("workflow-state")
+    p = commands.add_parser("workflow-state", allow_abbrev=False)
     p.add_argument("--root", type=Path, default=Path("."))
     p.add_argument("--state", type=Path, default=Path("workflow/state.json"))
     p.add_argument("--contract", type=Path, default=Path("workflow/contract.json"))
     p.add_argument("--project-state", type=Path, default=Path("PROJECT_STATE.md"))
     p.add_argument("--base-ref")
-    p = commands.add_parser("review-route")
+    p = commands.add_parser("review-route", allow_abbrev=False)
     p.add_argument("--security-property", choices=("yes", "no", "unknown"), required=True)
     p.add_argument("--normal-sufficient", choices=("yes", "no", "unknown"), required=True)
-    p = commands.add_parser("human-transfer")
+    p = commands.add_parser("human-transfer", allow_abbrev=False)
     p.add_argument("--operation-authorized", choices=("yes", "no", "unknown"), required=True)
     p.add_argument("--reasonable-means-exhausted", choices=("yes", "no", "unknown"), required=True)
     p.add_argument("--hard-limit", choices=("yes", "no", "unknown"), required=True)
     p.add_argument("--attempt-count", type=int, required=True)
     p.add_argument("--alternative-count", type=int, required=True)
-    p = commands.add_parser("change-risk")
+    p = commands.add_parser("change-risk", allow_abbrev=False)
     p.add_argument("--path", action="append", default=[])
     p.add_argument("--contract", type=Path, default=Path("workflow/contract.json"))
     return root
