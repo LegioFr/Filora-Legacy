@@ -1,0 +1,1 @@
+This file intentionally accompanies the critical workflow probe and does not change the protected-surface expectation.
