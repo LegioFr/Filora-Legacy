@@ -159,7 +159,7 @@ Une revue effectuée par l'agent qui a réalisé ou coordonné les modifications
 
 ## Validation humaine applicative
 
-### Jalon humain requis — RÉUSSI
+### Jalon humain requis — VALIDÉ
 
 Le périmètre ayant évolué vers un comportement observable, une validation humaine a été effectuée par Mickaël le 2026-08-29 sur la Preview du candidat fonctionnel.
 
