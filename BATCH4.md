@@ -100,9 +100,14 @@ Décisions avant démarrage :
 
 Justification : le Batch touche la lecture de données persistantes de stock et leur présentation comme état métier. Il n’introduit toutefois ni migration, ni destruction, ni nouvelle autorité de mutation, ni changement de garde-fou.
 
-### Jalon humain requis — EN ATTENTE
+### Jalon humain requis — VALIDÉ
 
-La validation humaine sera effectuée sur Preview après obtention d’une CI verte du candidat fonctionnel. Elle vérifiera le listing de plusieurs bobines, leur présence après rechargement réel du navigateur et la conservation des valeurs affichées.
+Validation humaine effectuée le 2026-08-30 sur la Preview du candidat fonctionnel :
+
+- `batch4-001` : poids brut 800 g, tare 200 g, origine « Support vide pesé », filament disponible 600 g ;
+- `batch4-002` : poids brut 950 g, tare 250 g, origine « Support vide pesé », filament disponible 700 g ;
+- les deux bobines sont affichées simultanément dans le bloc Stock ;
+- après rechargement complet de la page, les deux bobines restent présentes avec les mêmes valeurs.
 
 ## Preuves attendues avant clôture
 
