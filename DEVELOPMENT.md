@@ -1013,6 +1013,30 @@ Lorsqu'un environnement Codex dispose d'un accès direct au dépôt et à l'éta
 
 Il doit lui aussi identifier précisément l'état examiné et ne pas revendiquer des propriétés que son environnement ne permet pas de démontrer.
 
+Pour une mission Codex normale, l'indépendance porte sur le raisonnement, les conclusions et l'état examiné ; elle n'impose pas de recréer physiquement le dépôt. Une instruction telle que « partir de zéro » ne doit donc pas être interprétée comme une obligation de lancer `git clone`, de créer un clone dans `%TEMP%` ou de préparer un nouveau dépôt de revue.
+
+Avant toute opération Git réseau destinée à obtenir l'état examiné, Codex normal doit utiliser en priorité le dépôt Filora local déjà disponible et :
+
+- identifier son chemin ;
+- vérifier son état Git ;
+- vérifier si le SHA exact demandé existe déjà localement.
+
+Si le SHA existe localement :
+
+- examiner exactement cet état ;
+- utiliser le dépôt existant ;
+- ne pas lancer de `git fetch`, `git clone`, clone dans `%TEMP%`, nouveau dépôt ou worktree supplémentaire sans nécessité démontrée.
+
+Si le SHA n'existe pas localement :
+
+- réutiliser le dépôt existant ;
+- effectuer uniquement le `git fetch` minimal nécessaire pour rendre ce SHA disponible ;
+- ne pas recloner le dépôt par défaut.
+
+Si un clone neuf ou un worktree supplémentaire paraît indispensable pour établir une propriété particulière, Codex doit s'arrêter et expliquer d'abord pourquoi cette création est nécessaire au lieu de l'exécuter automatiquement.
+
+Lorsqu'une mission Codex est déclarée strictement en lecture seule, cette règle interdit toute modification de fichier, création de commit, création de branche, push ou mutation GitHub. Elle n'interdit pas les lectures réseau réellement nécessaires à la vérification d'éléments non présents localement, par exemple l'état d'une PR ou d'une CI.
+
 Pour une mission explicitement `Codex Security`, le prompt versionné de mission doit demander l'utilisation du plugin Security conformément à la Section 14.1.
 
 ## 17.3 Orchestration
