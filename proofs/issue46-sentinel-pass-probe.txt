@@ -1,0 +1,2 @@
+Issue #46 sentinel ordinary-PR pass probe.
+No critical guard surface is modified by this branch.
