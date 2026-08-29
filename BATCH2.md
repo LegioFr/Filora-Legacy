@@ -1,6 +1,6 @@
 # BATCH2.md — Paquet documentaire de contre-vérification Claude
 
-**Statut : en validation sur `test-preview` — correction du paquet Claude en cours**  
+**Statut : clôturé**  
 **Date de préparation : 2026-08-28**
 
 ## Intention
@@ -42,6 +42,7 @@ Ces trois règles sont inscrites dans `DEVELOPMENT.md` et protégées mécanique
 - Finding prompt Claude — **traité mécaniquement et pérennisé**.
 - Finding transfert manuel prématuré après réponse tronquée — **traité par règle canonique et garde de présence**.
 - Finding Codex Security depuis tablette — **traité par template versionné imposant explicitement le plugin Security et contrôle mécanique associé**.
+- Issue #46 — **reportée hors du périmètre Batch 2** : protection externe GitHub des garde-fous critiques. Elle reste ouverte et doit être réévaluée avant promotion vers `main` ou avant tout Batch pertinent.
 
 ## Dans le périmètre
 
@@ -65,7 +66,8 @@ Ces trois règles sont inscrites dans `DEVELOPMENT.md` et protégées mécanique
 - faire de Claude, Codex ou du paquet une source de vérité ;
 - modification sémantique de `PRODUCT.md`, `DATA.md` ou `ARCHITECTURE.md` ;
 - changement fonctionnel de l’application ;
-- persistance métier, mutations de stock, migrations ou recovery.
+- persistance métier, mutations de stock, migrations ou recovery ;
+- protection externe GitHub suivie dans l’Issue #46.
 
 ## Règles de preuve IA
 
@@ -83,7 +85,7 @@ Les clauses canoniques sont vérifiées par `tools/check_review_governance.py`. 
 - **F4.3 : Critique** pour l’ensemble de la correction de gouvernance, car elle modifie des mécanismes déterminant ce qu’une IA est autorisée ou obligée à faire et modifie simultanément ces règles et leurs contrôles.
 - Mickaël a explicitement demandé et autorisé ces trois règles le 2026-08-28.
 - Cet accord autorise l’intention mais ne constitue pas une certification technique.
-- Une validation indépendante du diff canonique et des garde-fous est obligatoire avant intégration comme état validé.
+- La certification technique a été obtenue séparément par contre-vérification indépendante avant clôture.
 - Aucun nouveau service externe durable, coût ou lock-in n’est introduit.
 
 ## Preuves requises avant clôture
@@ -102,6 +104,17 @@ Les clauses canoniques sont vérifiées par `tools/check_review_governance.py`. 
 12. si Codex Security est utilisé comme preuve, son prompt est dérivé du template versionné et demande explicitement le plugin Security ;
 13. l’ancienne mécanique Drive versionnée est absente du candidat final.
 
+## Preuves de clôture obtenues
+
+- la correction Critique des garde-fous a été contre-vérifiée par Codex Security avec plugin Security sur le candidat exact ; verdict `ACCEPTABLE POUR LA SUITE`, aucun finding bloquant ;
+- le candidat a été intégré sur `test-preview` après `Filora guard` vert ;
+- le workflow réel `Filora Claude review package` a réussi sur le SHA exact `c5238a93fdf02dd18efff3dc5503bbf656c8c034` ;
+- l’artefact réel `filora-claude-review-c5238a93fdf02dd18efff3dc5503bbf656c8c034` a été récupéré et contrôlé ;
+- le paquet contient exactement les cinq documents attendus et le prompt rendu ; branche et SHA concordent ;
+- Claude a utilisé uniquement le paquet et le prompt générés, a vérifié `test-preview` / `c5238a93fdf02dd18efff3dc5503bbf656c8c034`, a conclu `ÉTAT DE RÉFÉRENCE : CONFORME`, `COHÉRENCE DOCUMENTAIRE : CONFORME`, aucun finding bloquant documentaire, verdict `CANDIDAT DOCUMENTAIRE VALIDÉ` ;
+- les réserves GitHub/CI explicitement classées `INVÉRIFIABLE` par Claude ont été vérifiées directement dans GitHub avant cette transition ;
+- l’Issue #21 reflète les preuves obtenues ; l’Issue #46 reste séparée et reportée hors de ce Batch.
+
 ## Dépendance humaine nécessaire
 
 L’import du paquet dans l’interface Claude et l’envoi du prompt généré nécessitent une action humaine lorsque Claude n’est pas accessible à l’agent. Aucun secret ne doit être transmis.
@@ -115,3 +128,5 @@ Ce Batch ne modifie pas le comportement observable de l’application Filora. Le
 ## Condition de clôture
 
 Le Batch 2 ne peut être déclaré clôturé que lorsque la solution Drive abandonnée a été retirée du périmètre actif, que le paquet et les garde-fous de prompts ont passé leurs contrôles sur `test-preview`, que les changements canoniques Critiques ont reçu la validation indépendante exigée, qu’une contre-vérification Claude réelle a utilisé le paquet du SHA attendu, qu’aucun finding bloquant ne reste non résolu et que l’état réel du Batch est reflété dans `PROJECT_STATE.md` et l’Issue #21.
+
+Ces conditions sont satisfaites pour le périmètre Batch 2. La clôture ne vaut ni résolution de l’Issue #46, ni autorisation automatique de promotion vers `main`.
