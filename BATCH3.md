@@ -1,6 +1,6 @@
 # BATCH3.md — Fondation de persistance locale et premier flux de bobine pesée
 
-**Statut : en cours**  
+**Statut : clôturé**  
 **Date de préparation : 2026-08-29**
 
 ## Intention
@@ -82,13 +82,13 @@ Cette évolution a rendu une validation humaine applicative pertinente et néces
 - nouvelle architecture globale ou nouveau domaine métier ;
 - modification des contrats canoniques sauf contradiction réellement découverte et traitée séparément selon la gouvernance.
 
-## Propriétés à démontrer
+## Propriétés démontrées
 
 1. la persistance reste une infrastructure et ne devient pas l'autorité métier ;
 2. le sens conceptuel `UI → opération métier → persistance` reste respecté ;
 3. la base possède une version explicite ;
-4. une bobine créée peut être relue sans perte silencieuse ;
-5. les échecs de stockage sont explicites ;
+4. une bobine créée peut être relue sans perte silencieuse dans le scénario validé ;
+5. les échecs de stockage couverts remontent explicitement ;
 6. aucune seconde autorité de stock n'est introduite ;
 7. le poids brut et la tare conservent les valeurs décimales utiles ;
 8. l'origine de la tare reste identifiable ;
@@ -96,11 +96,11 @@ Cette évolution a rendu une validation humaine applicative pertinente et néces
 10. une création avec un identifiant déjà présent échoue sans écraser les données existantes ;
 11. la quantité disponible du premier flux est dérivée des faits persistés et n'est pas une seconde valeur d'autorité ;
 12. aucune donnée réelle n'est nécessaire pour clôturer ce Batch ;
-13. le choix entre IndexedDB direct et l'ajout de Dexie reste proportionné au besoin réel et doit être explicitement confirmé avant clôture.
+13. IndexedDB direct est retenu pour ce périmètre sans ajouter Dexie, faute de problème concret justifiant cette dépendance supplémentaire.
 
-## État technique actuel de la persistance
+## État technique final de la persistance
 
-L'implémentation courante utilise IndexedDB directement avec :
+L'implémentation retenue pour le Batch 3 utilise IndexedDB directement avec :
 
 - une base locale nommée `filora` ;
 - une version explicite `1` ;
@@ -109,7 +109,7 @@ L'implémentation courante utilise IndexedDB directement avec :
 - une lecture par identifiant ;
 - une suppression contrôlée utilisée par les tests.
 
-Dexie n'est pas introduit dans l'implémentation courante. Le fait que `DATA.md` le mentionne comme couche candidate ne vaut pas décision définitive : ce choix technique doit encore être explicitement confirmé ou écarté avant la clôture du Batch.
+Dexie n'est pas introduit dans ce Batch. `DATA.md` le présente comme couche candidate et non comme obligation. Pour le périmètre actuel, IndexedDB direct couvre le besoin sans dépendance ni abstraction supplémentaire. Dexie pourra être réévalué ultérieurement si les migrations, transactions ou évolutions de schéma deviennent suffisamment complexes pour qu'il résolve un problème concret.
 
 ## Findings découverts et traités pendant le Batch
 
@@ -129,7 +129,21 @@ Dexie n'est pas introduit dans l'implémentation courante. Le fait que `DATA.md`
 
 **État :** traité dans le Batch et validé sur Preview.
 
-## Classification prévisionnelle
+## Findings non bloquants de la revue indépendante
+
+### Tests IndexedDB simulés
+
+**Constat :** les tests automatisés de persistance utilisent un faux IndexedDB interne et ne constituent pas, seuls, une preuve du comportement d'un moteur de navigateur réel après rechargement.
+
+**Décision : accepté pour le Batch 3.** Les propriétés métier et d'erreur sont couvertes automatiquement, et la validation humaine sur Preview a vérifié le flux observable dans un navigateur réel, y compris la relecture après persistance et la conservation des données après tentative d'écrasement. Cette décision ne vaut pas preuve de compatibilité avec tous les navigateurs ni de recovery complet.
+
+### Encodage implicite du guard sous Windows
+
+**Constat :** la revue indépendante a signalé un défaut de portabilité préexistant lié à un décodage implicite du guard sur l'hôte Windows de revue. La CI Linux et l'exécution UTF-8 utilisée par la revue réussissent.
+
+**Décision : reporté hors du Batch 3.** Ce point ne remet pas en cause les propriétés métier ou de persistance que le Batch 3 devait démontrer et ne justifie pas une modification opportuniste du garde-fou dans ce Batch.
+
+## Classification finale
 
 ### F4.2 / F4.3
 
@@ -137,25 +151,32 @@ Dexie n'est pas introduit dans l'implémentation courante. Le fait que `DATA.md`
 
 Justification : le Batch touche la persistance et des données métier de stock, introduit un modèle persistant versionné et manipule des mesures physiques. Ces éléments relèvent du niveau Sensible défini par `DEVELOPMENT.md`.
 
-Le Batch n'est pas classé Critique à ce stade : aucune migration destructive, aucun affaiblissement de garde-fou et aucune modification simultanée d'un objet protégé et de son contrôle ne font partie du périmètre courant.
-
-Toute découverte faisant apparaître un critère Critique impose une reclassification avant poursuite du travail concerné.
+Le Batch n'est pas classé Critique : aucune migration destructive, aucun affaiblissement de garde-fou et aucune modification simultanée d'un objet protégé et de son contrôle ne font partie du périmètre final.
 
 ### F4.4
 
-**Décision produit encadrée, choix technique encore à confirmer.**
+**Choix technique réversible confirmé.**
 
-`DATA.md` enregistre IndexedDB + Dexie comme stratégie initiale candidate. Le Batch démontre actuellement la persistance avec IndexedDB direct. Avant clôture, il faut confirmer explicitement si cette solution directe reste suffisante ou si Dexie apporte une valeur concrète justifiant son introduction.
+Le comportement produit du premier flux a été validé par Mickaël. Pour la couche d'accès locale, IndexedDB direct est retenu pour le Batch 3. L'introduction de Dexie n'est pas nécessaire à ce stade car aucun problème concret du périmètre actuel ne justifie cette dépendance supplémentaire. Ce choix reste réévaluable ultérieurement si le besoin technique évolue.
 
-## Revue indépendante prévue
+## Revue indépendante
 
-Le niveau Sensible impose une revue indépendante avant clôture.
+Le niveau Sensible imposait une revue indépendante avant clôture.
 
-Par défaut, la revue prévue est **Codex normal**. Codex Security n'est pas requis en l'absence de propriété de sécurité spécifique justifiant ce niveau.
+Une revue **Codex normal** a été effectuée en lecture seule sur le candidat fonctionnel exact `04dc1291a40ccb6d01d210e28357f2659f5f0a36`, après vérification du SHA, de la PR, du diff, des contrats et de la CI.
 
-**État actuel : revue indépendante encore requise avant clôture.**
+Résultat communiqué par la revue :
 
-Une revue effectuée par l'agent qui a réalisé ou coordonné les modifications ne constitue pas cette preuve indépendante.
+- SHA vérifié : oui ;
+- CI vérifiée : verte ;
+- IndexedDB direct vs Dexie : **ACCEPTABLE** ;
+- verdict : **CONFORME** ;
+- bloquants : **aucun** ;
+- prêt pour intégration à `test-preview` : **oui**.
+
+Les deux observations non bloquantes sont consignées ci-dessus avec leur décision. La revue n'a pas rejoué la validation humaine, conformément à sa mission.
+
+Le commit de clôture qui met à jour uniquement `BATCH3.md`, `PROJECT_STATE.md` et `workflow/state.json` ne modifie pas l'implémentation fonctionnelle examinée par Codex ; sa propre cohérence reste soumise aux contrôles mécaniques de la PR avant intégration.
 
 ## Validation humaine applicative
 
@@ -172,29 +193,29 @@ Scénarios validés :
 
 Cette validation couvre le comportement observable introduit dans ce Batch. Elle ne vaut pas validation de fonctionnalités encore hors périmètre.
 
-## Preuves requises avant clôture
+## Preuves de clôture
 
-1. état Git exact du candidat identifié ;
-2. installation reproductible à partir du lockfile ;
+1. candidat fonctionnel exact identifié et revu ;
+2. installation reproductible à partir du lockfile vérifiée en CI ;
 3. typecheck vert ;
 4. build vert ;
 5. contrôle d'architecture vert ;
 6. tests de persistance verts sur les propriétés définies dans ce Batch ;
-7. preuve que la base possède une version explicite ;
-8. preuve qu'une bobine de test peut être créée puis relue correctement ;
-9. preuve qu'un échec de persistance remonte comme échec et non comme réussite ;
-10. preuve que `tare > poids brut` est refusé sans persistance ;
-11. preuve qu'un identifiant dupliqué est refusé sans écrasement ;
-12. diff examiné pour confirmer qu'aucune voie `UI → persistance` contournant le domaine n'est introduite ;
+7. base locale explicitement versionnée ;
+8. création puis relecture d'une bobine vérifiées ;
+9. propagation d'échecs de persistance couverts par les tests ;
+10. `tare > poids brut` refusé sans persistance ;
+11. identifiant dupliqué refusé sans écrasement ;
+12. frontière `UI → opération métier → persistance` examinée ;
 13. validation humaine du comportement observable : acquise ;
-14. revue indépendante du candidat exact sans finding bloquant non résolu : encore requise ;
-15. choix technique IndexedDB direct / Dexie explicitement confirmé ;
-16. classification F4.2/F4.3 et F4.4 confirmée à la clôture ;
-17. findings découverts pendant le Batch explicitement traités, reportés, acceptés ou rejetés ;
-18. `PROJECT_STATE.md` et `workflow/state.json` reflètent l'état réel à la transition de clôture.
+14. revue indépendante : acquise, verdict CONFORME sans bloquant ;
+15. choix IndexedDB direct / Dexie : IndexedDB direct confirmé pour ce périmètre ;
+16. classification finale : Sensible, décision technique réversible ;
+17. findings de la revue : explicitement acceptés ou reportés ci-dessus ;
+18. état de clôture synchronisé dans `PROJECT_STATE.md` et `workflow/state.json` par la transition approuvée.
 
 ## Condition de clôture
 
-Le Batch 3 ne pourra être déclaré clôturé que lorsque la fondation de persistance et le premier flux de bobine pesée auront été vérifiés sur un candidat Git exact, que les preuves techniques applicables seront vertes, que le choix IndexedDB direct / Dexie aura été explicitement résolu, que la revue indépendante requise pour le niveau Sensible aura été obtenue sans finding bloquant restant et que les états de projet auront été synchronisés pour la transition de clôture.
+Les conditions applicables au périmètre du Batch 3 sont satisfaites. Le Batch 3 est déclaré **clôturé** sur sa branche de travail, sous réserve du succès des contrôles mécaniques du commit de clôture avant son intégration vers `test-preview`.
 
-La validation humaine du premier flux métier est acquise, mais elle ne suffit pas à elle seule à clôturer le Batch.
+Cette clôture n'autorise pas encore l'utilisation de Filora comme source principale de données réelles : la preuve complète de sauvegarde/restauration prévue par `DATA.md` reste hors du périmètre de ce Batch.

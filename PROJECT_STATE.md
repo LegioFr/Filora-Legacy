@@ -9,21 +9,21 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 
 ## Reprise structurée
 - stage: Batch 3 — persistance locale et premier flux métier de bobine pesée
-- status: en cours
+- status: clôturé
 - git: lire les HEAD, PR, workflows, artefacts, rulesets et Issues courants directement depuis GitHub ; ne pas mémoriser ici les SHA ou PR volatiles
-- next_action: obtenir la revue indépendante du candidat exact, confirmer le choix IndexedDB direct / Dexie, puis réévaluer toutes les conditions de clôture avant toute intégration vers `test-preview`
+- next_action: vérifier que le commit de clôture est entièrement vert, puis intégrer la branche Batch 3 vers `test-preview` par la PR existante ; ne pas démarrer un Batch suivant avant cette intégration et sa vérification
 
 ## État courant
 
-- **Étape :** Batch 3 en cours sur une branche dédiée ; fondation de persistance locale implémentée et premier flux métier de bobine pesée validé humainement.
+- **Étape :** Batch 3 clôturé sur sa branche de travail ; intégration vers `test-preview` encore à effectuer.
 - **Phase F :** clôturée.
 - **Batch 0 :** clôturé et intégré à `main`.
 - **Batch 1 :** clôturé et intégré à `main`.
 - **Batch 2 :** clôturé, validé et promu vers `main`.
-- **Batch 3 :** ouvert ; la fondation de persistance et un premier flux borné de création de bobine mesurée sont implémentés, mais la revue indépendante et la confirmation du choix technique de persistance restent nécessaires avant clôture.
+- **Batch 3 :** clôturé après CI verte du candidat fonctionnel, validation humaine du premier flux métier, revue indépendante Codex conforme et décision de conserver IndexedDB direct pour ce périmètre. Le commit de clôture doit encore passer ses contrôles mécaniques avant intégration vers `test-preview`.
 - **Issue #21 :** traitée et fermée après intégration des preuves de Batch 2.
 - **Issue #46 :** traitée et fermée après activation d’un ruleset GitHub externe et contre-vérification opérationnelle.
-- **Issues/findings ouverts pertinents avant Batch 3 :** aucun au contrôle GitHub préalable du 2026-08-29.
+- **Issues/findings ouverts pertinents au dernier contrôle GitHub :** aucun.
 - **Protection externe GitHub :** un ruleset actif protège `main` et `test-preview`, exige une PR et le check `sentinel`, interdit les suppressions et force-push, et réserve le bypass administrateur au chemin PR explicite.
 - **Ancienne solution Drive :** abandonnée et retirée du périmètre actif.
 - **Solution Claude retenue :** workflow sans secret générant depuis le SHA exact de `test-preview` un artefact temporaire de contre-vérification documentaire.
@@ -33,13 +33,11 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 - **Branche de travail Batch 3 :** `batch3/persistence-foundation`.
 - **État Git pertinent :** les détails volatils doivent être lus directement depuis GitHub et ne sont pas recopiés ici comme vérité persistante.
 
-## Batch 3 — périmètre réel actuel
+## Batch 3 — résultat fonctionnel
 
-L’intention reste de poser un socle de persistance locale fiable pour le domaine `spools` sans construire toute la gestion de stock et sans utiliser Filora comme source principale de données réelles avant les garanties de récupération prévues dans `DATA.md`.
+Le Batch 3 pose un premier socle de persistance locale fiable pour le domaine `spools` et un premier comportement métier observable :
 
-Le Batch comprend désormais un premier comportement métier observable :
-
-- créer une bobine à partir d’un identifiant ;
+- créer une bobine à partir d’un identifiant stable ;
 - enregistrer un poids brut mesuré en grammes ;
 - enregistrer une tare et son origine ;
 - calculer le filament disponible à partir de `poids brut - tare` ;
@@ -51,7 +49,7 @@ Restent hors périmètre : gestion complète des références filament, cycle de
 
 ## Persistance Batch 3
 
-L’implémentation courante utilise IndexedDB directement :
+La solution retenue pour ce Batch utilise IndexedDB directement :
 
 - base locale `filora` ;
 - version explicite `1` ;
@@ -60,18 +58,16 @@ L’implémentation courante utilise IndexedDB directement :
 - lecture par identifiant ;
 - suppression contrôlée pour les tests.
 
-`DATA.md` présente IndexedDB + Dexie comme stratégie candidate. Dexie n’est pas introduit dans l’implémentation courante. Le choix de conserver IndexedDB direct ou d’introduire Dexie doit encore être explicitement confirmé avant clôture ; aucune conclusion définitive ne doit être déduite de l’absence actuelle de dépendance.
+`DATA.md` présente IndexedDB + Dexie comme stratégie candidate. Après vérification du besoin actuel et revue indépendante, **Dexie n’est pas ajouté dans le Batch 3** : IndexedDB direct est jugé suffisamment simple et proportionné au périmètre courant. Dexie pourra être réévalué si les migrations, transactions ou évolutions de schéma deviennent plus complexes.
 
 ## Classification Batch 3
 
 - **F4.2 / F4.3 : Sensible** : persistance locale, données métier de stock, modèle persistant versionné et mesures physiques.
-- **F4.4 :** la stratégie de persistance reste un choix technique à confirmer avant clôture ; `DATA.md` n’avait enregistré IndexedDB + Dexie que comme candidat.
-- **Revue indépendante requise :** Codex normal par défaut. Codex Security n’est pas requis sans propriété de sécurité spécifique justifiant ce niveau.
-- **État de la revue indépendante :** encore requise avant clôture.
+- **F4.4 :** choix technique réversible confirmé ; IndexedDB direct est retenu pour le périmètre du Batch 3 sans nouvelle dépendance.
+- **Revue indépendante :** acquise sur le candidat fonctionnel exact revu par Codex normal ; verdict CONFORME, aucun bloquant, IndexedDB direct acceptable, prêt pour intégration vers `test-preview`.
+- **Validation humaine applicative :** acquise le 2026-08-29 sur le premier flux métier observable.
 
 ## Validation humaine applicative
-
-**Réussie le 2026-08-29** sur le premier flux métier observable.
 
 Mickaël a validé sur Preview :
 
@@ -80,36 +76,34 @@ Mickaël a validé sur Preview :
 3. refus d’une nouvelle création utilisant un identifiant déjà existant ;
 4. relecture de la bobine après la tentative de doublon, confirmant que les valeurs initiales 800 g / 200 g / 600 g n’avaient pas été écrasées.
 
-Cette validation couvre uniquement ce comportement actuellement implémenté.
+Cette validation couvre uniquement le comportement implémenté dans le Batch 3.
 
 ## Findings / Issues pertinents
 
 - Issue #21 — fermée.
 - Issue #46 — fermée.
 - Issue #8 — fermée `not_planned` ; à réévaluer seulement si l’outillage d’édition ciblée évolue ou devient nécessaire.
-- **Avant Batch 3 : aucun finding ou Issue GitHub ouvert pertinent identifié.**
-- **Finding Batch 3 — tare supérieure au poids brut : traité.** La création refuse désormais l’incohérence avant persistance ; comportement et absence d’enregistrement validés.
-- **Finding Batch 3 — identifiant dupliqué pouvant écraser une bobine : traité.** La création est désormais non-écrasante ; refus et conservation des valeurs existantes validés.
-- Toute nouvelle découverte doit être explicitement traitée, reportée, acceptée ou rejetée avant clôture.
+- **Finding Batch 3 — tare supérieure au poids brut : traité.** Refus avant persistance et absence d’enregistrement validés.
+- **Finding Batch 3 — identifiant dupliqué pouvant écraser une bobine : traité.** Création non-écrasante et conservation des valeurs existantes validées.
+- **Revue indépendante — tests IndexedDB simulés : accepté pour le Batch 3.** Les tests automatisés ne constituent pas seuls une preuve d’un moteur navigateur réel, mais ils sont complétés par la validation humaine sur Preview. Ce point ne prouve pas la compatibilité de tous les navigateurs ni le recovery complet.
+- **Revue indépendante — encodage implicite du guard sous Windows : reporté hors Batch 3.** Défaut de portabilité préexistant, sans impact démontré sur la CI GitHub ou les propriétés métier du Batch 3.
+- **Issues/findings GitHub ouverts pertinents au dernier contrôle : aucun.**
 
 ## Réserves / limites connues
 
 - Filora ne possède pas encore de preuve complète de recovery ; la persistance locale ne constitue donc pas une sauvegarde suffisante pour en faire la source principale de données réelles.
-- Seul un sous-ensemble des invariants de stock nécessaire au premier flux de bobine pesée est actuellement implémenté.
+- Seul le sous-ensemble d’invariants nécessaire au premier flux de bobine pesée est implémenté.
 - Les consommations, corrections, pesées successives, recalages et historiques ne sont pas encore implémentés.
-- Le choix IndexedDB direct / Dexie n’est pas encore définitivement confirmé.
-- La revue indépendante du candidat exact n’est pas encore acquise.
-- Aucune promotion vers `test-preview` ou `main` ne doit être déduite de la seule validation humaine du flux métier.
+- Les tests automatisés IndexedDB utilisent un moteur simulé ; la validation Preview complète la preuve pour le comportement réellement testé, sans établir une compatibilité universelle.
+- Le défaut d’encodage Windows signalé par Codex reste reporté hors Batch 3.
+- La clôture sur la branche de travail ne vaut pas encore intégration vers `test-preview` ou promotion vers `main`.
 
 ## Prochaine action
 
-1. Vérifier l’état Git et les Issues/findings ouverts avant la clôture.
-2. Obtenir la revue indépendante requise sur le candidat exact du Batch 3.
-3. Traiter tout finding issu de cette revue avant poursuite.
-4. Confirmer explicitement le choix technique entre IndexedDB direct et l’introduction de Dexie.
-5. Vérifier à nouveau les preuves techniques et les conditions de clôture de `BATCH3.md`.
-6. Ne mettre à jour `workflow/state.json` et les états de clôture que lors d’une transition explicitement approuvée.
-7. Ne promouvoir vers `test-preview`, puis éventuellement vers `main`, qu’après validation de toutes les conditions applicables.
+1. Vérifier le résultat complet de la CI et du sentinel sur le commit de clôture.
+2. Si les contrôles sont verts, proposer puis effectuer séparément l’intégration de la branche Batch 3 vers `test-preview` par la PR existante.
+3. Vérifier l’état réel de `test-preview` après intégration avant toute étape suivante.
+4. Ne pas démarrer un nouveau Batch simplement parce que le Batch 3 est déclaré clôturé sur sa branche ; l’intégration et les conditions de transition doivent d’abord être confirmées.
 
 ## Documents canoniques
 
