@@ -40,6 +40,7 @@ CLOSED_STATUSES = {
     "clôturé", "clôturée", "closed",
     "clôturé et intégré à main", "clôturée et intégrée à main",
     "clôturé et intégré à `main`", "clôturée et intégrée à `main`",
+    "clôturé et intégré à `main` après validation humaine applicative",
 }
 STRUCTURAL_OPTIONS = {
     "--root", "--state", "--contract", "--project-state", "--base-ref", "--repo-root",
@@ -97,7 +98,6 @@ def _validate_base_ref(root: Path, base_ref: str) -> str:
     head_sha = _resolve_commit(root, "HEAD")
     if base_sha == head_sha:
         raise ValueError("base ref must identify the PR base, not HEAD")
-
     event_path = os.environ.get("GITHUB_EVENT_PATH")
     if event_path:
         try:
@@ -108,21 +108,13 @@ def _validate_base_ref(root: Path, base_ref: str) -> str:
         if base_sha != expected:
             raise ValueError(f"base ref does not match authenticated PR base SHA {expected}")
         return base_sha
-
-    remote = subprocess.run(
-        ["git", "rev-parse", "--verify", "refs/remotes/origin/test-preview^{commit}"],
-        cwd=root, text=True, capture_output=True, check=False,
-    )
+    remote = subprocess.run(["git", "rev-parse", "--verify", "refs/remotes/origin/test-preview^{commit}"], cwd=root, text=True, capture_output=True, check=False)
     if remote.returncode == 0:
         expected = remote.stdout.strip()
         if base_sha != expected:
             raise ValueError("base ref does not match origin/test-preview")
         return base_sha
-
-    ancestor = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", base_sha, head_sha],
-        cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
-    )
+    ancestor = subprocess.run(["git", "merge-base", "--is-ancestor", base_sha, head_sha], cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
     if ancestor.returncode != 0:
         raise ValueError("base ref is not an ancestor of HEAD")
     return base_sha
