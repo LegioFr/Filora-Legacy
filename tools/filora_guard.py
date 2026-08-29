@@ -44,7 +44,8 @@ CLOSED_STATUSES = {
 }
 STRUCTURAL_OPTIONS = {
     "--root", "--state", "--contract", "--project-state", "--base-ref", "--repo-root",
-    "--security-property", "--normal-sufficient", "--operation-authorized",
+    "--file", "--expect-stage", "--expect-status", "--expect-git", "--expect-next",
+    "--verify-git-sha", "--security-property", "--normal-sufficient", "--operation-authorized",
     "--reasonable-means-exhausted", "--hard-limit", "--attempt-count", "--alternative-count",
 }
 
@@ -87,10 +88,24 @@ def _show(root: Path, ref: str, path: str) -> str | None:
 
 
 def _changed_paths(root: Path, base_ref: str) -> list[str]:
-    r = subprocess.run(["git", "diff", "--name-only", f"{base_ref}...HEAD"], cwd=root, text=True, capture_output=True, check=False)
+    r = subprocess.run(
+        ["git", "diff", "--name-status", "-M", f"{base_ref}...HEAD"],
+        cwd=root, text=True, capture_output=True, check=False,
+    )
     if r.returncode:
         raise ValueError(f"cannot compute changed paths against {base_ref}: {r.stderr.strip()}")
-    return [x.strip() for x in r.stdout.splitlines() if x.strip()]
+    paths: list[str] = []
+    for line in r.stdout.splitlines():
+        if not line.strip():
+            continue
+        fields = line.split("\t")
+        status = fields[0]
+        candidates = fields[1:3] if status.startswith(("R", "C")) else fields[1:2]
+        for path in candidates:
+            path = path.strip()
+            if path and path not in paths:
+                paths.append(path)
+    return paths
 
 
 def _validate_base_ref(root: Path, base_ref: str) -> str:
@@ -99,6 +114,9 @@ def _validate_base_ref(root: Path, base_ref: str) -> str:
     if base_sha == head_sha:
         raise ValueError("base ref must identify the PR base, not HEAD")
     event_path = os.environ.get("GITHUB_EVENT_PATH")
+    in_github_actions = os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
+    if in_github_actions and not event_path:
+        raise ValueError("GitHub Actions requires GITHUB_EVENT_PATH to authenticate the PR base")
     if event_path:
         try:
             payload = json.loads(Path(event_path).read_text(encoding="utf-8"))
@@ -347,6 +365,17 @@ def _validate_contract(contract: dict) -> None:
         raise ValueError("workflow contract is missing critical control path(s): " + ", ".join(missing))
 
 
+def _validate_critical_control_paths_exist(root: Path, contract: dict) -> None:
+    missing = []
+    for rule in contract["critical_control_paths"]:
+        target = root / rule.rstrip("/")
+        exists = target.is_dir() if rule.endswith("/") else target.is_file()
+        if not exists:
+            missing.append(rule)
+    if missing:
+        raise ValueError("critical control path(s) declared in contract are missing from candidate: " + ", ".join(sorted(missing)))
+
+
 def _is_structural_control_path(path: str) -> bool:
     name = Path(path).name.lower()
     return (
@@ -424,6 +453,7 @@ def check_workflow_state(root: Path, state_path: Path, contract_path: Path, proj
         state = _read_json_object(state_path, "workflow state")
         contract = _read_json_object(contract_path, "workflow contract")
         _validate_contract(contract)
+        _validate_critical_control_paths_exist(root, contract)
         error = _validate_state_shape(state)
         if error:
             raise ValueError(error)
