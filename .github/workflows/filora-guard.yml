@@ -33,6 +33,9 @@ jobs:
       - name: Human app validation state
         run: python3 tools/filora_guard.py batch-human-validation --root .
 
+      - name: Machine workflow state and objective risk floor
+        run: python3 tools/filora_guard.py workflow-state --root . --state workflow/state.json --contract workflow/contract.json --project-state PROJECT_STATE.md --base-ref "origin/${{ github.base_ref }}"
+
       - name: Permanent reviewer governance contracts
         run: python3 tools/check_review_governance.py --file DEVELOPMENT.md
 
