@@ -51,6 +51,8 @@ class WorkflowGuardTests(unittest.TestCase):
                 "tests/test_filora_guard.py",
                 "tests/test_human_validation_guard.py",
                 "tests/test_workflow_guard.py",
+                "tests/test_workflow_transition_wrapper.py",
+                "tests/test_guard_entry_boundary.py",
             ],
             "sensitive_paths": [
                 "workflow/state.json", "PRODUCT.md", "DATA.md", "ARCHITECTURE.md",
@@ -273,6 +275,28 @@ class WorkflowGuardTests(unittest.TestCase):
             result = self.run_workflow(root, state, contract, project)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("missing critical control path", result.stderr)
+
+    def test_contract_cannot_remove_transition_regression(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state, contract, project = self.write_fixture(root)
+            payload = self.contract()
+            payload["critical_control_paths"].remove("tests/test_workflow_transition_wrapper.py")
+            contract.write_text(json.dumps(payload), encoding="utf-8")
+            result = self.run_workflow(root, state, contract, project)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("tests/test_workflow_transition_wrapper.py", result.stderr)
+
+    def test_contract_cannot_remove_entry_boundary_regression(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state, contract, project = self.write_fixture(root)
+            payload = self.contract()
+            payload["critical_control_paths"].remove("tests/test_guard_entry_boundary.py")
+            contract.write_text(json.dumps(payload), encoding="utf-8")
+            result = self.run_workflow(root, state, contract, project)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("tests/test_guard_entry_boundary.py", result.stderr)
 
     def test_risk_cannot_decrease_within_same_batch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
