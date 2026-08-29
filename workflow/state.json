@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "current_batch": 3,
-  "batch_status": "pending",
+  "batch_status": "open",
   "risk": "sensitive",
   "independent_review": "pending",
   "owner_approval": "not_required",
