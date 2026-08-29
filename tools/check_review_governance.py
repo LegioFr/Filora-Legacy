@@ -21,6 +21,8 @@ REQUIRED_DEVELOPMENT_CONTRACTS = (
     "Lorsqu'une revue Codex normale suffit, le prompt ne doit pas demander l'utilisation du plugin Security.",
     "Le surclassement vers Codex Security par défaut, par simple précaution générale ou sans gain de preuve identifié est interdit.",
     "Lorsque des templates de prompts versionnés matérialisent ces contrats, leurs clauses obligatoires doivent être protégées par un contrôle mécanique proportionné. Une CI verte ne prouve cependant que la présence des clauses contrôlées ; elle ne prouve pas qu'un reviewer externe a effectivement exécuté le plugin ou respecté toutes les instructions.",
+    "Le but n'est pas de supprimer tout risque.",
+    "Le but est que les risques importants soient détectés, rendus visibles, traités au bon niveau et jamais masqués pour permettre au développement de continuer.",
 )
 
 
