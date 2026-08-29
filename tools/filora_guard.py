@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Operational guardrails for Filora.
 
-Objective repository properties are enforced mechanically where possible.
-Conversation-time tool failures cannot be intercepted by GitHub; the routing
-commands below therefore expose fail-closed decisions without claiming to be a
-platform-level wrapper.
+This guard blocks objective repository inconsistencies and exposes deterministic
+routing decisions when their inputs are objective enough to automate.
+
+It does not claim to intercept ChatGPT reasoning or tool calls in real time.
+External review provenance remains an external proof responsibility.
 """
 
 from __future__ import annotations
@@ -24,6 +25,10 @@ STATE_KEYS = ("stage", "status", "git", "next_action")
 BATCH_FILE_RE = re.compile(r"^BATCH(\d+)\.md$")
 BATCH_STATUS_RE = re.compile(r"^\*\*Statut\s*:\s*(.+?)\*\*\s*$", re.MULTILINE)
 CLOSED_STATUS_RE = re.compile(r"\bclôturé(?:e|s|es)?\b", re.IGNORECASE)
+NEGATED_CLOSED_RE = re.compile(
+    r"\b(?:non|pas(?:\s+encore)?)\s*[- ]?\s*clôturé(?:e|s|es)?\b",
+    re.IGNORECASE,
+)
 HUMAN_VALIDATION_RE = re.compile(
     r"^###\s+Jalon humain requis\s+—\s+(EN ATTENTE|VALIDÉ|NON REQUIS)\s*$",
     re.MULTILINE,
@@ -38,28 +43,14 @@ WORKFLOW_STATE_KEYS = {
     "current_batch",
     "batch_status",
     "risk",
-    "mechanical_validation",
     "independent_review",
     "owner_approval",
-    "human_validation",
     "next_batch_allowed",
 }
 VALIDATION_STATES = {"pending", "passed", "failed", "not_required"}
 OWNER_APPROVAL_STATES = {"pending", "obtained", "not_required"}
 RISK_LEVELS = {"ordinary", "sensitive", "critical"}
-HUMAN_MARKER_TO_STATE = {
-    "EN ATTENTE": "pending",
-    "VALIDÉ": "passed",
-    "NON REQUIS": "not_required",
-}
-MINIMUM_PROTECTED_PATHS = {
-    "DEVELOPMENT.md",
-    "workflow/state.json",
-    "workflow/contract.json",
-    "tools/filora_guard.py",
-    ".github/workflows/filora-guard.yml",
-    "tests/test_workflow_guard.py",
-}
+RISK_RANK = {"ordinary": 0, "sensitive": 1, "critical": 2}
 
 
 def fail(message: str) -> int:
@@ -68,11 +59,13 @@ def fail(message: str) -> int:
 
 
 def _usable_text(value: object) -> bool:
-    return (
-        isinstance(value, str)
-        and bool(value.strip())
-        and PLACEHOLDER_RE.fullmatch(value) is None
-    )
+    return isinstance(value, str) and bool(value.strip()) and PLACEHOLDER_RE.fullmatch(value) is None
+
+
+def _declares_closed(value: str) -> bool:
+    if NEGATED_CLOSED_RE.search(value):
+        return False
+    return CLOSED_STATUS_RE.search(value) is not None
 
 
 def check_canonical_presence(root: Path) -> int:
@@ -139,14 +132,13 @@ def check_review_packet(path: Path, verify_git_sha: bool, repo_root: Path) -> in
             return fail(f"input #{index} purpose is required")
         content = item.get("content")
         url = item.get("url")
-        access_verified = item.get("access_verified")
         has_content = _usable_text(content)
         has_url = _usable_text(url)
         if isinstance(content, str) and content.strip() and not has_content:
             return fail(f"input #{index} content is a placeholder")
         if not has_content and not has_url:
             return fail(f"input #{index} requires embedded content or a verified-access URL")
-        if has_url and access_verified is not True:
+        if has_url and item.get("access_verified") is not True:
             return fail(f"input #{index} URL is not usable until access_verified is true")
         if has_content:
             normalized = content.strip()
@@ -255,13 +247,21 @@ def _batch_status_and_human(path: Path) -> tuple[str, str]:
     return statuses[0].strip(), human[0]
 
 
+def _legacy_batch0_is_closed(path: Path) -> bool:
+    text = path.read_text(encoding="utf-8")
+    return (
+        "## Statut" in text
+        and re.search(r"^Batch 0 est \*\*clôturé et intégré à `main`\*\*\.$", text, re.MULTILINE) is not None
+    )
+
+
 def check_batch_human_validation(root: Path) -> int:
     try:
         path = _latest_batch_file(root)
         status, human = _batch_status_and_human(path)
     except (OSError, ValueError) as exc:
         return fail(str(exc))
-    if CLOSED_STATUS_RE.search(status) and human == "EN ATTENTE":
+    if _declares_closed(status) and human == "EN ATTENTE":
         return fail(f"{path.name} is declared closed while human app validation is still EN ATTENTE")
     print(f"PASS: {path.name} human app validation state is {human}; batch status is {status!r}")
     return 0
@@ -278,8 +278,8 @@ def _read_json_object(path: Path, label: str) -> dict:
 
 
 def _validate_contract(contract: dict) -> None:
-    if contract.get("schema_version") != 1:
-        raise ValueError("workflow contract schema_version must be 1")
+    if contract.get("schema_version") != 2:
+        raise ValueError("workflow contract schema_version must be 2")
     if set(contract.get("validation_states", [])) != VALIDATION_STATES:
         raise ValueError("workflow contract validation_states do not match the supported states")
     if set(contract.get("risk_levels", [])) != RISK_LEVELS:
@@ -288,64 +288,82 @@ def _validate_contract(contract: dict) -> None:
     closure = contract.get("closure")
     if not isinstance(closure, dict):
         raise ValueError("workflow contract closure must be an object")
-    expected_closure = {
-        "mechanical_validation_required": True,
-        "human_validation_must_not_be_pending": True,
-    }
-    for key, expected in expected_closure.items():
-        if closure.get(key) != expected:
-            raise ValueError(f"workflow contract closure.{key} must be {expected!r}")
-    if set(closure.get("independent_review_required_for", [])) != {"sensitive", "critical"}:
-        raise ValueError("workflow contract must require independent review for sensitive and critical work")
-    if set(closure.get("owner_approval_required_for", [])) != {"critical"}:
-        raise ValueError("workflow contract must require owner approval for critical work")
+    for key in ("independent_review_required_for", "owner_approval_required_for"):
+        if not isinstance(closure.get(key), list):
+            raise ValueError(f"workflow contract closure.{key} must be a list")
+    if "critical" not in closure["independent_review_required_for"]:
+        raise ValueError("critical work must require independent review")
+    if "critical" not in closure["owner_approval_required_for"]:
+        raise ValueError("critical work must require owner approval")
+    if closure.get("human_validation_must_not_be_pending") is not True:
+        raise ValueError("workflow contract must forbid closure with pending human validation")
 
     next_batch = contract.get("next_batch")
-    if not isinstance(next_batch, dict) or next_batch.get("requires_current_batch_closed") is not True or next_batch.get("requires_next_batch_allowed") is not True:
+    if not isinstance(next_batch, dict):
+        raise ValueError("workflow contract next_batch must be an object")
+    if next_batch.get("requires_current_batch_closed") is not True or next_batch.get("requires_next_batch_allowed") is not True:
         raise ValueError("workflow contract must require closed Batch and positive next-batch authorization")
+    if next_batch.get("requires_contiguous_batch_numbers") is not True:
+        raise ValueError("workflow contract must require contiguous Batch numbers")
 
     routing = contract.get("review_routing")
-    required_routing = {
-        "default": "codex_normal",
-        "codex_security_requires_security_property": True,
-        "codex_security_requires_normal_insufficient": True,
-        "unknown_means_stop": True,
-    }
     if not isinstance(routing, dict):
         raise ValueError("workflow contract review_routing must be an object")
-    for key, expected in required_routing.items():
-        if routing.get(key) != expected:
-            raise ValueError(f"workflow contract review_routing.{key} must be {expected!r}")
+    if routing.get("default") != "codex_normal" or routing.get("unknown_means_stop") is not True:
+        raise ValueError("workflow contract must default to Codex normal and fail closed on unknown")
+    if routing.get("normal_insufficient_without_security_means_stop") is not True:
+        raise ValueError("workflow contract must stop when Codex normal is insufficient without a security property")
 
     transfer = contract.get("human_transfer")
-    required_transfer = {
-        "first_tool_failure_allows_transfer": False,
-        "unknown_equals_impossible": False,
-        "requires_reasonable_means_exhausted": True,
-        "failure_prefix": "BLOQUÉ:",
-    }
     if not isinstance(transfer, dict):
         raise ValueError("workflow contract human_transfer must be an object")
-    for key, expected in required_transfer.items():
-        if transfer.get(key) != expected:
-            raise ValueError(f"workflow contract human_transfer.{key} must be {expected!r}")
+    if transfer.get("first_tool_failure_allows_transfer") is not False:
+        raise ValueError("first tool failure must not allow human transfer")
+    if transfer.get("unknown_equals_impossible") is not False:
+        raise ValueError("unknown must not equal impossible")
+    if transfer.get("requires_reasonable_means_exhausted") is not True:
+        raise ValueError("human transfer must require exhausted reasonable means")
+    if transfer.get("failure_prefix") != "BLOQUÉ:":
+        raise ValueError("workflow contract failure_prefix must be 'BLOQUÉ:'")
 
-    protected = contract.get("protected_paths")
-    if not isinstance(protected, list) or not all(isinstance(item, str) for item in protected):
-        raise ValueError("workflow contract protected_paths must be a list of paths")
-    missing = sorted(MINIMUM_PROTECTED_PATHS - set(protected))
-    if missing:
-        raise ValueError("workflow contract is missing protected path(s): " + ", ".join(missing))
+    for key in ("critical_control_paths", "sensitive_paths"):
+        paths = contract.get(key)
+        if not isinstance(paths, list) or not paths or not all(isinstance(item, str) and item for item in paths):
+            raise ValueError(f"workflow contract {key} must be a non-empty path list")
+    if "tools/filora_guard.py" not in contract["critical_control_paths"]:
+        raise ValueError("filora_guard.py must remain a critical control path")
+    if "workflow/contract.json" not in contract["critical_control_paths"]:
+        raise ValueError("workflow contract must classify itself as a critical control path")
 
 
-def check_workflow_state(root: Path, state_path: Path, contract_path: Path, project_state_path: Path) -> int:
-    try:
-        state = _read_json_object(state_path, "workflow state")
-        contract = _read_json_object(contract_path, "workflow contract")
-        _validate_contract(contract)
-    except ValueError as exc:
-        return fail(str(exc))
+def _changed_paths(root: Path, base_ref: str) -> list[str]:
+    result = subprocess.run(
+        ["git", "diff", "--name-only", f"{base_ref}...HEAD"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise ValueError(f"cannot compute changed paths against {base_ref}: {result.stderr.strip()}")
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
+
+def _path_matches(path: str, rule: str) -> bool:
+    return path == rule or (rule.endswith("/") and path.startswith(rule))
+
+
+def required_risk_for_paths(paths: list[str], contract: dict) -> str:
+    critical = contract["critical_control_paths"]
+    sensitive = contract["sensitive_paths"]
+    if any(any(_path_matches(path, rule) for rule in critical) for path in paths):
+        return "critical"
+    if any(any(_path_matches(path, rule) for rule in sensitive) for path in paths):
+        return "sensitive"
+    return "ordinary"
+
+
+def _validate_state_shape(state: dict) -> str | None:
     if set(state) != WORKFLOW_STATE_KEYS:
         missing = sorted(WORKFLOW_STATE_KEYS - set(state))
         extra = sorted(set(state) - WORKFLOW_STATE_KEYS)
@@ -354,28 +372,56 @@ def check_workflow_state(root: Path, state_path: Path, contract_path: Path, proj
             details.append("missing=" + ",".join(missing))
         if extra:
             details.append("extra=" + ",".join(extra))
-        return fail("workflow state keys are not exact: " + " ".join(details))
-    if state.get("schema_version") != 1:
-        return fail("workflow state schema_version must be 1")
+        return "workflow state keys are not exact: " + " ".join(details)
+    if state.get("schema_version") != 2:
+        return "workflow state schema_version must be 2"
     current_batch = state.get("current_batch")
     if not isinstance(current_batch, int) or isinstance(current_batch, bool) or current_batch < 0:
-        return fail("workflow state current_batch must be a non-negative integer")
+        return "workflow state current_batch must be a non-negative integer"
     if state.get("batch_status") not in {"open", "closed"}:
-        return fail("workflow state batch_status must be open or closed")
+        return "workflow state batch_status must be open or closed"
     if state.get("risk") not in RISK_LEVELS:
-        return fail("workflow state risk is invalid")
-    for key in ("mechanical_validation", "independent_review", "human_validation"):
-        if state.get(key) not in VALIDATION_STATES:
-            return fail(f"workflow state {key} is invalid")
+        return "workflow state risk is invalid"
+    if state.get("independent_review") not in VALIDATION_STATES:
+        return "workflow state independent_review is invalid"
     if state.get("owner_approval") not in OWNER_APPROVAL_STATES:
-        return fail("workflow state owner_approval is invalid")
+        return "workflow state owner_approval is invalid"
     if not isinstance(state.get("next_batch_allowed"), bool):
-        return fail("workflow state next_batch_allowed must be boolean")
+        return "workflow state next_batch_allowed must be boolean"
+    return None
+
+
+def check_workflow_state(
+    root: Path,
+    state_path: Path,
+    contract_path: Path,
+    project_state_path: Path,
+    base_ref: str | None,
+) -> int:
+    try:
+        state = _read_json_object(state_path, "workflow state")
+        contract = _read_json_object(contract_path, "workflow contract")
+        _validate_contract(contract)
+    except ValueError as exc:
+        return fail(str(exc))
+
+    state_error = _validate_state_shape(state)
+    if state_error:
+        return fail(state_error)
+    current_batch = state["current_batch"]
 
     try:
         batches = _batch_files(root)
         if not batches:
             raise ValueError("no BATCH<n>.md file found")
+        numbers = [number for number, _ in batches]
+        expected_numbers = list(range(0, current_batch + 1))
+        if numbers != expected_numbers:
+            raise ValueError(
+                f"Batch files must be contiguous from BATCH0.md through BATCH{current_batch}.md; "
+                f"found {numbers}"
+            )
+
         latest_number, latest_path = batches[-1]
         latest_status, latest_marker = _batch_status_and_human(latest_path)
         project_state = parse_project_state(project_state_path)
@@ -385,48 +431,61 @@ def check_workflow_state(root: Path, state_path: Path, contract_path: Path, proj
     if latest_number != current_batch:
         return fail(f"workflow current_batch is {current_batch}, but latest batch file is BATCH{latest_number}.md")
 
-    latest_closed = CLOSED_STATUS_RE.search(latest_status) is not None
+    latest_closed = _declares_closed(latest_status)
     expected_status = "closed" if latest_closed else "open"
     if state["batch_status"] != expected_status:
         return fail(f"workflow batch_status is {state['batch_status']}, but {latest_path.name} is {expected_status}")
 
-    marker_state = HUMAN_MARKER_TO_STATE[latest_marker]
-    if state["human_validation"] != marker_state:
-        return fail(f"workflow human_validation is {state['human_validation']}, but {latest_path.name} declares {latest_marker}")
+    if latest_closed and latest_marker == "EN ATTENTE":
+        return fail(f"{latest_path.name} is declared closed while human app validation is still EN ATTENTE")
 
-    predecessor = next((path for number, path in batches if number == current_batch - 1), None)
-    if current_batch > 0 and predecessor is not None:
-        try:
-            predecessor_status, _ = _batch_status_and_human(predecessor)
-        except ValueError:
-            # Legacy Batches created before the machine-readable marker existed
-            # are not rewritten retroactively. Only the immediate predecessor
-            # is enforced once it follows the current Batch format.
-            predecessor_status = predecessor.read_text(encoding="utf-8")
-        if CLOSED_STATUS_RE.search(predecessor_status) is None:
-            return fail(f"BATCH{current_batch}.md exists while earlier {predecessor.name} is not declared closed")
+    if current_batch > 0:
+        predecessor = root / f"BATCH{current_batch - 1}.md"
+        if current_batch - 1 == 0:
+            predecessor_closed = _legacy_batch0_is_closed(predecessor)
+        else:
+            try:
+                predecessor_status, _ = _batch_status_and_human(predecessor)
+            except (OSError, ValueError) as exc:
+                return fail(f"invalid predecessor {predecessor.name}: {exc}")
+            predecessor_closed = _declares_closed(predecessor_status)
+        if not predecessor_closed:
+            return fail(f"BATCH{current_batch}.md exists while predecessor {predecessor.name} is not declared closed")
 
     if f"Batch {current_batch}" not in project_state["stage"]:
         return fail(f"PROJECT_STATE stage does not identify current Batch {current_batch}: {project_state['stage']!r}")
-    if (CLOSED_STATUS_RE.search(project_state["status"]) is not None) != latest_closed:
+    if _declares_closed(project_state["status"]) != latest_closed:
         return fail("PROJECT_STATE structured status contradicts the latest Batch closure state")
+
+    if base_ref:
+        try:
+            paths = _changed_paths(root, base_ref)
+        except ValueError as exc:
+            return fail(str(exc))
+        required_risk = required_risk_for_paths(paths, contract)
+        if RISK_RANK[state["risk"]] < RISK_RANK[required_risk]:
+            return fail(
+                f"workflow risk={state['risk']} under-classifies objective diff; "
+                f"changed paths require at least {required_risk}"
+            )
 
     if state["batch_status"] == "open" and state["next_batch_allowed"]:
         return fail("next_batch_allowed cannot be true while the current Batch is open")
+
     if state["batch_status"] == "closed":
-        if state["mechanical_validation"] != "passed":
-            return fail("closed Batch requires mechanical_validation=passed")
-        if state["risk"] in {"sensitive", "critical"} and state["independent_review"] != "passed":
-            return fail("sensitive/critical closed Batch requires independent_review=passed")
-        if state["risk"] == "critical" and state["owner_approval"] != "obtained":
-            return fail("critical closed Batch requires owner_approval=obtained")
-        if state["human_validation"] == "pending":
+        review_required_for = set(contract["closure"]["independent_review_required_for"])
+        owner_required_for = set(contract["closure"]["owner_approval_required_for"])
+        if state["risk"] in review_required_for and state["independent_review"] != "passed":
+            return fail(f"{state['risk']} closed Batch requires independent_review=passed")
+        if state["risk"] in owner_required_for and state["owner_approval"] != "obtained":
+            return fail(f"{state['risk']} closed Batch requires owner_approval=obtained")
+        if latest_marker == "EN ATTENTE":
             return fail("closed Batch cannot have pending human validation")
         if state["next_batch_allowed"] is not True:
             return fail("closed Batch requires positive next_batch_allowed=true")
 
     print(
-        "PASS: workflow state, contract, latest Batch and PROJECT_STATE are coherent; "
+        "PASS: workflow state, contract, Batch chain and PROJECT_STATE are coherent; "
         f"Batch {current_batch} is {state['batch_status']}, next_batch_allowed={state['next_batch_allowed']}"
     )
     return 0
@@ -437,17 +496,47 @@ def decide_review_route(security_property: str, normal_sufficient: str) -> int:
         return fail("STOP: review routing is uncertain; classify the property before choosing a reviewer")
     if security_property == "yes" and normal_sufficient == "no":
         print("CODEX_SECURITY")
-    else:
+        return 0
+    if normal_sufficient == "yes":
         print("CODEX_NORMAL")
+        return 0
+    return fail(
+        "STOP: Codex normal is insufficient but no security property justifies Codex Security; "
+        "select another proof mechanism"
+    )
+
+
+def decide_human_transfer(
+    operation_authorized: str,
+    reasonable_means_exhausted: str,
+    hard_limit: str,
+    attempt_count: int,
+    alternative_count: int,
+) -> int:
+    if operation_authorized != "yes":
+        return fail("BLOQUÉ: the operation is not established as authorized")
+    if hard_limit == "unknown" or reasonable_means_exhausted == "unknown":
+        return fail("BLOQUÉ: technical impossibility is uncertain; do not transfer the action")
+    if hard_limit == "yes":
+        print("HUMAN_TRANSFER_ALLOWED")
+        return 0
+    if attempt_count < 1:
+        return fail("BLOQUÉ: no failed execution attempt is recorded")
+    if alternative_count < 1:
+        return fail("BLOQUÉ: first tool/method failure is insufficient; no reasonable alternative was checked")
+    if reasonable_means_exhausted != "yes":
+        return fail("BLOQUÉ: reasonable available means are not proven exhausted; do not transfer the action")
+    print("HUMAN_TRANSFER_ALLOWED")
     return 0
 
 
-def decide_human_transfer(operation_authorized: str, reasonable_means_exhausted: str) -> int:
-    if operation_authorized != "yes":
-        return fail("BLOQUÉ: the operation is not established as authorized")
-    if reasonable_means_exhausted != "yes":
-        return fail("BLOQUÉ: reasonable available means are not proven exhausted; do not transfer the action to Mickaël")
-    print("HUMAN_TRANSFER_ALLOWED")
+def check_change_risk(paths: list[str], contract_path: Path) -> int:
+    try:
+        contract = _read_json_object(contract_path, "workflow contract")
+        _validate_contract(contract)
+    except ValueError as exc:
+        return fail(str(exc))
+    print(required_risk_for_paths(paths, contract).upper())
     return 0
 
 
@@ -478,6 +567,7 @@ def parser() -> argparse.ArgumentParser:
     workflow.add_argument("--state", type=Path, default=Path("workflow/state.json"))
     workflow.add_argument("--contract", type=Path, default=Path("workflow/contract.json"))
     workflow.add_argument("--project-state", type=Path, default=Path("PROJECT_STATE.md"))
+    workflow.add_argument("--base-ref")
 
     route = commands.add_parser("review-route")
     route.add_argument("--security-property", choices=("yes", "no", "unknown"), required=True)
@@ -486,6 +576,13 @@ def parser() -> argparse.ArgumentParser:
     transfer = commands.add_parser("human-transfer")
     transfer.add_argument("--operation-authorized", choices=("yes", "no", "unknown"), required=True)
     transfer.add_argument("--reasonable-means-exhausted", choices=("yes", "no", "unknown"), required=True)
+    transfer.add_argument("--hard-limit", choices=("yes", "no", "unknown"), required=True)
+    transfer.add_argument("--attempt-count", type=int, required=True)
+    transfer.add_argument("--alternative-count", type=int, required=True)
+
+    change = commands.add_parser("change-risk")
+    change.add_argument("--path", action="append", default=[])
+    change.add_argument("--contract", type=Path, default=Path("workflow/contract.json"))
     return root
 
 
@@ -500,11 +597,19 @@ def main() -> int:
     if args.command == "batch-human-validation":
         return check_batch_human_validation(args.root)
     if args.command == "workflow-state":
-        return check_workflow_state(args.root, args.state, args.contract, args.project_state)
+        return check_workflow_state(args.root, args.state, args.contract, args.project_state, args.base_ref)
     if args.command == "review-route":
         return decide_review_route(args.security_property, args.normal_sufficient)
     if args.command == "human-transfer":
-        return decide_human_transfer(args.operation_authorized, args.reasonable_means_exhausted)
+        return decide_human_transfer(
+            args.operation_authorized,
+            args.reasonable_means_exhausted,
+            args.hard_limit,
+            args.attempt_count,
+            args.alternative_count,
+        )
+    if args.command == "change-risk":
+        return check_change_risk(args.path, args.contract)
     return fail("unknown command")
 
 
