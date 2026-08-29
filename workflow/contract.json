@@ -41,7 +41,6 @@
     "DEVELOPMENT.md",
     "workflow/contract.json",
     "tools/filora_guard.py",
-    "tools/filora_guard_impl.py",
     "tools/check_architecture.py",
     ".github/workflows/filora-guard.yml",
     "tests/test_filora_guard.py",
