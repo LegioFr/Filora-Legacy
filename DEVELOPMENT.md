@@ -207,23 +207,21 @@ Capacité technique et autorisation sont deux choses distinctes.
 
 Ce qui est hors périmètre n’est pas implicitement autorisé.
 
-3. Avant toute création ou modification dans Filora, l’agent présente à Mickaël le périmètre exact de l’action : son objectif, les fichiers à créer ou modifier et les opérations Git prévues. Aucune de ces opérations n’est exécutée avant son accord explicite. Cet accord ne vaut que pour le périmètre présenté ; toute extension découverte pendant le travail nécessite un nouvel accord. La priorité normale est la fonctionnalité produit ; un nouveau mécanisme de gouvernance ou de contrôle n’est ajouté que pour répondre à un problème concret démontré.
-
-4. Dans le périmètre ainsi approuvé, les opérations ordinaires nécessaires à son exécution peuvent être réalisées autonomement tant qu’elles ne changent ni contrat, ni invariant, ni frontière, ni décision structurante.
+3. Les opérations ordinaires nécessaires à l’exécution du périmètre approuvé peuvent être réalisées autonomement tant qu’elles ne changent ni contrat, ni invariant, ni frontière, ni décision structurante.
 
 Lorsqu’un agent dispose des accès, outils et autorisations nécessaires pour effectuer lui-même une opération relevant du périmètre approuvé, il doit l’exécuter directement plutôt que demander à Mickaël de réaliser manuellement cette opération.
 
 L’intervention de Mickaël n’est demandée que lorsqu’elle est réellement nécessaire, notamment pour une décision qui lui appartient, une autorisation explicite requise, une action techniquement inaccessible à l’agent ou une validation humaine pertinente.
 
-5. Une décision sensible peut être analysée et proposée par une IA, mais son identification ne constitue jamais son autorisation.
+4. Une décision sensible peut être analysée et proposée par une IA, mais son identification ne constitue jamais son autorisation.
 
-6. Une IA ne peut pas élargir elle-même significativement son Batch pour résoudre un problème découvert.
+5. Une IA ne peut pas élargir elle-même significativement son Batch pour résoudre un problème découvert.
 
-7. Une modification sensible touchant à la fois un objet protégé et son mécanisme de contrôle ne peut pas être auto-validée uniquement par l’agent qui réalise ces modifications.
+6. Une modification sensible touchant à la fois un objet protégé et son mécanisme de contrôle ne peut pas être auto-validée uniquement par l’agent qui réalise ces modifications.
 
-8. La gouvernance doit faire intervenir Mickaël sur les décisions ayant un impact réel, pas sur chaque détail d’implémentation ordinaire.
+7. La gouvernance doit faire intervenir Mickaël sur les décisions ayant un impact réel, pas sur chaque détail d’implémentation ordinaire.
 
-9. Le niveau de contrôle augmente avec :
+8. Le niveau de contrôle augmente avec :
 
 - le risque ;
 - l’irréversibilité ;
@@ -1068,8 +1066,6 @@ Une réserve affectant directement une propriété obligatoire de clôture ne pe
 # 20. Preview et validation humaine
 
 Lorsqu'un Batch modifie un comportement observable pertinent, la Preview constitue un moyen de vérification de ce comportement.
-
-Lorsqu’un travail produit un comportement observable nécessitant une validation humaine, l’agent doit spontanément préparer et proposer le moyen de le tester ainsi qu’un protocole concret et les résultats attendus, sans attendre que Mickaël demande s’il doit tester.
 
 La validation humaine doit porter uniquement sur les propriétés que Mickaël peut raisonnablement évaluer.
 
