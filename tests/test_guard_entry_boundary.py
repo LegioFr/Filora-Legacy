@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -75,6 +76,25 @@ class GuardEntryBoundaryTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("duplicate structural option is forbidden: --state", result.stderr)
 
+    def test_duplicate_project_state_file_is_rejected(self) -> None:
+        result = self.run_guard(
+            "project-state",
+            "--file=missing.md",
+            "--file=PROJECT_STATE.md",
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("duplicate structural option is forbidden: --file", result.stderr)
+
+    def test_duplicate_expect_stage_is_rejected(self) -> None:
+        result = self.run_guard(
+            "project-state",
+            "--file", "PROJECT_STATE.md",
+            "--expect-stage", "Batch 999 — impossible",
+            "--expect-stage", "Batch 2 — miroir documentaire Google Drive",
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("duplicate structural option is forbidden: --expect-stage", result.stderr)
+
     def test_abbreviated_structural_option_is_rejected(self) -> None:
         result = self.run_guard(
             "workflow-state",
@@ -93,6 +113,17 @@ class GuardEntryBoundaryTests(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("not HEAD", result.stderr)
+
+    def test_github_actions_without_event_path_fails_closed(self) -> None:
+        env = os.environ.copy()
+        env["GITHUB_ACTIONS"] = "true"
+        env.pop("GITHUB_EVENT_PATH", None)
+        result = subprocess.run(
+            [sys.executable, str(GUARD), "workflow-state", "--root", str(ROOT), "--base-ref", "HEAD~1"],
+            cwd=ROOT, text=True, capture_output=True, check=False, env=env,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("requires GITHUB_EVENT_PATH", result.stderr)
 
     def test_ambiguous_closed_prefix_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
