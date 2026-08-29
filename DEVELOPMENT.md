@@ -1013,6 +1013,40 @@ Lorsqu'un environnement Codex dispose d'un accès direct au dépôt et à l'éta
 
 Il doit lui aussi identifier précisément l'état examiné et ne pas revendiquer des propriétés que son environnement ne permet pas de démontrer.
 
+Pour une mission Codex normale, l'indépendance porte sur le raisonnement, les conclusions et l'état examiné ; elle n'impose pas de recréer physiquement le dépôt. Une instruction telle que « partir de zéro » ne doit donc pas être interprétée comme une obligation de lancer `git clone`, de créer un clone dans `%TEMP%` ou de préparer un nouveau dépôt de revue.
+
+Avant toute opération Git réseau destinée à obtenir l'état examiné, Codex normal doit utiliser en priorité le dépôt Filora local déjà disponible et :
+
+- identifier son chemin ;
+- vérifier son état Git ;
+- vérifier si le SHA exact demandé existe déjà localement.
+
+Si le SHA existe localement :
+
+- examiner exactement cet état ;
+- utiliser le dépôt existant ;
+- ne pas lancer de `git fetch`, `git clone`, clone dans `%TEMP%`, nouveau dépôt ou worktree supplémentaire sans nécessité démontrée.
+
+Si le SHA n'existe pas localement :
+
+- réutiliser le dépôt existant ;
+- effectuer uniquement le `git fetch` minimal nécessaire pour rendre ce SHA disponible ;
+- ne pas recloner le dépôt par défaut.
+
+Si un clone neuf ou un worktree supplémentaire paraît indispensable pour établir une propriété particulière, Codex doit s'arrêter et expliquer d'abord pourquoi cette création est nécessaire au lieu de l'exécuter automatiquement.
+
+Lorsqu'une mission Codex est déclarée strictement en lecture seule, cette règle interdit toute modification de fichier, création de commit, création de branche, push ou mutation GitHub. Elle n'interdit pas les lectures réseau réellement nécessaires à la vérification d'éléments non présents localement, par exemple l'état d'une PR ou d'une CI.
+
+Sauf nécessité propre au plugin Security explicitement démontrée, les règles de réutilisation du dépôt local, d'absence de clone ou worktree inutile et de `git fetch` minimal ci-dessus s'appliquent également aux missions Codex Security.
+
+Dans une contre-revue Filora coordonnée, les faits dynamiques GitHub que le coordinateur peut vérifier directement — notamment la PR, son HEAD et sa base, les checks et la CI, leurs annotations, les reviews et commentaires, les Issues/findings et les rulesets ou protections — sont vérifiés par le coordinateur puis fournis au reviewer comme preuves externes identifiées. Codex normal et Codex Security ne doivent pas dupliquer par défaut ces vérifications au moyen d'appels réseau shell directs tels que `curl`, `gh`, PowerShell réseau ou un accès direct à `api.github.com`.
+
+Une fois le SHA exact disponible localement, Codex normal et Codex Security poursuivent par défaut la contre-revue sans nouvel accès réseau shell à GitHub et concentrent leur analyse indépendante sur l'état Git local exact, le diff, les fichiers, l'historique pertinent et les tests disponibles. Cette règle ne limite pas l'utilisation du plugin Security lorsqu'il est requis.
+
+Si un fait GitHub dynamique supplémentaire est nécessaire et n'a pas été fourni, le reviewer doit le signaler comme `INVÉRIFIABLE PAR CODEX` afin que le coordinateur le vérifie directement, plutôt que déclencher une série de demandes d'approbation réseau. Un accès réseau shell supplémentaire par Codex n'est justifié que si une nécessité de preuve spécifique est démontrée et que le coordinateur ne peut raisonnablement pas établir cette propriété lui-même.
+
+Les faits GitHub fournis par le coordinateur restent des preuves externes : Codex ne doit pas prétendre les avoir vérifiés lui-même. Avant toute décision d'intégration fondée sur la revue, le coordinateur revérifie directement que la PR, son HEAD, sa base et les contrôles applicables correspondent toujours à l'état examiné.
+
 Pour une mission explicitement `Codex Security`, le prompt versionné de mission doit demander l'utilisation du plugin Security conformément à la Section 14.1.
 
 ## 17.3 Orchestration
