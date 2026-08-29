@@ -14,6 +14,7 @@ class WorkflowTransitionWrapperTests(unittest.TestCase):
     def run_guard(self, *args):
         env = os.environ.copy()
         env.pop("GITHUB_EVENT_PATH", None)
+        env.pop("GITHUB_ACTIONS", None)
         return subprocess.run(
             [sys.executable, str(GUARD), *args],
             cwd=ROOT, text=True, capture_output=True, check=False, env=env,
@@ -22,10 +23,15 @@ class WorkflowTransitionWrapperTests(unittest.TestCase):
     def init_repo(self, root: Path, state: dict, batch2_status="en validation", human="NON REQUIS"):
         (root / "workflow").mkdir()
         (root / "workflow" / "state.json").write_text(json.dumps(state), encoding="utf-8")
-        (root / "workflow" / "contract.json").write_text(
-            (ROOT / "workflow" / "contract.json").read_text(encoding="utf-8"),
-            encoding="utf-8",
-        )
+        contract = json.loads((ROOT / "workflow" / "contract.json").read_text(encoding="utf-8"))
+        (root / "workflow" / "contract.json").write_text(json.dumps(contract), encoding="utf-8")
+        for rule in contract["critical_control_paths"]:
+            target = root / rule.rstrip("/")
+            if rule.endswith("/"):
+                target.mkdir(parents=True, exist_ok=True)
+            elif not target.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text("fixture\n", encoding="utf-8")
         (root / "BATCH0.md").write_text(
             "# Batch 0\n\n## Statut\n\nBatch 0 est **clôturé et intégré à `main`**.\n",
             encoding="utf-8",
