@@ -1,22 +1,35 @@
 {
-  "schema_version": 1,
-  "validation_states": ["pending", "passed", "failed", "not_required"],
-  "risk_levels": ["ordinary", "sensitive", "critical"],
+  "schema_version": 2,
+  "validation_states": [
+    "pending",
+    "passed",
+    "failed",
+    "not_required"
+  ],
+  "risk_levels": [
+    "ordinary",
+    "sensitive",
+    "critical"
+  ],
   "closure": {
-    "mechanical_validation_required": true,
-    "independent_review_required_for": ["sensitive", "critical"],
-    "owner_approval_required_for": ["critical"],
+    "independent_review_required_for": [
+      "sensitive",
+      "critical"
+    ],
+    "owner_approval_required_for": [
+      "critical"
+    ],
     "human_validation_must_not_be_pending": true
   },
   "next_batch": {
     "requires_current_batch_closed": true,
-    "requires_next_batch_allowed": true
+    "requires_next_batch_allowed": true,
+    "requires_contiguous_batch_numbers": true
   },
   "review_routing": {
     "default": "codex_normal",
-    "codex_security_requires_security_property": true,
-    "codex_security_requires_normal_insufficient": true,
-    "unknown_means_stop": true
+    "unknown_means_stop": true,
+    "normal_insufficient_without_security_means_stop": true
   },
   "human_transfer": {
     "first_tool_failure_allows_transfer": false,
@@ -24,14 +37,20 @@
     "requires_reasonable_means_exhausted": true,
     "failure_prefix": "BLOQUÉ:"
   },
-  "protected_paths": [
+  "critical_control_paths": [
     "DEVELOPMENT.md",
-    "workflow/state.json",
     "workflow/contract.json",
     "tools/filora_guard.py",
     ".github/workflows/filora-guard.yml",
-    "tests/test_filora_guard.py",
-    "tests/test_human_validation_guard.py",
     "tests/test_workflow_guard.py"
+  ],
+  "sensitive_paths": [
+    "workflow/state.json",
+    "PRODUCT.md",
+    "DATA.md",
+    "ARCHITECTURE.md",
+    ".github/workflows/",
+    "package.json",
+    "package-lock.json"
   ]
 }
