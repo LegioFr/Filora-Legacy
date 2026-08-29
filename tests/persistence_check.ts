@@ -27,28 +27,28 @@ class FakeTransaction {
       throw new Error(`Unexpected object store: ${name}`);
     }
 
-    const completeSoon = () => {
-      setTimeout(() => this.oncomplete?.(new Event('complete')), 0);
+    const completeImmediately = () => {
+      this.oncomplete?.(new Event('complete'));
     };
 
     return {
       put: (value: { id: string }) => {
         this.records.set(value.id, { ...value });
-        completeSoon();
+        completeImmediately();
         return {} as IDBRequest<IDBValidKey>;
       },
       get: (id: string) => {
         const request = new FakeRequest<{ id: string } | undefined>();
+        completeImmediately();
         setTimeout(() => {
           request.result = this.records.get(id);
           request.onsuccess?.(new Event('success'));
-          completeSoon();
         }, 0);
         return request as unknown as IDBRequest<unknown>;
       },
       delete: (id: string) => {
         this.records.delete(id);
-        completeSoon();
+        completeImmediately();
         return {} as IDBRequest<undefined>;
       },
     } as unknown as IDBObjectStore;
@@ -131,4 +131,4 @@ try {
 }
 assert(failureObserved, 'persistence failures must propagate instead of becoming success');
 
-console.log('PASS: persistence foundation write/read/remove/error checks');
+console.log('PASS: persistence foundation write/read/remove/error/transaction timing checks');
