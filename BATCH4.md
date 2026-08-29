@@ -100,6 +100,10 @@ Décisions avant démarrage :
 
 Justification : le Batch touche la lecture de données persistantes de stock et leur présentation comme état métier. Il n’introduit toutefois ni migration, ni destruction, ni nouvelle autorité de mutation, ni changement de garde-fou.
 
+### Jalon humain requis — EN ATTENTE
+
+La validation humaine sera effectuée sur Preview après obtention d’une CI verte du candidat fonctionnel. Elle vérifiera le listing de plusieurs bobines, leur présence après rechargement réel du navigateur et la conservation des valeurs affichées.
+
 ## Preuves attendues avant clôture
 
 1. état Git exact du candidat identifié ;
