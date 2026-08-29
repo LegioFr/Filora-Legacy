@@ -9,13 +9,13 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 
 ## Reprise structurée
 - stage: Batch 3 — fondation de persistance locale du domaine spools
-- status: préparé, implémentation non démarrée
+- status: en cours
 - git: lire les HEAD, PR, workflows, artefacts, rulesets et Issues courants directement depuis GitHub ; ne pas mémoriser ici les SHA ou PR volatiles
-- next_action: implémenter le périmètre borné défini dans `BATCH3.md` sur la branche Batch 3, puis intégrer vers `test-preview` uniquement après les validations applicables
+- next_action: poursuivre le périmètre borné défini dans `BATCH3.md` sur la branche Batch 3, puis intégrer vers `test-preview` uniquement après les validations applicables
 
 ## État courant
 
-- **Étape :** Batch 3 préparé sur une branche dédiée ; implémentation métier/persistance non démarrée au moment de cette mise à jour.
+- **Étape :** Batch 3 en cours sur une branche dédiée ; première fondation technique de persistance locale en cours de validation.
 - **Phase F :** clôturée.
 - **Batch 0 :** clôturé et intégré à `main`.
 - **Batch 1 :** clôturé et intégré à `main`.
@@ -46,7 +46,7 @@ Il reste hors périmètre de ce Batch : stock métier complet, pesées, consomma
 - **F4.2 / F4.3 : Sensible** : persistance locale, dépendance potentielle Dexie, modèle persistant versionné et accès aux données.
 - **F4.4 :** la stratégie IndexedDB + Dexie est déjà enregistrée dans `DATA.md` comme candidate à vérifier, pas comme choix définitivement acquis. Le Batch peut la tester techniquement. Une modification durable du contrat ou une nouvelle contrainte importante nécessitera l’arbitrage approprié.
 - **Revue indépendante prévue :** Codex normal par défaut. Codex Security n’est pas requis sans propriété de sécurité spécifique justifiant ce niveau.
-- **Validation humaine applicative :** à déterminer uniquement si un comportement observable pertinent est effectivement introduit.
+- **Validation humaine applicative :** non requise tant qu’aucun comportement applicatif observable pertinent n’est ajouté ; à réévaluer si le périmètre change.
 
 ## Findings / Issues pertinents
 
@@ -58,7 +58,7 @@ Il reste hors périmètre de ce Batch : stock métier complet, pesées, consomma
 
 ## Réserves / limites connues
 
-- Filora ne possède pas encore de persistance métier validée.
+- La persistance métier de Filora est en cours de fondation et n’est pas encore validée pour des données réelles.
 - Filora ne possède pas encore de preuve complète de recovery.
 - Les invariants DATA liés aux mutations réelles de stock ne sont pas encore implémentés.
 - La stratégie IndexedDB + Dexie reste candidate tant que le Batch 3 n’a pas apporté les preuves techniques prévues.
@@ -66,9 +66,9 @@ Il reste hors périmètre de ce Batch : stock métier complet, pesées, consomma
 
 ## Prochaine action
 
-1. Implémenter uniquement la fondation définie dans `BATCH3.md`.
+1. Poursuivre uniquement la fondation définie dans `BATCH3.md`.
 2. Vérifier Dexie/IndexedDB techniquement avant de considérer le choix comme retenu.
-3. Ajouter les tests de persistance et d’échec prévus.
+3. Ajouter et valider les tests de persistance et d’échec prévus.
 4. Maintenir la frontière architecturale et ne pas créer de voie directe `UI → persistance`.
 5. Faire la revue indépendante requise sur le candidat exact avant clôture.
 6. Ne promouvoir vers `test-preview` puis `main` qu’après les validations applicables.
