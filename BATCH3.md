@@ -96,6 +96,12 @@ Le niveau Sensible impose une revue indépendante avant clôture.
 
 Par défaut, la revue prévue est **Codex normal**, conformément au routage de gouvernance. Codex Security n'est pas requis en l'absence de propriété de sécurité spécifique insuffisamment couverte par une revue normale.
 
+## Validation humaine applicative
+
+### Jalon humain requis — NON REQUIS
+
+La préparation du Batch 3 et la fondation technique de persistance prévue ici n'ajoutent pas, à elles seules, de comportement applicatif observable que Mickaël puisse utilement valider. Si le périmètre évolue et qu'un comportement observable pertinent est ajouté, ce jalon devra être réévalué avant clôture.
+
 ## Preuves requises avant clôture
 
 1. état Git exact du candidat identifié ;
