@@ -1,6 +1,6 @@
 # BATCH3.md — Fondation de persistance locale du domaine spools
 
-**Statut : préparé — implémentation non démarrée**  
+**Statut : en cours**  
 **Date de préparation : 2026-08-29**
 
 ## Intention
