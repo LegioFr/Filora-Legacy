@@ -46,7 +46,8 @@
     "tests/test_filora_guard.py",
     "tests/test_human_validation_guard.py",
     "tests/test_workflow_guard.py",
-    "tests/test_workflow_transition_wrapper.py"
+    "tests/test_workflow_transition_wrapper.py",
+    "tests/test_guard_entry_boundary.py"
   ],
   "sensitive_paths": [
     "workflow/state.json",
