@@ -1069,6 +1069,8 @@ Une réserve affectant directement une propriété obligatoire de clôture ne pe
 
 Lorsqu'un Batch modifie un comportement observable pertinent, la Preview constitue un moyen de vérification de ce comportement.
 
+Lorsqu’un travail produit un comportement observable nécessitant une validation humaine, l’agent doit spontanément préparer et proposer le moyen de le tester ainsi qu’un protocole concret et les résultats attendus, sans attendre que Mickaël demande s’il doit tester.
+
 La validation humaine doit porter uniquement sur les propriétés que Mickaël peut raisonnablement évaluer.
 
 Elle peut notamment concerner :
