@@ -9,7 +9,7 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 
 ## Reprise structurée
 - stage: Batch 2 — paquet documentaire de contre-vérification Claude et garde-fous permanents de revue IA
-- status: intégré sur `test-preview` ; exécution réelle du paquet réussie ; contre-vérification Claude réelle encore requise avant réévaluation de clôture
+- status: en validation sur `test-preview` ; paquet intégré et contre-vérification Claude réelle encore requise avant réévaluation de clôture
 - git: lire les HEAD, PR, workflows, artefacts et Issues courants directement depuis GitHub ; ne pas mémoriser ici les SHA ou PR volatiles
 - next_action: utiliser uniquement le paquet Claude et le prompt générés depuis le même SHA `test-preview`, puis confronter le verdict Claude à GitHub avant toute clôture ou promotion vers `main`
 
