@@ -1,7 +1,7 @@
 # PROJECT_STATE.md — Filora
 
 **Rôle : index opérationnel de reprise**  
-**Dernière mise à jour : 2026-08-28**
+**Dernière mise à jour : 2026-08-29**
 
 Ce fichier sert à reprendre Filora dans un nouveau contexte sans dépendre de la mémoire d’une conversation ou d’un agent.
 
@@ -9,7 +9,7 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 
 ## Reprise structurée
 - stage: Batch 2 — paquet documentaire de contre-vérification Claude et garde-fous permanents de revue IA
-- status: correction en cours sur branche dédiée avant nouvelle validation sur `test-preview` ; une première contre-vérification indépendante a trouvé un garde canonique incomplet, corrigé depuis par extension des contrats protégés et des tests de mutation ; contre-vérification ciblée requise
+- status: en validation sur `test-preview` ; correction du paquet Claude sur branche dédiée, contre-vérification indépendante ciblée requise avant intégration
 - git: lire les HEAD, PR et branches courants directement depuis GitHub ; ne pas mémoriser ici les SHA ou PR volatiles
 - next_action: vérifier le candidat corrigé par CI puis obtenir une contre-vérification indépendante ciblée du finding avant toute intégration à `test-preview`
 
@@ -46,13 +46,14 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 - Finding transfert manuel prématuré après réponse tronquée — **traité et pérennisé dans `DEVELOPMENT.md`**.
 - Finding Codex Security depuis tablette — **traité par règle canonique, template versionné et garde-fou mécanique**.
 - Finding garde canonique incomplet — **correction implémentée, contre-vérification ciblée en attente** : plusieurs clauses critiques pouvaient être supprimées sans échec ; elles sont désormais incluses dans les contrats requis et couvertes par des tests de mutation dédiés.
+- Issue #46 — **reportée hors du périmètre Batch 2** : protection GitHub externe de `test-preview` et `main`; elle reste un finding Critique séparé et ne doit pas être confondue avec la validation du paquet Claude.
 - Issue #8 — fermée `not_planned` ; à réévaluer seulement si l’outillage d’édition ciblée évolue ou devient nécessaire.
 
 Toujours revérifier les Issues/findings réels avant toute transition ou nouveau Batch.
 
 ## Réserves / limites connues
 
-- Aucun ruleset/protection de branche n’est établi comme preuve d’interdiction mécanique absolue d’un merge manuel ; GitHub Actions reste un contrôle automatique, pas une barrière technique totale.
+- Aucun ruleset/protection de branche n’est établi comme preuve d’interdiction mécanique absolue d’un merge manuel ; GitHub Actions reste un contrôle automatique, pas une barrière technique totale. Ce point est suivi séparément par l’Issue #46.
 - Filora ne fournit encore aucune persistance, aucune preuve de recovery et aucune implémentation des invariants DATA liés aux mutations de stock.
 - Le contrôle architectural actuel ne prétend pas prouver toute l’architecture applicative.
 - Le paquet Claude est un artefact dérivé et ponctuel ; GitHub reste autoritatif.
@@ -62,7 +63,7 @@ Toujours revérifier les Issues/findings réels avant toute transition ou nouvea
 
 ## Prochaine action
 
-1. Vérifier `Filora guard` sur le candidat corrigé.
+1. Vérifier `Filora guard` sur le candidat corrigé et rebasé sur les garde-fous renforcés.
 2. Obtenir une contre-vérification indépendante ciblée confirmant que le finding de garde canonique incomplet est réellement résolu et qu’aucun affaiblissement collatéral n’a été introduit.
 3. Si aucun finding bloquant ne reste, intégrer à `test-preview`.
 4. Vérifier une exécution réelle du workflow de paquet sur le SHA exact de `test-preview` et récupérer l’artefact.
