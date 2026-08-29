@@ -1,7 +1,8 @@
 # BATCH4.md — Liste du stock mesuré
 
-**Statut : en cours**  
-**Date de préparation : 2026-08-29**
+**Statut : clôturé**  
+**Date de préparation : 2026-08-29**  
+**Date de clôture : 2026-08-30**
 
 ## Intention
 
@@ -92,7 +93,7 @@ Décisions avant démarrage :
 9. un échec de persistance ne doit pas être présenté comme un stock vide ;
 10. aucune migration, nouvelle dépendance ou nouvelle autorité de stock n’est introduite.
 
-## Classification initiale
+## Classification
 
 ### F4.2 / F4.3
 
@@ -109,27 +110,24 @@ Validation humaine effectuée le 2026-08-30 sur la Preview du candidat fonctionn
 - les deux bobines sont affichées simultanément dans le bloc Stock ;
 - après rechargement complet de la page, les deux bobines restent présentes avec les mêmes valeurs.
 
-## Preuves attendues avant clôture
+## Preuves acquises à la clôture
 
-1. état Git exact du candidat identifié ;
-2. CI verte : installation reproductible, typecheck, build, contrôles applicables ;
-3. tests automatisés couvrant le listing vide, le listing de plusieurs bobines, le calcul affiché à partir des faits et les erreurs de lecture applicables ;
-4. vérification qu’aucune modification de schéma ou de version IndexedDB n’a été introduite ;
-5. vérification du chemin `UI → opération métier → persistance` ;
-6. validation humaine sur Preview : créer au moins deux bobines de test, vérifier leur présence dans Stock, recharger la page et confirmer qu’elles restent listées avec les mêmes valeurs ;
-7. revue indépendante Codex normal en lecture seule sur le candidat exact ;
-8. absence de finding bloquant non décidé ;
-9. synchronisation de clôture uniquement lorsque ces propriétés sont acquises.
+- candidat final identifié : `225284270c7b738764cada579b2e2a22059b6130` ;
+- CI GitHub du candidat exact verte, incluant garde, architecture, installation, typecheck et build ;
+- tests automatisés couvrant le listing vide, plusieurs bobines, le calcul du disponible, les erreurs de lecture et les non-régressions sensibles du Batch 3 ;
+- aucune modification du schéma IndexedDB ni de sa version `1` ;
+- chemin `UI → opération métier → persistance` conservé ;
+- validation humaine Preview acquise et consignée ci-dessus ;
+- revue indépendante Codex normal en lecture seule sur le candidat exact : **CONFORME**, aucun bloquant, aucun finding important, prêt pour intégration à `test-preview` ;
+- finding mineur Codex : `PROJECT_STATE.md` présentait encore l’implémentation et les validations comme futures ; traité par la synchronisation de clôture post-intégration ;
+- réserves Codex : preuve navigateur externe non directement observable par Codex, tests IndexedDB automatisés simulés, encodage Windows préexistant du guard ; ces éléments sont respectivement couverts par la validation humaine consignée, acceptés avec preuve complémentaire, ou reportés hors Batch 4 ;
+- PR #59 fusionnée dans `test-preview` ;
+- commit d’intégration `test-preview` : `13c7311ed39d6ea73c9ba734425a3344c30ab73a` ;
+- contrôle post-intégration automatique sur ce commit terminé avec succès ;
+- aucune Issue GitHub ouverte pertinente constatée lors de la clôture.
 
-## Condition de clôture
+## Clôture
 
-Le Batch 4 pourra être déclaré clôturé uniquement lorsque :
+Le Batch 4 est clôturé : le listing du stock respecte le périmètre défini, les contrôles automatisés applicables sont verts, la validation humaine réelle sur Preview est acquise, la revue indépendante est conforme sans bloquant et l’intégration à `test-preview` est vérifiée.
 
-- le listing du stock respecte le périmètre ci-dessus ;
-- les contrôles automatisés applicables sont verts ;
-- la validation humaine réelle sur Preview est acquise ;
-- la revue indépendante requise pour le niveau Sensible est conforme sans bloquant non traité ;
-- les findings éventuels découverts pendant le Batch ont reçu une décision explicite ;
-- l’état de clôture est ensuite synchronisé sans élargir le périmètre.
-
-La clôture du Batch 4 ne constituera pas une preuve de sauvegarde/restauration complète et n’autorisera donc pas à considérer Filora comme source principale des données réelles.
+La clôture du Batch 4 ne constitue pas une preuve de sauvegarde/restauration complète et n’autorise donc pas à considérer Filora comme source principale des données réelles.
