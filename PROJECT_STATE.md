@@ -105,6 +105,32 @@ Cette validation couvre uniquement le comportement implémenté dans le Batch 3.
 3. Vérifier l’état réel de `test-preview` après intégration avant toute étape suivante.
 4. Ne pas démarrer un nouveau Batch simplement parce que le Batch 3 est déclaré clôturé sur sa branche ; l’intégration et les conditions de transition doivent d’abord être confirmées.
 
+## Règles opérationnelles Codex sous Windows
+
+Pour les missions Filora exécutées avec Codex normal sous Windows :
+
+- utiliser en priorité le dépôt Filora local déjà disponible et trusted ;
+- vérifier d’abord son chemin, son état Git et la présence locale du SHA exact à examiner ;
+- ne pas créer automatiquement de nouveau clone Git ni de clone dans `%TEMP%` ;
+- si le SHA manque, utiliser le dépôt existant et effectuer uniquement le fetch minimal nécessaire ;
+- ne créer un clone neuf que si une propriété particulière l’exige réellement, avec justification préalable ;
+- pour une mission en lecture seule, ne produire aucun commit, push ou changement GitHub.
+
+Pour Codex Security :
+
+- préserver en priorité son isolation et son indépendance ;
+- ne pas forcer la réutilisation du dépôt local si cela affaiblit cette isolation ;
+- éviter seulement les clones supplémentaires qui ne sont réellement pas nécessaires ;
+- ne pas désactiver ses protections pour supprimer une demande d’autorisation.
+
+Règles communes :
+
+- ne pas modifier `config.toml`, désactiver le sandbox ou affaiblir les protections sans besoin précis et autorisation explicite de Mickaël ;
+- utiliser Codex normal lorsque son niveau de contrôle suffit ;
+- réserver Codex Security aux propriétés ou risques qui justifient réellement une revue de sécurité renforcée ;
+- éviter les boucles de revues IA sans gain de preuve réel ;
+- lorsqu’une opération autorisée peut être effectuée directement par l’agent, ne pas demander inutilement à Mickaël de l’exécuter manuellement.
+
 ## Documents canoniques
 
 - `PRODUCT.md`
