@@ -42,8 +42,9 @@ export class IndexedDbSpoolIdentityStore implements SpoolIdentityStore {
     const database = await this.openDatabase();
     try {
       const transaction = database.transaction(SPOOL_IDENTITIES_STORE, 'readwrite');
+      const done = transactionDone(transaction);
       transaction.objectStore(SPOOL_IDENTITIES_STORE).put(identity);
-      await transactionDone(transaction);
+      await done;
     } finally {
       database.close();
     }
@@ -53,10 +54,11 @@ export class IndexedDbSpoolIdentityStore implements SpoolIdentityStore {
     const database = await this.openDatabase();
     try {
       const transaction = database.transaction(SPOOL_IDENTITIES_STORE, 'readonly');
+      const done = transactionDone(transaction);
       const result = await requestResult(
         transaction.objectStore(SPOOL_IDENTITIES_STORE).get(id) as IDBRequest<PersistedSpoolIdentity | undefined>,
       );
-      await transactionDone(transaction);
+      await done;
       return result;
     } finally {
       database.close();
@@ -67,8 +69,9 @@ export class IndexedDbSpoolIdentityStore implements SpoolIdentityStore {
     const database = await this.openDatabase();
     try {
       const transaction = database.transaction(SPOOL_IDENTITIES_STORE, 'readwrite');
+      const done = transactionDone(transaction);
       transaction.objectStore(SPOOL_IDENTITIES_STORE).delete(id);
-      await transactionDone(transaction);
+      await done;
     } finally {
       database.close();
     }
