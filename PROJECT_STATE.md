@@ -10,8 +10,8 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 ## Reprise structurée
 - stage: Batch 2 — paquet documentaire de contre-vérification Claude et garde-fous permanents de revue IA
 - status: clôturé
-- git: lire les HEAD, PR, workflows, artefacts et Issues courants directement depuis GitHub ; ne pas mémoriser ici les SHA ou PR volatiles
-- next_action: avant toute promotion vers `main` ou tout nouveau Batch pertinent, réévaluer les Issues/findings ouverts, en particulier l’Issue #46, puis décider explicitement lesquels traiter, reporter, accepter ou rejeter
+- git: lire les HEAD, PR, workflows, artefacts, rulesets et Issues courants directement depuis GitHub ; ne pas mémoriser ici les SHA ou PR volatiles
+- next_action: réévaluer les conditions de promotion de `test-preview` vers `main`; aucun nouveau Batch ne doit être démarré automatiquement
 
 ## État courant
 
@@ -20,7 +20,10 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 - **Batch 0 :** clôturé et intégré à `main`.
 - **Batch 1 :** clôturé et intégré à `main`.
 - **Batch 2 :** clôturé sur `test-preview` ; aucune promotion vers `main` n’est déduite de cette clôture.
-- **Issue #21 :** traitée par Batch 2 ; la solution documentaire a été intégrée, exécutée réellement et contre-vérifiée par Claude sur l’état attendu.
+- **Issue #21 :** traitée et fermée après intégration des preuves de Batch 2.
+- **Issue #46 :** traitée et fermée après activation d’un ruleset GitHub externe et contre-vérification opérationnelle.
+- **Protection externe GitHub :** un ruleset actif protège `main` et `test-preview`, exige une PR et le check `sentinel`, interdit les suppressions et force-push, et réserve le bypass administrateur au chemin PR explicite.
+- **Preuve Issue #46 :** une PR ordinaire non critique a passé `sentinel` sans approbation humaine obligatoire ; une PR ordinaire touchant la surface critique a échoué sur `sentinel` alors que le garde interne restait vert.
 - **Ancienne solution Drive :** abandonnée et retirée du périmètre actif. Aucune synchronisation Drive, OAuth, rclone ou secret externe n’est nécessaire à la solution retenue.
 - **Solution retenue :** un workflow sans secret génère depuis le SHA exact de `test-preview` un artefact temporaire contenant `FILORA_CLAUDE_REVIEW_PACKAGE.md` et `CLAUDE_REVIEW_PROMPT.md` avec la même branche et le même SHA.
 - **Validation technique indépendante :** la correction Critique des garde-fous a été contre-vérifiée indépendamment sur le candidat exact sans finding bloquant restant avant intégration.
@@ -38,15 +41,14 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 
 ## Findings / Issues pertinents
 
-- Issue #21 — **traitée par Batch 2** : solution de paquet documentaire intégrée et contre-vérifiée ; l’Issue doit être fermée une fois la transition de clôture effectivement intégrée et le guard vert.
-- Issue #46 — **ouverte, Critique et reportée hors du périmètre Batch 2** : protection GitHub externe de `test-preview` et `main`. Elle doit être réévaluée avant toute promotion vers `main` ou avant tout nouveau Batch pertinent.
+- Issue #21 — **fermée** : solution de paquet documentaire intégrée, exécutée réellement et contre-vérifiée.
+- Issue #46 — **fermée** : protection GitHub externe active et contre-vérifiée ; le sentinel bloque la modification ordinaire de la surface critique sans imposer d’approbation humaine aux PR ordinaires.
 - Issue #8 — fermée `not_planned` ; à réévaluer seulement si l’outillage d’édition ciblée évolue ou devient nécessaire.
-
-Toujours revérifier les Issues/findings réels avant toute transition ou nouveau Batch.
+- **Issues/findings ouverts pertinents : aucun au dernier contrôle GitHub.** Toujours revérifier GitHub avant toute transition ou nouveau Batch.
 
 ## Réserves / limites connues
 
-- Aucun ruleset/protection de branche n’est établi comme preuve d’interdiction mécanique absolue d’un merge manuel ; ce point est suivi par l’Issue #46.
+- Le bypass administrateur du ruleset reste volontairement disponible uniquement via PR pour le chemin Critique explicite ; son usage doit respecter les validations applicables.
 - Filora ne fournit encore aucune persistance, aucune preuve de recovery et aucune implémentation des invariants DATA liés aux mutations de stock.
 - Le contrôle architectural actuel ne prétend pas prouver toute l’architecture applicative.
 - Le paquet Claude est un artefact dérivé et ponctuel ; GitHub reste autoritatif.
@@ -54,10 +56,10 @@ Toujours revérifier les Issues/findings réels avant toute transition ou nouvea
 
 ## Prochaine action
 
-1. Vérifier que la transition de clôture Batch 2 est intégrée sur `test-preview` avec `Filora guard` vert.
-2. Fermer l’Issue #21 une fois cette transition effectivement intégrée.
-3. Avant toute promotion vers `main`, réévaluer l’Issue #46 et les autres findings ouverts pertinents.
-4. Ne pas démarrer automatiquement un nouveau Batch sur la seule base de la clôture du Batch 2.
+1. Vérifier les conditions applicables à la promotion de l’état clôturé de `test-preview` vers `main`.
+2. Si la promotion est autorisée, la réaliser par PR sous le ruleset actif et conserver les preuves correspondantes.
+3. Après promotion, resynchroniser l’index opérationnel avec l’état GitHub réel si nécessaire.
+4. Ne pas démarrer automatiquement un nouveau Batch sur la seule base de la clôture du Batch 2 ou de l’Issue #46.
 
 ## Documents canoniques
 
