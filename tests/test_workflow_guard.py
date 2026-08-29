@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -11,9 +12,11 @@ GUARD = ROOT / "tools" / "filora_guard.py"
 
 class WorkflowGuardTests(unittest.TestCase):
     def run_guard(self, *args: str) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        env.pop("GITHUB_EVENT_PATH", None)
         return subprocess.run(
             [sys.executable, str(GUARD), *args], cwd=ROOT,
-            text=True, capture_output=True, check=False,
+            text=True, capture_output=True, check=False, env=env,
         )
 
     def contract(self) -> dict:
