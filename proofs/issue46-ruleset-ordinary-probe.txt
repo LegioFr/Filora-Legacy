@@ -1,0 +1,2 @@
+Issue #46 ruleset ordinary PR probe.
+This non-critical change exists only to verify that an ordinary PR can satisfy the external sentinel requirement without human approval.
