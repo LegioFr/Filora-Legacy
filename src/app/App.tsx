@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import {
   createInventoryBackupJson,
   parseInventoryBackupJson,
@@ -44,6 +44,9 @@ import {
 type ReferenceMode = 'new' | 'existing';
 type LocationMode = 'none' | 'existing' | 'new';
 type FormSupportKind = Exclude<SupportKind, null>;
+type AppView = 'stock' | 'settings';
+type CreationSectionKey = 'filament' | 'purchase' | 'stock' | 'series';
+type CreationSectionPreferences = Record<CreationSectionKey, boolean>;
 
 type PendingBackup = {
   validated: ValidatedInventoryBackup;
@@ -83,8 +86,53 @@ interface ReassignDialog {
   draft: ReferenceDraft;
 }
 
+interface CreationSectionProps {
+  step: string;
+  eyebrow: string;
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}
+
 const EMPTY_SNAPSHOT: InventorySnapshot = { filamentReferences: [], locations: [], spools: [] };
 const MANUAL_TARE_LABEL = 'Tare personnalisée / bobine vide pesée manuellement';
+const CREATION_SECTIONS_KEY = 'filora.creation.sections.v1';
+const DEFAULT_CREATION_SECTIONS: CreationSectionPreferences = {
+  filament: true,
+  purchase: false,
+  stock: false,
+  series: false,
+};
+
+function loadCreationSections(): CreationSectionPreferences {
+  try {
+    const raw = globalThis.localStorage?.getItem(CREATION_SECTIONS_KEY);
+    if (!raw) return DEFAULT_CREATION_SECTIONS;
+    const parsed = JSON.parse(raw) as Partial<CreationSectionPreferences>;
+    return {
+      filament: typeof parsed.filament === 'boolean' ? parsed.filament : true,
+      purchase: typeof parsed.purchase === 'boolean' ? parsed.purchase : false,
+      stock: typeof parsed.stock === 'boolean' ? parsed.stock : false,
+      series: typeof parsed.series === 'boolean' ? parsed.series : false,
+    };
+  } catch {
+    return DEFAULT_CREATION_SECTIONS;
+  }
+}
+
+function CreationSection({ step, eyebrow, title, open, onToggle, children }: CreationSectionProps) {
+  return (
+    <section className={`creation-section${open ? ' is-open' : ''}`}>
+      <button className="creation-section-toggle" type="button" onClick={onToggle} aria-expanded={open}>
+        <span className="step-number">{step}</span>
+        <span className="creation-section-title"><small>{eyebrow}</small><strong>{title}</strong></span>
+        <span className="creation-section-chevron" aria-hidden="true">{open ? '−' : '+'}</span>
+      </button>
+      {open ? <div className="creation-section-content">{children}</div> : null}
+    </section>
+  );
+}
 
 function emptySpoolDraft(): SpoolDraft {
   return {
@@ -210,6 +258,9 @@ export function App() {
   const [snapshot, setSnapshot] = useState<InventorySnapshot>(EMPTY_SNAPSHOT);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [view, setView] = useState<AppView>('stock');
+  const [creationOpen, setCreationOpen] = useState(false);
+  const [creationSections, setCreationSections] = useState<CreationSectionPreferences>(loadCreationSections);
   const [referenceMode, setReferenceMode] = useState<ReferenceMode>('new');
   const [selectedReferenceId, setSelectedReferenceId] = useState('');
   const [referenceDraft, setReferenceDraft] = useState<ReferenceDraft>(() => emptyReferenceDraft());
@@ -237,6 +288,24 @@ export function App() {
   }, [store]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  useEffect(() => {
+    try { globalThis.localStorage?.setItem(CREATION_SECTIONS_KEY, JSON.stringify(creationSections)); } catch { /* préférence non critique */ }
+  }, [creationSections]);
+
+  useEffect(() => {
+    if (!creationOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !saving) setCreationOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [creationOpen, saving]);
 
   const selectedReference = useMemo(
     () => snapshot.filamentReferences.find((item) => item.id === selectedReferenceId) ?? null,
@@ -297,6 +366,20 @@ export function App() {
 
   function patchSpool<K extends keyof SpoolDraft>(key: K, value: SpoolDraft[K]) {
     setSpoolDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function toggleCreationSection(key: CreationSectionKey) {
+    setCreationSections((current) => ({ ...current, [key]: !current[key] }));
+  }
+
+  function openCreation() {
+    setView('stock');
+    setStatus('');
+    setCreationOpen(true);
+  }
+
+  function closeCreation() {
+    if (!saving) setCreationOpen(false);
   }
 
   function applyShortcut(shortcut: ShortcutPreset) {
@@ -405,13 +488,13 @@ export function App() {
       });
 
       await refresh();
-      if (reference.kind === 'new') {
-        setReferenceMode('existing');
-        setSelectedReferenceId(reference.reference.id);
-      }
+      setReferenceMode('new');
+      setSelectedReferenceId('');
+      setReferenceDraft(emptyReferenceDraft());
       setSpoolDraft(emptySpoolDraft());
       setStatusKind('success');
       setStatus(`${created.length} bobine${created.length > 1 ? 's' : ''} enregistrée${created.length > 1 ? 's' : ''} : ${created.map((item) => item.id).join(', ')}.`);
+      setCreationOpen(false);
     } catch (error) {
       setStatusKind('error');
       setStatus(error instanceof Error ? error.message : "L'enregistrement a échoué.");
@@ -545,13 +628,13 @@ export function App() {
   return (
     <div className="app-frame">
       <aside className="sidebar">
-        <a className="brand" href="#top" aria-label="Filora accueil">
+        <a className="brand" href="#stock" aria-label="Filora accueil" onClick={(event) => { event.preventDefault(); setView('stock'); }}>
           <span className="brand-mark">F</span>
           <span><strong>Filora</strong><small>Filament inventory</small></span>
         </a>
         <nav className="side-nav" aria-label="Navigation principale">
-          <a className="active" href="#top"><span>◎</span> Stock</a>
-          <a href="#safety"><span>↗</span> Sauvegarde</a>
+          <a className={view === 'stock' ? 'active' : ''} href="#stock" onClick={(event) => { event.preventDefault(); setView('stock'); }}><span>◎</span> Stock</a>
+          <a className={view === 'settings' ? 'active' : ''} href="#settings" onClick={(event) => { event.preventDefault(); setView('settings'); }}><span>⚙</span> Réglages</a>
         </nav>
         <div className="sidebar-stats">
           <div><span>Bobines</span><strong>{snapshot.spools.length}</strong></div>
@@ -560,137 +643,162 @@ export function App() {
         </div>
       </aside>
 
-      <main className="workspace" id="top">
-        <header className="topbar">
-          <div><p className="eyebrow">Gestion du filament</p><h1>Stock de bobines</h1></div>
-          <a className="primary-link" href="#create">＋ Nouvelle bobine</a>
-        </header>
+      <main className="workspace" id={view === 'stock' ? 'stock' : 'settings'}>
+        {view === 'stock' ? (
+          <>
+            <header className="topbar">
+              <div><p className="eyebrow">Gestion du filament</p><h1>Stock de bobines</h1></div>
+              <button className="primary-link" type="button" onClick={openCreation}>＋ Ajouter une bobine</button>
+            </header>
 
-        {loadError ? <div className="global-alert error" role="alert">{loadError}</div> : null}
-        {legacyCount > 0 ? (
-          <div className="global-alert warning"><strong>{legacyCount} bobine{legacyCount > 1 ? 's' : ''} héritée{legacyCount > 1 ? 's' : ''}</strong><span>Référence filament à compléter, sans donnée produit inventée.</span></div>
-        ) : null}
-
-        <section className="intro-card">
-          <div><span className="section-kicker">Création complète</span><h2>Ajouter une bobine sans ressaisir ce que Filora connaît déjà.</h2><p>Choisis le fabricant puis sa gamme : Filora propose les couleurs correspondantes, les réglages connus et tes valeurs déjà enregistrées.</p></div>
-        </section>
-
-        <section className="creation-layout" id="create">
-          <form className="form-card" onSubmit={handleCreate}>
-            <div className="form-card-head">
-              <div><span className="step-number">1</span><div><p>Identification</p><h2>Filament</h2></div></div>
-              <span className="required-legend">Champs essentiels indiqués</span>
-            </div>
-
-            {shortcuts.length ? (
-              <div className="filament-shortcuts">
-                <span className="shortcut-label">⚡ Raccourcis selon ton stock</span>
-                <div className="shortcut-list">
-                  {shortcuts.map((shortcut) => (
-                    <button type="button" key={`${shortcut.brand}-${shortcut.material}-${shortcut.diameterMm}-${shortcut.manufacturerType}`} onClick={() => applyShortcut(shortcut)}>
-                      <strong>{shortcut.brand} · {shortcut.manufacturerType}</strong>
-                      <small>{shortcut.material} · {shortcut.diameterMm} mm · {shortcut.count} bobines</small>
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {loadError ? <div className="global-alert error" role="alert">{loadError}</div> : null}
+            {status ? <div className={`global-alert ${statusKind === 'error' ? 'error' : statusKind === 'success' ? 'success' : ''}`} role="status">{status}</div> : null}
+            {legacyCount > 0 ? (
+              <div className="global-alert warning"><strong>{legacyCount} bobine{legacyCount > 1 ? 's' : ''} héritée{legacyCount > 1 ? 's' : ''}</strong><span>Référence filament à compléter, sans donnée produit inventée.</span></div>
             ) : null}
 
-            <div className="segmented" role="group" aria-label="Mode de référence filament">
-              <button type="button" className={referenceMode === 'new' ? 'selected' : ''} onClick={() => setReferenceMode('new')}>Nouvelle référence</button>
-              <button type="button" className={referenceMode === 'existing' ? 'selected' : ''} onClick={() => setReferenceMode('existing')}>Référence existante</button>
-            </div>
-
-            {referenceMode === 'new' ? (
-              <ReferenceFields draft={referenceDraft} onChange={setReferenceDraft} idPrefix="create" existingReferences={snapshot.filamentReferences} />
-            ) : (
-              <div className="existing-reference-panel">
-                <label className="field"><span>Référence filament <b>obligatoire</b></span><select value={selectedReferenceId} onChange={(event) => setSelectedReferenceId(event.target.value)}><option value="">Sélectionner une référence…</option>{snapshot.filamentReferences.map((reference) => <option key={reference.id} value={reference.id}>{referenceLabel(reference)} · {reference.material}</option>)}</select></label>
-                {selectedReference ? <div className="reference-preview"><span className="large-swatch" style={{ background: selectedReference.colorHex ?? '#334155' }} /><div><strong>{referenceLabel(selectedReference)}</strong><span>{selectedReference.material} · {selectedReference.diameterMm} mm · {formatGrams(selectedReference.nominalWeightGrams)}</span></div></div> : <p className="helper-text">Les données communes seront reprises sans créer de copie indépendante.</p>}
+            <section className="stock-section stock-main-section">
+              <div className="section-title-row">
+                <div><p className="eyebrow">Stock</p><h2>Mes bobines</h2><span>{loading ? 'Chargement…' : `${snapshot.spools.length} bobine${snapshot.spools.length > 1 ? 's' : ''}`}</span></div>
+                <button className="secondary-button stock-add-secondary" type="button" onClick={openCreation}>＋ Ajouter</button>
               </div>
-            )}
-
-            <div className="form-divider" />
-            <div className="form-section-heading"><span className="step-number">2</span><div><p>Achat & rangement</p><h3>Informations de cette bobine</h3></div></div>
-            <div className="field-grid">
-              <label className="field"><span>Date d’achat</span><input type="date" value={spoolDraft.purchaseDate} onChange={(e) => patchSpool('purchaseDate', e.target.value)} /></label>
-              <label className="field"><span>Date d’ouverture</span><input type="date" value={spoolDraft.openDate} onChange={(e) => patchSpool('openDate', e.target.value)} /></label>
-            </div>
-            <div className="field-grid">
-              <label className="field"><span>Fournisseur / boutique</span><CatalogSelect value={spoolDraft.supplier} options={supplierOptions} placeholder="Sélectionner un fournisseur…" onChange={(supplier) => patchSpool('supplier', supplier)} customPlaceholder="Ajouter un fournisseur…" /></label>
-              <label className="field"><span>Prix d’achat <b>€</b></span><input value={spoolDraft.purchasePriceEuros} onChange={(e) => patchSpool('purchasePriceEuros', e.target.value)} inputMode="decimal" placeholder="24,90" /></label>
-            </div>
-            <div className="field-grid">
-              <label className="field"><span>Emplacement de stockage</span><CatalogSelect value={selectedLocationName} options={locationOptions} placeholder="Sans emplacement" onChange={chooseLocation} customPlaceholder="Ajouter un emplacement…" /></label>
-              <div className="field clear-location-field"><span>Emplacement facultatif</span><button type="button" className="secondary-button" onClick={() => chooseLocation('')}>Laisser sans emplacement</button></div>
-            </div>
-            <div className="field-grid">
-              <label className="field"><span>Dernier séchage</span><input type="date" value={spoolDraft.lastDriedDate} onChange={(e) => patchSpool('lastDriedDate', e.target.value)} /></label>
-              <label className="field"><span>Lien de rachat exact</span><input type="url" value={spoolDraft.purchaseUrl} onChange={(e) => patchSpool('purchaseUrl', e.target.value)} placeholder="https://…" /></label>
-            </div>
-
-            <div className="form-divider" />
-            <div className="form-section-heading"><span className="step-number">3</span><div><p>Poids & support</p><h3>Source du stock</h3></div></div>
-            <div className="segmented stock-basis-toggle">
-              <button type="button" className={spoolDraft.stockBasis === 'nominal' ? 'selected' : ''} onClick={() => patchSpool('stockBasis', 'nominal')}><strong>Nominal</strong><small>non pesée</small></button>
-              <button type="button" className={spoolDraft.stockBasis === 'measured' ? 'selected' : ''} onClick={() => patchSpool('stockBasis', 'measured')}><strong>Mesuré</strong><small>pesée réelle</small></button>
-            </div>
-            <div className="field-grid">
-              <label className="field"><span>Type de support <b>obligatoire</b></span><select value={spoolDraft.supportKind} onChange={(e) => patchSpool('supportKind', e.target.value as FormSupportKind)}><option value="original">Bobine d’origine</option><option value="reusable">Support réutilisable / refill</option></select></label>
-              <label className="field"><span>Bobine vide / tare de référence</span><CatalogSelect value={spoolDraft.tarePresetLabel} options={tarePresetOptions} placeholder="Sélectionner une bobine vide…" onChange={chooseTarePreset} allowCustom={false} /></label>
-            </div>
-            {spoolDraft.tarePresetLabel !== MANUAL_TARE_LABEL ? (() => {
-              const preset = tarePresets.find((item) => emptySpoolPresetLabel(item) === spoolDraft.tarePresetLabel);
-              return preset ? <div className="tare-source-note"><strong>{preset.tareGrams === null ? 'Tare à mesurer' : `${preset.tareGrams} g`}</strong><span>{preset.source}</span></div> : null;
-            })() : null}
-            <div className="field-grid">
-              <label className="field"><span>Tare bobine vide <b>g · obligatoire</b></span><input value={spoolDraft.tareWeightGrams} onChange={(e) => patchSpool('tareWeightGrams', e.target.value)} inputMode="decimal" placeholder="210,1" /></label>
-              {spoolDraft.stockBasis === 'measured' ? <label className="field measured-field"><span>Poids brut réellement mesuré <b>g · obligatoire</b></span><input value={spoolDraft.grossMeasuredWeightGrams} onChange={(e) => patchSpool('grossMeasuredWeightGrams', e.target.value)} inputMode="decimal" placeholder="842,6" /></label> : <div className="nominal-note"><strong>Aucune fausse pesée.</strong><span>Le stock initial utilisera le poids nominal de la référence et restera marqué « non vérifié ».</span></div>}
-            </div>
-
-            <div className="form-divider" />
-            <div className="form-section-heading"><span className="step-number">4</span><div><p>Création en série</p><h3>Exemplaires physiques</h3></div></div>
-            <div className="field-grid">
-              <label className="field"><span>Nombre de bobines <b>1 à 20</b></span><div className="quantity-stepper"><button type="button" onClick={() => patchSpool('quantity', String(Math.max(1, Number(spoolDraft.quantity || 1) - 1)))}>−</button><input type="number" min="1" max="20" value={spoolDraft.quantity} onChange={(e) => patchSpool('quantity', e.target.value)} /><button type="button" onClick={() => patchSpool('quantity', String(Math.min(20, Number(spoolDraft.quantity || 1) + 1)))}>＋</button></div></label>
-              <label className="field"><span>Premier ID personnalisé</span><input value={spoolDraft.requestedFirstId} onChange={(e) => patchSpool('requestedFirstId', e.target.value)} placeholder="Optionnel · sinon SP-####" /></label>
-            </div>
-            <div className="id-preview"><span>IDs prévus</span><strong>{previewIds.length ? previewIds.join(' · ') : '—'}</strong></div>
-            <label className="field notes-field"><span>Notes</span><textarea rows={4} value={spoolDraft.notes} onChange={(e) => patchSpool('notes', e.target.value)} placeholder="Informations propres à cette bobine ou à ce lot…" /></label>
-            {status ? <div className={`form-status ${statusKind}`} role="status">{status}</div> : null}
-            <div className="submit-row"><div><strong>Enregistrement local sécurisé</strong><span>Le lot est validé avant la première écriture.</span></div><button className="primary-button" type="submit" disabled={saving}>{saving ? 'Enregistrement…' : `Enregistrer ${spoolDraft.quantity || '1'} bobine${Number(spoolDraft.quantity) > 1 ? 's' : ''}`}</button></div>
-          </form>
-
-          <aside className="summary-card" aria-label="Résumé avant enregistrement">
-            <div className="summary-head"><span>Résumé</span><span className={`quality-badge ${spoolDraft.stockBasis}`}>{qualityLabel(spoolDraft.stockBasis)}</span></div>
-            <div className="spool-visual"><div className="spool-ring"><span style={{ background: /^#[0-9a-f]{6}$/i.test(summaryColor ?? '') ? summaryColor ?? '#334155' : '#334155' }} /></div><div><h3>{summaryTitle}</h3><p>{referenceMode === 'existing' ? selectedReference?.material ?? '—' : referenceDraft.material || '—'} · {referenceMode === 'existing' ? selectedReference?.diameterMm ?? '—' : referenceDraft.diameterMm || '—'} mm</p></div></div>
-            <div className="summary-metric"><span>Filament disponible</span><strong>{summaryRemaining === null ? '—' : formatGrams(summaryRemaining)}</strong>{summaryPercent !== null ? <small>{summaryPercent.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} % du nominal</small> : null}</div>
-            <div className="summary-grid"><div><span>Poids nominal</span><strong>{summaryNominal === null ? '—' : formatGrams(summaryNominal)}</strong></div><div><span>Tare</span><strong>{summaryTare === null ? '—' : formatGrams(summaryTare)}</strong></div><div><span>Support</span><strong>{supportLabel(spoolDraft.supportKind)}</strong></div><div><span>Origine tare</span><strong>{tareSourceLabel(spoolDraft.tareSource)}</strong></div></div>
-            <div className="summary-rule"><span className={spoolDraft.stockBasis === 'measured' ? 'dot green' : 'dot amber'} />{spoolDraft.stockBasis === 'measured' ? 'Poids brut conservé comme mesure physique.' : 'Aucune mesure physique ne sera inventée.'}</div>
-            <div className="summary-series"><span>Lot</span><strong>{previewIds.length || 0} exemplaire{previewIds.length > 1 ? 's' : ''}</strong><small>{previewIds.slice(0, 3).join(' · ')}{previewIds.length > 3 ? ` · +${previewIds.length - 3}` : ''}</small></div>
-          </aside>
-        </section>
-
-        <section className="stock-section" id="stock">
-          <div className="section-title-row"><div><p className="eyebrow">Aperçu local</p><h2>Bobines enregistrées</h2><span>{loading ? 'Chargement…' : `${snapshot.spools.length} bobine${snapshot.spools.length > 1 ? 's' : ''}`}</span></div></div>
-          {!loading && snapshot.spools.length === 0 ? <div className="empty-state"><strong>Aucune bobine enregistrée</strong><span>Le premier lot créé apparaîtra ici.</span></div> : null}
-          <div className="stock-grid">
-            {snapshot.spools.slice().sort((a, b) => a.id.localeCompare(b.id)).map((spool) => {
-              const reference = spool.filamentReferenceId ? snapshot.filamentReferences.find((item) => item.id === spool.filamentReferenceId) ?? null : null;
-              const location = spool.locationId ? snapshot.locations.find((item) => item.id === spool.locationId) ?? null : null;
-              let remaining: number | null = null;
-              try { remaining = calculateFilamentRemainingGrams(spool, reference); } catch { remaining = null; }
-              const percent = remaining !== null && reference ? (remaining / reference.nominalWeightGrams) * 100 : null;
-              return <article className="stock-card" key={spool.id}><div className="stock-card-top"><span className="stock-swatch" style={{ background: reference?.colorHex ?? '#475569' }} /><div className="stock-card-title"><strong>{reference ? referenceLabel(reference) : 'Référence filament à compléter'}</strong><span>{reference ? `${reference.material} · ${reference.diameterMm} mm` : 'Donnée héritée préservée sans produit inventé'}</span></div><span className={`quality-badge ${spool.stockBasis}`}>{qualityLabel(spool.stockBasis)}</span></div><div className="stock-amount"><strong>{remaining === null ? '—' : formatGrams(remaining)}</strong><span>disponible</span></div>{percent !== null ? <div className="progress-track"><span style={{ width: `${Math.max(0, Math.min(percent, 100))}%` }} /></div> : null}<dl className="stock-meta"><div><dt>ID</dt><dd>{spool.id}</dd></div><div><dt>Emplacement</dt><dd>{location?.name ?? '—'}</dd></div><div><dt>Fournisseur</dt><dd>{spool.supplier ?? '—'}</dd></div><div><dt>Prix</dt><dd>{formatMoney(spool.purchasePriceEuros)}</dd></div></dl><div className="stock-card-actions">{reference ? <button type="button" onClick={() => openReferenceEditor(reference)}>Modifier la référence</button> : null}<button type="button" className="accent-action" onClick={() => openReassign(spool)}>{reference ? 'Changer le filament' : 'Compléter la référence'}</button></div></article>;
-            })}
-          </div>
-        </section>
-
-        <section className="safety-section" id="safety">
-          <div className="safety-copy"><p className="eyebrow">Sécurité des données</p><h2>Sauvegarde & restauration</h2><p>La sauvegarde contient les références, les emplacements, les bobines et leurs relations. Les sauvegardes du Batch 5 restent acceptées.</p></div>
-          <div className="safety-actions"><button className="primary-button" type="button" onClick={handleBackupDownload} disabled={backupBusy}>Télécharger la sauvegarde</button><label className="file-button">Choisir une sauvegarde<input type="file" accept="application/json,.json" onChange={handleBackupFile} disabled={backupBusy} /></label>{pendingBackup ? <button className="danger-button" type="button" onClick={handleRestore} disabled={backupBusy}>Restaurer et remplacer le stock</button> : null}</div>
-          {backupStatus ? <div className="backup-status" role="status">{backupStatus}</div> : null}
-        </section>
+              {!loading && snapshot.spools.length === 0 ? <div className="empty-state"><strong>Aucune bobine enregistrée</strong><span>Utilise « Ajouter une bobine » pour créer ton premier exemplaire.</span></div> : null}
+              <div className="stock-grid">
+                {snapshot.spools.slice().sort((a, b) => a.id.localeCompare(b.id)).map((spool) => {
+                  const reference = spool.filamentReferenceId ? snapshot.filamentReferences.find((item) => item.id === spool.filamentReferenceId) ?? null : null;
+                  const location = spool.locationId ? snapshot.locations.find((item) => item.id === spool.locationId) ?? null : null;
+                  let remaining: number | null = null;
+                  try { remaining = calculateFilamentRemainingGrams(spool, reference); } catch { remaining = null; }
+                  const percent = remaining !== null && reference ? (remaining / reference.nominalWeightGrams) * 100 : null;
+                  return <article className="stock-card" key={spool.id}><div className="stock-card-top"><span className="stock-swatch" style={{ background: reference?.colorHex ?? '#475569' }} /><div className="stock-card-title"><strong>{reference ? referenceLabel(reference) : 'Référence filament à compléter'}</strong><span>{reference ? `${reference.material} · ${reference.diameterMm} mm` : 'Donnée héritée préservée sans produit inventé'}</span></div><span className={`quality-badge ${spool.stockBasis}`}>{qualityLabel(spool.stockBasis)}</span></div><div className="stock-amount"><strong>{remaining === null ? '—' : formatGrams(remaining)}</strong><span>disponible</span></div>{percent !== null ? <div className="progress-track"><span style={{ width: `${Math.max(0, Math.min(percent, 100))}%` }} /></div> : null}<dl className="stock-meta"><div><dt>ID</dt><dd>{spool.id}</dd></div><div><dt>Emplacement</dt><dd>{location?.name ?? '—'}</dd></div><div><dt>Fournisseur</dt><dd>{spool.supplier ?? '—'}</dd></div><div><dt>Prix</dt><dd>{formatMoney(spool.purchasePriceEuros)}</dd></div></dl><div className="stock-card-actions">{reference ? <button type="button" onClick={() => openReferenceEditor(reference)}>Modifier la référence</button> : null}<button type="button" className="accent-action" onClick={() => openReassign(spool)}>{reference ? 'Changer le filament' : 'Compléter la référence'}</button></div></article>;
+                })}
+              </div>
+            </section>
+          </>
+        ) : (
+          <>
+            <header className="topbar settings-topbar">
+              <div><p className="eyebrow">Préférences Filora</p><h1>Réglages</h1></div>
+            </header>
+            <section className="settings-panel">
+              <div className="settings-panel-head"><span className="settings-icon">↗</span><div><p className="eyebrow">Données & sauvegardes</p><h2>Sauvegarde et restauration</h2><p>Protège le stock local ou restaure une sauvegarde complète. Les sauvegardes du Batch 5 restent acceptées.</p></div></div>
+              <div className="safety-section settings-safety-section">
+                <div className="safety-copy"><h3>Données locales</h3><p>La sauvegarde contient les références filament, les emplacements, les bobines et toutes leurs relations.</p></div>
+                <div className="safety-actions"><button className="primary-button" type="button" onClick={handleBackupDownload} disabled={backupBusy}>Télécharger la sauvegarde</button><label className="file-button">Choisir une sauvegarde<input type="file" accept="application/json,.json" onChange={handleBackupFile} disabled={backupBusy} /></label>{pendingBackup ? <button className="danger-button" type="button" onClick={handleRestore} disabled={backupBusy}>Restaurer et remplacer le stock</button> : null}</div>
+                {backupStatus ? <div className="backup-status" role="status">{backupStatus}</div> : null}
+              </div>
+            </section>
+          </>
+        )}
       </main>
+
+      {creationOpen ? (
+        <div className="creation-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeCreation(); }}>
+          <section className="creation-modal" role="dialog" aria-modal="true" aria-labelledby="creation-title">
+            <header className="creation-modal-head">
+              <div><p className="eyebrow">Nouvelle bobine</p><h2 id="creation-title">Créer une ou plusieurs bobines</h2><span>Tes catégories ouvertes ou repliées restent mémorisées pour la prochaine ouverture.</span></div>
+              <button className="icon-button creation-close" type="button" onClick={closeCreation} aria-label="Fermer">×</button>
+            </header>
+
+            <div className="creation-modal-body">
+              <form id="spool-create-form" className="creation-form" onSubmit={handleCreate}>
+                <div className="creation-layout creation-dialog-layout">
+                  <div className="creation-sections">
+                    <CreationSection step="1" eyebrow="Identification" title="Filament" open={creationSections.filament} onToggle={() => toggleCreationSection('filament')}>
+                      {shortcuts.length ? (
+                        <div className="filament-shortcuts">
+                          <span className="shortcut-label">⚡ Raccourcis selon ton stock</span>
+                          <div className="shortcut-list">
+                            {shortcuts.map((shortcut) => (
+                              <button type="button" key={`${shortcut.brand}-${shortcut.material}-${shortcut.diameterMm}-${shortcut.manufacturerType}`} onClick={() => applyShortcut(shortcut)}>
+                                <strong>{shortcut.brand} · {shortcut.manufacturerType}</strong>
+                                <small>{shortcut.material} · {shortcut.diameterMm} mm · {shortcut.count} bobines</small>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                      <div className="segmented" role="group" aria-label="Mode de référence filament">
+                        <button type="button" className={referenceMode === 'new' ? 'selected' : ''} onClick={() => setReferenceMode('new')}>Nouvelle référence</button>
+                        <button type="button" className={referenceMode === 'existing' ? 'selected' : ''} onClick={() => setReferenceMode('existing')}>Référence existante</button>
+                      </div>
+                      {referenceMode === 'new' ? (
+                        <ReferenceFields draft={referenceDraft} onChange={setReferenceDraft} idPrefix="create" existingReferences={snapshot.filamentReferences} />
+                      ) : (
+                        <div className="existing-reference-panel">
+                          <label className="field"><span>Référence filament <b>obligatoire</b></span><select value={selectedReferenceId} onChange={(event) => setSelectedReferenceId(event.target.value)}><option value="">Sélectionner une référence…</option>{snapshot.filamentReferences.map((reference) => <option key={reference.id} value={reference.id}>{referenceLabel(reference)} · {reference.material}</option>)}</select></label>
+                          {selectedReference ? <div className="reference-preview"><span className="large-swatch" style={{ background: selectedReference.colorHex ?? '#334155' }} /><div><strong>{referenceLabel(selectedReference)}</strong><span>{selectedReference.material} · {selectedReference.diameterMm} mm · {formatGrams(selectedReference.nominalWeightGrams)}</span></div></div> : <p className="helper-text">Les données communes seront reprises sans créer de copie indépendante.</p>}
+                        </div>
+                      )}
+                    </CreationSection>
+
+                    <CreationSection step="2" eyebrow="Achat & rangement" title="Informations de cette bobine" open={creationSections.purchase} onToggle={() => toggleCreationSection('purchase')}>
+                      <div className="field-grid">
+                        <label className="field"><span>Date d’achat</span><input type="date" value={spoolDraft.purchaseDate} onChange={(e) => patchSpool('purchaseDate', e.target.value)} /></label>
+                        <label className="field"><span>Date d’ouverture</span><input type="date" value={spoolDraft.openDate} onChange={(e) => patchSpool('openDate', e.target.value)} /></label>
+                      </div>
+                      <div className="field-grid">
+                        <label className="field"><span>Fournisseur / boutique</span><CatalogSelect value={spoolDraft.supplier} options={supplierOptions} placeholder="Sélectionner un fournisseur…" onChange={(supplier) => patchSpool('supplier', supplier)} customPlaceholder="Ajouter un fournisseur…" /></label>
+                        <label className="field"><span>Prix d’achat <b>€</b></span><input value={spoolDraft.purchasePriceEuros} onChange={(e) => patchSpool('purchasePriceEuros', e.target.value)} inputMode="decimal" placeholder="24,90" /></label>
+                      </div>
+                      <div className="field-grid">
+                        <label className="field"><span>Emplacement de stockage</span><CatalogSelect value={selectedLocationName} options={locationOptions} placeholder="Sans emplacement" onChange={chooseLocation} customPlaceholder="Ajouter un emplacement…" /></label>
+                        <div className="field clear-location-field"><span>Emplacement facultatif</span><button type="button" className="secondary-button" onClick={() => chooseLocation('')}>Laisser sans emplacement</button></div>
+                      </div>
+                      <div className="field-grid">
+                        <label className="field"><span>Dernier séchage</span><input type="date" value={spoolDraft.lastDriedDate} onChange={(e) => patchSpool('lastDriedDate', e.target.value)} /></label>
+                        <label className="field"><span>Lien de rachat exact</span><input type="url" value={spoolDraft.purchaseUrl} onChange={(e) => patchSpool('purchaseUrl', e.target.value)} placeholder="https://…" /></label>
+                      </div>
+                    </CreationSection>
+
+                    <CreationSection step="3" eyebrow="Poids & support" title="Source du stock" open={creationSections.stock} onToggle={() => toggleCreationSection('stock')}>
+                      <div className="segmented stock-basis-toggle">
+                        <button type="button" className={spoolDraft.stockBasis === 'nominal' ? 'selected' : ''} onClick={() => patchSpool('stockBasis', 'nominal')}><strong>Nominal</strong><small>non pesée</small></button>
+                        <button type="button" className={spoolDraft.stockBasis === 'measured' ? 'selected' : ''} onClick={() => patchSpool('stockBasis', 'measured')}><strong>Mesuré</strong><small>pesée réelle</small></button>
+                      </div>
+                      <div className="field-grid">
+                        <label className="field"><span>Type de support <b>obligatoire</b></span><select value={spoolDraft.supportKind} onChange={(e) => patchSpool('supportKind', e.target.value as FormSupportKind)}><option value="original">Bobine d’origine</option><option value="reusable">Support réutilisable / refill</option></select></label>
+                        <label className="field"><span>Bobine vide / tare de référence</span><CatalogSelect value={spoolDraft.tarePresetLabel} options={tarePresetOptions} placeholder="Sélectionner une bobine vide…" onChange={chooseTarePreset} allowCustom={false} /></label>
+                      </div>
+                      {spoolDraft.tarePresetLabel !== MANUAL_TARE_LABEL ? (() => {
+                        const preset = tarePresets.find((item) => emptySpoolPresetLabel(item) === spoolDraft.tarePresetLabel);
+                        return preset ? <div className="tare-source-note"><strong>{preset.tareGrams === null ? 'Tare à mesurer' : `${preset.tareGrams} g`}</strong><span>{preset.source}</span></div> : null;
+                      })() : null}
+                      <div className="field-grid">
+                        <label className="field"><span>Tare bobine vide <b>g · obligatoire</b></span><input value={spoolDraft.tareWeightGrams} onChange={(e) => patchSpool('tareWeightGrams', e.target.value)} inputMode="decimal" placeholder="210,1" /></label>
+                        {spoolDraft.stockBasis === 'measured' ? <label className="field measured-field"><span>Poids brut réellement mesuré <b>g · obligatoire</b></span><input value={spoolDraft.grossMeasuredWeightGrams} onChange={(e) => patchSpool('grossMeasuredWeightGrams', e.target.value)} inputMode="decimal" placeholder="842,6" /></label> : <div className="nominal-note"><strong>Aucune fausse pesée.</strong><span>Le stock initial utilisera le poids nominal de la référence et restera marqué « non vérifié ».</span></div>}
+                      </div>
+                    </CreationSection>
+
+                    <CreationSection step="4" eyebrow="Création en série" title="Exemplaires physiques" open={creationSections.series} onToggle={() => toggleCreationSection('series')}>
+                      <div className="field-grid">
+                        <label className="field"><span>Nombre de bobines <b>1 à 20</b></span><div className="quantity-stepper"><button type="button" onClick={() => patchSpool('quantity', String(Math.max(1, Number(spoolDraft.quantity || 1) - 1)))}>−</button><input type="number" min="1" max="20" value={spoolDraft.quantity} onChange={(e) => patchSpool('quantity', e.target.value)} /><button type="button" onClick={() => patchSpool('quantity', String(Math.min(20, Number(spoolDraft.quantity || 1) + 1)))}>＋</button></div></label>
+                        <label className="field"><span>Premier ID personnalisé</span><input value={spoolDraft.requestedFirstId} onChange={(e) => patchSpool('requestedFirstId', e.target.value)} placeholder="Optionnel · sinon SP-####" /></label>
+                      </div>
+                      <div className="id-preview"><span>IDs prévus</span><strong>{previewIds.length ? previewIds.join(' · ') : '—'}</strong></div>
+                      <label className="field notes-field"><span>Notes</span><textarea rows={4} value={spoolDraft.notes} onChange={(e) => patchSpool('notes', e.target.value)} placeholder="Informations propres à cette bobine ou à ce lot…" /></label>
+                    </CreationSection>
+                  </div>
+
+                  <aside className="summary-card creation-summary" aria-label="Résumé avant enregistrement">
+                    <div className="summary-head"><span>Résumé</span><span className={`quality-badge ${spoolDraft.stockBasis}`}>{qualityLabel(spoolDraft.stockBasis)}</span></div>
+                    <div className="spool-visual"><div className="spool-ring"><span style={{ background: /^#[0-9a-f]{6}$/i.test(summaryColor ?? '') ? summaryColor ?? '#334155' : '#334155' }} /></div><div><h3>{summaryTitle}</h3><p>{referenceMode === 'existing' ? selectedReference?.material ?? '—' : referenceDraft.material || '—'} · {referenceMode === 'existing' ? selectedReference?.diameterMm ?? '—' : referenceDraft.diameterMm || '—'} mm</p></div></div>
+                    <div className="summary-metric"><span>Filament disponible</span><strong>{summaryRemaining === null ? '—' : formatGrams(summaryRemaining)}</strong>{summaryPercent !== null ? <small>{summaryPercent.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} % du nominal</small> : null}</div>
+                    <div className="summary-grid"><div><span>Poids nominal</span><strong>{summaryNominal === null ? '—' : formatGrams(summaryNominal)}</strong></div><div><span>Tare</span><strong>{summaryTare === null ? '—' : formatGrams(summaryTare)}</strong></div><div><span>Support</span><strong>{supportLabel(spoolDraft.supportKind)}</strong></div><div><span>Origine tare</span><strong>{tareSourceLabel(spoolDraft.tareSource)}</strong></div></div>
+                    <div className="summary-rule"><span className={spoolDraft.stockBasis === 'measured' ? 'dot green' : 'dot amber'} />{spoolDraft.stockBasis === 'measured' ? 'Poids brut conservé comme mesure physique.' : 'Aucune mesure physique ne sera inventée.'}</div>
+                    <div className="summary-series"><span>Lot</span><strong>{previewIds.length || 0} exemplaire{previewIds.length > 1 ? 's' : ''}</strong><small>{previewIds.slice(0, 3).join(' · ')}{previewIds.length > 3 ? ` · +${previewIds.length - 3}` : ''}</small></div>
+                  </aside>
+                </div>
+              </form>
+            </div>
+
+            <footer className="creation-modal-footer">
+              <div className="creation-footer-status">{status && statusKind === 'error' ? <span className="form-status error" role="status">{status}</span> : <span>Le lot est validé avant la première écriture.</span>}</div>
+              <div className="creation-footer-actions"><button className="secondary-button" type="button" onClick={closeCreation} disabled={saving}>Annuler</button><button className="primary-button" type="submit" form="spool-create-form" disabled={saving}>{saving ? 'Enregistrement…' : `Enregistrer ${spoolDraft.quantity || '1'} bobine${Number(spoolDraft.quantity) > 1 ? 's' : ''}`}</button></div>
+            </footer>
+          </section>
+        </div>
+      ) : null}
 
       {editReference ? <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditReference(null); }}><div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-reference-title"><div className="modal-head"><div><p className="eyebrow">Correction partagée</p><h2 id="edit-reference-title">Modifier la référence filament</h2></div><button className="icon-button" type="button" onClick={() => setEditReference(null)}>×</button></div><div className="shared-warning"><strong>Impact partagé</strong><span>Cette référence est liée à {inspectSharedReference(snapshot, editReference.referenceId).affectedSpoolCount} bobine{inspectSharedReference(snapshot, editReference.referenceId).affectedSpoolCount > 1 ? 's' : ''}. La correction sera visible sur toutes.</span></div><form onSubmit={handleReferenceUpdate}><ReferenceFields draft={editReference.draft} onChange={(draft) => setEditReference({ ...editReference, draft })} idPrefix="edit" existingReferences={snapshot.filamentReferences} />{modalStatus ? <div className="form-status error">{modalStatus}</div> : null}<div className="modal-actions"><button type="button" onClick={() => setEditReference(null)}>Annuler</button><button className="primary-button" type="submit">Enregistrer la correction</button></div></form></div></div> : null}
 
