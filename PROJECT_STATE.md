@@ -91,6 +91,46 @@ Avant toute intégration à `test-preview`, il reste notamment à obtenir :
 - Les Batch 3 et 4 ne sont pas encore promus vers `main` ; aucune promotion n’est implicite.
 - Le Batch 5 ne prévoit ni migration de schéma, ni cloud, ni synchronisation, ni historique de sauvegardes.
 
+## Direction prévue après le Batch 5 — futur Batch 6
+
+Le Batch 6 n’est **pas démarré** et aucun `BATCH6.md` n’est encore créé. Son périmètre final devra être confirmé uniquement après la clôture réelle du Batch 5, la reconstruction de l’état GitHub courant et l’examen des Issues/findings alors ouverts.
+
+L’intention produit déjà validée pour préparer ce futur Batch est de se concentrer sur **la création complète d’une bobine**, avec une équivalence fonctionnelle de l’ancien écran de création montré par Mickaël, sans obligation d’en reprendre le design visuel.
+
+Les fonctions à retrouver dans le flux de création comprennent au minimum :
+
+- ID de la bobine ;
+- marque ;
+- matière ;
+- diamètre ;
+- gamme ou type de filament fabricant ;
+- couleur fabricant et aperçu de couleur ;
+- date d’achat ;
+- date d’ouverture ;
+- fournisseur / boutique ;
+- emplacement de stockage ;
+- prix de la bobine ;
+- dernier séchage ;
+- lien de rachat exact ;
+- type de bobine ;
+- poids neuf initial / poids nominal ;
+- bobine vide ou support / tare de référence ;
+- tare de la bobine vide ;
+- poids brut mesuré ;
+- filament restant calculé, avec indication utile du pourcentage ou de l’état lorsque pertinent ;
+- températures buse et plateau ;
+- paramètres d’impression avancés utiles ;
+- création en série de plusieurs bobines identiques avec identités physiques distinctes ;
+- notes optionnelles ;
+- résumé compréhensible avant enregistrement ;
+- enregistrement final avec validations et erreurs explicites.
+
+L’implémentation devra respecter le contrat de données existant : les informations décrivant un produit commun, comme marque, matière, gamme, couleur ou diamètre, doivent être structurées proprement comme données de référence filament lorsque cela est applicable, tandis que les informations propres à l’exemplaire physique restent attachées à la bobine. L’objectif est de conserver les mêmes fonctions utilisateur sans créer deux autorités concurrentes ni dupliquer inutilement les données communes.
+
+Toute nouvelle donnée persistante introduite par ce Batch devra également être intégrée aux garanties de sauvegarde/restauration applicables afin qu’une sauvegarde puisse continuer à reconstruire l’état métier persistant correspondant. Le Batch 6 ne devra donc pas introduire de données persistées que le mécanisme de recovery laisserait silencieusement de côté.
+
+Les consommations, l’historique des mouvements, les recalages successifs, l’inventaire, la gestion des imprimantes et un redesign global de l’application ne sont pas implicitement inclus dans cette intention. Ils ne devront entrer dans le Batch 6 que si une décision ultérieure les ajoute explicitement à son périmètre.
+
 ## Prochaine action
 
 1. laisser la PR du Batch 5 exécuter les contrôles CI sur le candidat mis en cohérence ;
