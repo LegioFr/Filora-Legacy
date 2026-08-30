@@ -1,0 +1,299 @@
+/* Raffinements UX Batch 6 : cette couche est chargée après les styles généraux et responsive. */
+
+/* Menus déroulants : chevrons lisibles, homogènes et centrés sur toutes les tailles d'écran. */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 42px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8' viewBox='0 0 14 8'%3E%3Cpath d='M2 1.5 7 6.5 12 1.5' fill='none' stroke='%2397a9bf' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 14px 8px;
+}
+select:disabled { opacity: .62; }
+.catalog-chevron {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: #97a9bf;
+  font-size: 0;
+  line-height: 1;
+  transition: transform .16s ease, color .16s ease;
+}
+.catalog-chevron::before {
+  content: '▾';
+  font-size: 1rem;
+  line-height: 1;
+}
+.catalog-select[open] .catalog-chevron {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+
+/* Stock : une seule action Ajouter, un en-tête de liste qui respire. */
+.stock-list-head {
+  display: block;
+  margin-bottom: 18px;
+}
+.stock-list-head > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: 12px;
+  row-gap: 2px;
+}
+.stock-list-head .eyebrow { grid-column: 1 / -1; }
+.stock-list-head h2 { margin: 0; white-space: nowrap; }
+.stock-list-head span { color: var(--muted); font-size: .76rem; }
+
+/* Hiérarchie des menus fabricant. */
+.catalog-group-label {
+  display: block;
+  padding: 9px 10px 4px;
+  color: #6fcdea;
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  border-top: 1px solid rgba(72, 105, 137, .22);
+}
+.catalog-group-label:first-child { border-top: 0; padding-top: 5px; }
+
+/* La zone Filament conserve toutes ses fonctions mais les réglages d'impression ne prennent de place que sur demande. */
+.print-settings-panel { margin-top: 2px; }
+.print-settings-panel > summary {
+  min-height: 48px;
+  background: linear-gradient(90deg, rgba(14,165,233,.055), rgba(14,165,233,.015));
+}
+.print-settings-panel[open] > summary { border-bottom: 1px solid var(--border-soft); }
+.print-settings-content { display: grid; gap: 15px; }
+.print-temperature-grid { margin: 0; }
+.advanced-print-grid { margin-top: 0; }
+
+/* Le résumé devient une ligne compacte. Le détail complet reste accessible à la demande. */
+.creation-dialog-layout {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 12px;
+}
+.creation-summary {
+  position: static !important;
+  max-height: none !important;
+  overflow: visible !important;
+  display: block !important;
+  padding: 0 !important;
+  border-radius: 15px;
+}
+.creation-summary > summary::-webkit-details-marker { display: none; }
+.summary-compact {
+  list-style: none;
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+.summary-compact:hover { background: rgba(54,197,240,.035); }
+.summary-compact-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 7px solid #2d3b4d;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+}
+.summary-compact-copy { min-width: 0; display: grid; gap: 2px; }
+.summary-compact-copy small {
+  color: var(--subtle);
+  font-size: .61rem;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.summary-compact-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .82rem;
+}
+.summary-compact-metric { display: grid; justify-items: end; line-height: 1.05; }
+.summary-compact-metric strong { font-size: 1.02rem; }
+.summary-compact-metric small { margin-top: 3px; color: var(--muted); font-size: .63rem; }
+.summary-details-cue {
+  color: var(--accent);
+  font-size: .7rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.summary-details-cue::after { content: '  +'; }
+.creation-summary[open] .summary-details-cue::after { content: '  −'; }
+.summary-details {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border-soft);
+}
+.summary-details .spool-visual { padding-top: 16px; }
+
+/* Poids & support : on part de l'action réelle de l'utilisateur. */
+.weight-mode-heading {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 11px;
+}
+.weight-mode-heading strong { font-size: .84rem; }
+.weight-mode-heading span { color: var(--muted); font-size: .7rem; }
+.weight-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 15px;
+}
+.weight-mode-grid button {
+  min-height: 76px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #0b121c;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.weight-mode-grid button strong { font-size: .79rem; }
+.weight-mode-grid button span { color: var(--muted); font-size: .67rem; line-height: 1.35; }
+.weight-mode-grid button.selected {
+  border-color: #2e718d;
+  background: linear-gradient(135deg, rgba(14,165,233,.13), rgba(14,165,233,.035));
+  box-shadow: inset 3px 0 0 rgba(54,197,240,.65);
+}
+.weight-mode-grid button.selected span { color: #aec1d4; }
+.support-kind-field { margin-bottom: 14px; }
+.support-kind-field select { max-width: 100%; }
+
+.nominal-workflow,
+.measured-workflow { display: grid; gap: 12px; }
+.nominal-result-card,
+.measured-result-card {
+  display: grid;
+  gap: 3px;
+  padding: 13px 15px;
+  border: 1px solid rgba(52,211,153,.25);
+  border-radius: 12px;
+  background: rgba(52,211,153,.055);
+}
+.nominal-result-card span,
+.measured-result-card span {
+  color: var(--muted);
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.nominal-result-card strong { font-size: .95rem; }
+.nominal-result-card small,
+.measured-result-card small { color: #8ea9a0; font-size: .66rem; }
+.measured-result-card strong { color: #9df3d0; font-size: 1.45rem; }
+.measured-result-card.is-empty {
+  border-color: var(--border);
+  background: #0b121c;
+}
+.measured-result-card.is-empty strong { color: var(--muted); font-size: .9rem; }
+
+.optional-tare-panel {
+  overflow: visible;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #0b121c;
+}
+.optional-tare-panel > summary {
+  list-style: none;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 13px;
+  cursor: pointer;
+  color: #b8c5d5;
+  font-size: .75rem;
+  font-weight: 800;
+}
+.optional-tare-panel > summary::-webkit-details-marker { display: none; }
+.optional-tare-panel > summary small { margin-left: auto; color: var(--subtle); font-size: .63rem; }
+.optional-tare-panel > summary::after { content: '+'; color: var(--accent); font-size: 1rem; }
+.optional-tare-panel[open] > summary::after { content: '−'; }
+.optional-tare-content {
+  display: grid;
+  gap: 11px;
+  padding: 12px 13px 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.measured-step-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 1px;
+}
+.measured-step-label > span {
+  width: 27px;
+  height: 27px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: .68rem;
+  font-weight: 900;
+}
+.measured-step-label > div { display: grid; gap: 2px; }
+.measured-step-label strong { font-size: .78rem; }
+.measured-step-label small { color: var(--muted); font-size: .65rem; }
+.measured-input-grid { margin-top: 0; }
+
+/* Finitions V1 : supprimer le texte technique quand il n'y a pas d'erreur. */
+.creation-footer-status > span:not(.form-status) { display: none; }
+
+/* Le bloc Achat & rangement reste complet mais prend moins de hauteur. */
+.creation-sections > .creation-section:nth-of-type(2) .creation-section-content {
+  padding-top: 12px;
+  padding-bottom: 13px;
+}
+.creation-sections > .creation-section:nth-of-type(2) .field-grid {
+  row-gap: 9px;
+}
+.creation-sections > .creation-section:nth-of-type(2) .field-grid + .field-grid {
+  margin-top: 9px;
+}
+
+@media (max-width: 900px) {
+  .summary-compact {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+  }
+  .summary-compact-metric { grid-column: 2; justify-items: start; }
+  .summary-compact .quality-badge { grid-row: 1; grid-column: 3; }
+  .summary-details-cue { grid-row: 2; grid-column: 3; }
+  .weight-mode-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 700px) {
+  .stock-list-head > div { grid-template-columns: minmax(0, 1fr); }
+  .stock-list-head .eyebrow { grid-column: auto; }
+  .summary-compact {
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 10px 11px;
+  }
+  .summary-compact-swatch { width: 30px; height: 30px; border-width: 6px; }
+  .summary-compact-copy strong { font-size: .74rem; }
+  .summary-compact-metric strong { font-size: .9rem; }
+  .summary-compact .quality-badge { font-size: .56rem; }
+  .summary-details-cue { font-size: .64rem; }
+  .measured-input-grid,
+  .print-temperature-grid,
+  .advanced-print-grid { grid-template-columns: minmax(0, 1fr); }
+}
