@@ -69,8 +69,8 @@ const baseRequest: CreateSpoolBatchRequest = {
     lastDriedDate: null,
     purchaseUrl: 'https://example.test/filament',
     supportKind: 'original',
-    tareWeightGrams: 200,
-    tareSource: 'manufacturer',
+    tareWeightGrams: null,
+    tareSource: null,
     grossMeasuredWeightGrams: null,
     stockBasis: 'nominal',
     notes: 'Lot de test',
@@ -83,6 +83,7 @@ assert(automatic.spools.length === 3, 'series plan must contain requested number
 assert(automatic.spools.every((spool) => spool.filamentReferenceId === existingReference.id), 'series spools must share selected reference');
 assert(automatic.spools.every((spool) => spool.locationId === existingLocation.id), 'series spools must share selected location');
 assert(automatic.spools.every((spool) => spool.stockBasis === 'nominal' && spool.grossMeasuredWeightGrams === null), 'nominal series must not invent measured gross weight');
+assert(automatic.spools.every((spool) => spool.tareWeightGrams === null && spool.tareSource === null), 'nominal series must not invent a tare');
 
 const customFirst = planSpoolBatch(snapshot, {
   ...baseRequest,
