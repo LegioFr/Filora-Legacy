@@ -229,7 +229,7 @@ Aucun critère Critique n’est prévu : la migration est conçue comme additive
 
 Une revue indépendante adaptée au niveau Sensible sera requise avant clôture.
 
-### Jalon humain requis — VALIDÉE
+### Jalon humain requis — VALIDÉ
 
 La validation humaine réelle du flux de création et du rendu visuel a été effectuée le 2026-08-30. Les parcours fonctionnels ont été testés principalement sur tablette, puis le rendu et les interactions essentielles ont été contrôlés sur PC classique, écran ultra-wide et mobile. Le catalogue personnel et sa persistance visible ont également été validés après correction.
 
