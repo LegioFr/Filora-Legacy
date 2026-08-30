@@ -92,6 +92,8 @@ const spool: PersistedSpoolV2 = {
   tareSource: 'manufacturer',
   grossMeasuredWeightGrams: 1200,
   stockBasis: 'measured',
+  preferredNozzleTemperatureC: 205,
+  preferredBedTemperatureC: 55,
   notes: 'Bobine de test',
 };
 const nominalWithoutTare: PersistedSpoolV2 = {
@@ -101,6 +103,8 @@ const nominalWithoutTare: PersistedSpoolV2 = {
   tareSource: null,
   grossMeasuredWeightGrams: null,
   stockBasis: 'nominal',
+  preferredNozzleTemperatureC: null,
+  preferredBedTemperatureC: null,
   notes: 'Bobine neuve non pesée',
 };
 
@@ -115,6 +119,8 @@ assert(backup.filamentReferences.length === 1, 'v2 backup must include filament 
 assert(backup.locations.length === 1, 'v2 backup must include locations');
 assert(backup.spools.length === 2, 'v2 backup must include all spools');
 assert(!('filamentRemainingGrams' in backup.spools[0]!), 'derived remaining filament must not become persisted backup authority');
+assert(backup.spools[0]?.preferredNozzleTemperatureC === 205, 'spool nozzle preference must be included in backup');
+assert(backup.spools[0]?.preferredBedTemperatureC === 55, 'spool bed preference must be included in backup');
 assert(backup.spools[1]?.tareWeightGrams === null, 'unknown nominal tare must remain null in backup');
 assert(backup.spools[1]?.tareSource === null, 'unknown nominal tare source must remain null in backup');
 
@@ -122,8 +128,22 @@ const json = await createInventoryBackupJson(store);
 const parsedV2 = parseInventoryBackupJson(json);
 assert(parsedV2.sourceVersion === 2, 'v2 backup must be recognized as v2');
 assert(parsedV2.snapshot.spools[0]?.filamentReferenceId === reference.id, 'v2 relation must survive JSON round trip');
+assert(parsedV2.snapshot.spools[0]?.preferredNozzleTemperatureC === 205, 'nozzle preference must survive JSON round trip');
+assert(parsedV2.snapshot.spools[0]?.preferredBedTemperatureC === 55, 'bed preference must survive JSON round trip');
 assert(parsedV2.snapshot.spools[1]?.stockBasis === 'nominal', 'nominal stock basis must survive JSON round trip');
 assert(parsedV2.snapshot.spools[1]?.tareWeightGrams === null, 'unknown tare must survive JSON round trip');
+
+const previousV2WithoutSpoolTemperatures = JSON.parse(json) as {
+  spools: Array<Record<string, unknown>>;
+};
+for (const previousSpool of previousV2WithoutSpoolTemperatures.spools) {
+  delete previousSpool.preferredNozzleTemperatureC;
+  delete previousSpool.preferredBedTemperatureC;
+}
+const parsedPreviousV2 = parseInventoryBackupJson(JSON.stringify(previousV2WithoutSpoolTemperatures));
+assert(parsedPreviousV2.sourceVersion === 2, 'previous v2 backup without spool temperatures must remain readable');
+assert(parsedPreviousV2.snapshot.spools[0]?.preferredNozzleTemperatureC === null, 'missing old v2 nozzle preference must normalize to null');
+assert(parsedPreviousV2.snapshot.spools[0]?.preferredBedTemperatureC === null, 'missing old v2 bed preference must normalize to null');
 
 const legacyJson = JSON.stringify({
   format: 'filora-backup',
@@ -144,6 +164,8 @@ assert(parsedV1.snapshot.locations.length === 0, 'legacy backup must not invent 
 assert(parsedV1.snapshot.spools[0]?.filamentReferenceId === null, 'legacy spool must migrate with unknown reference');
 assert(parsedV1.snapshot.spools[0]?.supportKind === null, 'legacy spool must not invent support kind');
 assert(parsedV1.snapshot.spools[0]?.grossMeasuredWeightGrams === 842.6, 'legacy measured gross must be preserved');
+assert(parsedV1.snapshot.spools[0]?.preferredNozzleTemperatureC === null, 'legacy spool must not invent nozzle preference');
+assert(parsedV1.snapshot.spools[0]?.preferredBedTemperatureC === null, 'legacy spool must not invent bed preference');
 
 let unknownFieldRejected = false;
 try {
@@ -152,6 +174,16 @@ try {
   unknownFieldRejected = error instanceof Error && error.message.includes('champs manquants ou inconnus');
 }
 assert(unknownFieldRejected, 'v2 backup must reject unknown root fields');
+
+let unknownSpoolFieldRejected = false;
+try {
+  const invalidBackup = JSON.parse(json) as { spools: Array<Record<string, unknown>> };
+  invalidBackup.spools[0]!.unexpectedSpoolField = true;
+  parseInventoryBackupJson(JSON.stringify(invalidBackup));
+} catch (error) {
+  unknownSpoolFieldRejected = error instanceof Error && error.message.includes('champs manquants ou inconnus');
+}
+assert(unknownSpoolFieldRejected, 'v2 backup must still reject unknown spool fields');
 
 let orphanRejected = false;
 try {
@@ -166,6 +198,8 @@ const restored = await restoreInventoryBackup(replacementStore, backup);
 assert(restored.sourceVersion === 2, 'restore must report validated source version');
 const restoredSnapshot = await replacementStore.getSnapshot();
 assert(restoredSnapshot.spools[0]?.id === 'SP-0068', 'restore must replace with validated spool data');
+assert(restoredSnapshot.spools[0]?.preferredNozzleTemperatureC === 205, 'restore must preserve spool nozzle preference');
+assert(restoredSnapshot.spools[0]?.preferredBedTemperatureC === 55, 'restore must preserve spool bed preference');
 assert(restoredSnapshot.spools[1]?.tareWeightGrams === null, 'restore must preserve unknown nominal tare');
 assert(restoredSnapshot.filamentReferences[0]?.brand === 'Polymaker', 'restore must include reference data');
 assert(restoredSnapshot.locations[0]?.name === 'Atelier', 'restore must include location data');
