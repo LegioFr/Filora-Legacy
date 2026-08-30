@@ -9,7 +9,7 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - stage: Batch 7 — automatisation des tests d’interface avec Playwright
 - status: ouvert
 - git: lire le HEAD de `batch7/playwright-automation`, la PR #65 vers `test-preview`, les workflows, Issues, PR et findings directement depuis GitHub avant toute décision de validation ou d’intégration
-- next_action: Playwright et sa CI sont maintenant en place ; décider explicitement du finding rollback navigateur IndexedDB/catalogue personnel, puis évaluer Graphify séparément, avant revue indépendante et préparation de clôture du Batch 7
+- next_action: Playwright, sa CI et le rollback navigateur inter-stockages sont en place ; Graphify a reçu sa décision explicite ; effectuer maintenant le préflight final puis la revue indépendante requise par le risque Critique avant toute clôture ou fusion
 
 ## État courant
 
@@ -38,9 +38,12 @@ Playwright `1.62.1` est versionné avec Chromium uniquement. Firefox et WebKit n
 
 La suite E2E comprend actuellement :
 
-- 28 tests fonctionnels couvrant les parcours utilisateur déjà implémentés : navigation, création de bobines, références nouvelles/existantes, paramètres d’impression, achat/rangement, stock nominal/mesuré, création en série, modification de référence, changement de filament, sauvegarde/restauration et isolation ;
+- 28 tests fonctionnels initiaux couvrant les parcours utilisateur déjà implémentés : navigation, création de bobines, références nouvelles/existantes, paramètres d’impression, achat/rangement, stock nominal/mesuré, création en série, modification de référence, changement de filament, sauvegarde/restauration et isolation ;
+- 1 test navigateur supplémentaire de rollback inter-stockages IndexedDB / catalogue personnel ;
 - 4 tests de viewports représentatifs : mobile `390×844`, tablette `800×1280`, PC `1440×900`, ultra-wide `2560×1080` ;
-- soit 32 tests Playwright au total.
+- soit **33 tests Playwright au total**.
+
+Le test de rollback navigateur fabrique les états par l’interface dans deux contextes Chromium isolés, injecte une panne unique sur l’écriture du catalogue local après le remplacement IndexedDB, puis recharge l’application. Il vérifie alors que l’ancienne bobine est toujours réellement persistée, que la bobine cible n’a pas été laissée dans IndexedDB, que l’ancien choix personnalisé du catalogue est revenu et que le choix cible n’a pas fui. Aucun crochet de test n’a été ajouté au code produit.
 
 La démonstration visible des quatre viewports a été réalisée. Ces tailles restent des simulations Chromium et ne constituent pas une preuve matérielle sur appareil physique.
 
@@ -60,26 +63,47 @@ Le workflow séparé `.github/workflows/playwright-e2e.yml` :
 
 ### Preuves CI acquises
 
-Sur le candidat `cda0fa5a96b00d4b582e4cd8fba58d1aadcc7cbe` :
+Sur le candidat `f7dd2775454ede1f4fe5161e901022f0a2f66937` :
 
-- **Filora guard #242 : SUCCESS** ;
-- **Playwright E2E : SUCCESS** sur la suite complète ;
+- **Filora guard #245 : SUCCESS** ;
+- **Playwright E2E : 33/33 PASS** sur la suite complète ;
+- le test `rollback navigateur restaure IndexedDB et le catalogue après une panne inter-stockages` : PASS ;
 - checkout exact et propre : SUCCESS ;
 - installation des dépendances : SUCCESS ;
 - installation Chromium uniquement : SUCCESS ;
+- typecheck, build, architecture et tests du guard : SUCCESS dans le guard ;
 - sentinel applicable : non modifié.
 
 Le premier essai CI a correctement révélé que `risk: sensitive` sous-classait le diff objectif : tout nouveau workflow GitHub Actions exige `critical`. Le guard n’a pas été modifié ni affaibli ; l’état a été corrigé en `critical` avec `owner_approval: obtained`.
 
+Les mises à jour documentaires postérieures à `f7dd277...` doivent naturellement repasser les checks sur leur HEAD final avant clôture ; les preuves ci-dessus ne doivent pas être transplantées automatiquement sur un SHA ultérieur.
+
 ## Correction du checkout sale / `gitDirty`
 
-La Preview créée avant la CI portait le bon SHA mais Vercel indiquait `gitDirty: 1`. Les artefacts locaux connus responsables de ce bruit sont désormais exclus de Git avec :
+La Preview Vercel existante du SHA `8d63454d1ffb1c0e0c33827f8162ce471744b968` est vérifiée `READY` mais ses métadonnées portent `gitDirty: 1`.
+
+Les artefacts locaux connus responsables de ce bruit sont désormais exclus de Git avec :
 
 - `__pycache__/` ;
 - `*.py[cod]` ;
 - `.vercel/`.
 
-Le workflow Playwright CI prouve déjà qu’un checkout GitHub neuf du candidat est propre avant exécution. Une future Preview créée depuis un checkout local propre devra encore être vérifiée si l’on veut établir explicitement `gitDirty: 0` dans les métadonnées Vercel ; ne pas présenter cette propriété comme démontrée avant cette vérification.
+Le workflow Playwright CI prouve qu’un checkout GitHub neuf du candidat est propre avant exécution. En revanche, aucune nouvelle Preview Vercel du checkout corrigé n’a encore été créée de manière vérifiable ; `gitDirty: 0` dans les métadonnées Vercel n’est donc pas revendiqué comme preuve acquise. Lorsqu’une prochaine Preview sera réellement nécessaire, sa correspondance au SHA et son `gitDirty` devront être vérifiés directement.
+
+## Graphify — décision Batch 7
+
+Graphify est **conservé comme aide locale optionnelle uniquement**, sans intégration au dépôt.
+
+Le choix est volontairement minimal :
+
+- son graphe de code peut aider une IA à comprendre des dépendances transversales lorsque Filora grandira ;
+- il ne devient ni source de vérité, ni preuve, ni contrôle de conformité ;
+- aucune dépendance Graphify n’est ajoutée au projet ;
+- aucun workflow CI, hook Git, serveur MCP ou fichier `graphify-out/` n’est ajouté/versionné ;
+- toute conclusion importante doit rester vérifiée dans le code et GitHub ;
+- aucun gain mesuré sur l’environnement Windows local de Mickaël n’est prétendu à ce stade.
+
+Graphify peut donc être utilisé ponctuellement plus tard si son gain pratique devient réel, sans créer d’obligation permanente dans Filora.
 
 ## Findings / décisions Batch 7
 
@@ -90,12 +114,9 @@ Le workflow Playwright CI prouve déjà qu’un checkout GitHub neuf du candidat
 - suite E2E fonctionnelle ;
 - viewports mobile/tablette/PC/ultra-wide ;
 - CI Playwright minimale ;
-- artefacts locaux Python/Vercel exclus du suivi Git.
-
-### À décider avant clôture
-
-- **rollback navigateur IndexedDB / catalogue personnel** : ajouter un test de panne inter-stockages seulement si l’injection et la vérification restent propres et proportionnées ; sinon reporter explicitement ;
-- **Graphify** : évaluer comme aide locale seulement ; conserver uniquement si le gain pratique est réel.
+- artefacts locaux Python/Vercel exclus du suivi Git ;
+- rollback navigateur IndexedDB / catalogue personnel : traité par un vrai test Chromium de panne inter-stockages, CI verte ;
+- Graphify : décision acquise, conservé uniquement comme aide locale optionnelle non intégrée au dépôt.
 
 ### Reportés
 
@@ -107,9 +128,13 @@ Le workflow Playwright CI prouve déjà qu’un checkout GitHub neuf du candidat
 - cycle de vie complet des supports réutilisables ;
 - duplication des préfixes `localStorage` du catalogue personnel entre UI et adaptateur de domaine.
 
+### Rejetés
+
+- aucun finding à ce stade.
+
 ## Routage des revues Batch 7
 
-Le Batch est désormais **Critique** à cause de l’ajout du workflow CI, pas parce qu’un garde-fou existant a été affaibli.
+Le Batch est **Critique** à cause de l’ajout du workflow CI, pas parce qu’un garde-fou existant a été affaibli.
 
 Le routage par défaut reste **Codex normal**. Avant clôture, la revue indépendante doit examiner notamment :
 
@@ -119,8 +144,9 @@ Le routage par défaut reste **Codex normal**. Avant clôture, la revue indépen
 - permissions GitHub Actions ;
 - absence de secrets ;
 - accès réseau réellement nécessaires ;
-- pertinence et couverture des tests ;
-- adéquation des preuves.
+- pertinence et couverture des 33 tests ;
+- injection de panne du test rollback et validité de la preuve obtenue ;
+- adéquation des preuves CI avec le SHA candidat.
 
 Codex Security n’est utilisé que si une propriété de sécurité précise apparaît et que Codex normal est insuffisant conformément à `DEVELOPMENT.md`.
 
@@ -162,15 +188,14 @@ Objectif : **réduire le temps perdu autour des tests, jamais leur qualité, afi
 
 Le Batch 7 reste **ouvert**. Aucun Batch 8 ne peut être préparé ou démarré tant que le Batch 7 n’est pas réellement clôturé et intégré selon `DEVELOPMENT.md`.
 
-Avant clôture, il reste au minimum :
+Le rollback navigateur et Graphify ont maintenant reçu leurs décisions explicites. Avant clôture, il reste au minimum :
 
-1. décision explicite sur le rollback navigateur inter-stockages ;
-2. décision explicite sur Graphify ;
-3. préflight final ;
-4. revue indépendante adaptée au risque Critique ;
-5. traitement/décision de tous findings apparus ;
-6. mise à jour finale de `BATCH7.md`, `PROJECT_STATE.md` et `workflow/state.json` ;
-7. CI finale verte sur le candidat de clôture.
+1. préflight final sur le HEAD courant ;
+2. revue indépendante adaptée au risque Critique ;
+3. traitement/décision de tout finding issu de cette revue ;
+4. mise à jour finale de `BATCH7.md`, `PROJECT_STATE.md` et `workflow/state.json` ;
+5. CI finale verte sur le candidat de clôture ;
+6. passage de la PR #65 hors brouillon seulement lorsque les conditions de clôture sont réellement satisfaites.
 
 ## Documents canoniques
 
