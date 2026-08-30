@@ -11,9 +11,60 @@ interface CatalogSelectProps {
   ariaLabel?: string;
   optionLabels?: Readonly<Record<string, string>>;
   optionGroups?: Readonly<Record<string, string>>;
+  persistenceKey?: string;
 }
 
 const CATALOG_OPEN_EVENT = 'filora:catalog-open';
+const CATALOG_CUSTOM_EVENT = 'filora:catalog-custom-change';
+const CATALOG_CUSTOM_PREFIX = 'filora.catalog.custom.v1:';
+
+function optionKey(value: string): string {
+  return value.trim().toLocaleLowerCase('fr-FR');
+}
+
+function mergeOptions(...groups: readonly (readonly string[])[]): string[] {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+  for (const group of groups) {
+    for (const raw of group) {
+      const value = raw.trim();
+      if (!value) continue;
+      const normalized = optionKey(value);
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+      merged.push(value);
+    }
+  }
+  return merged;
+}
+
+function storageKey(persistenceKey: string): string {
+  return `${CATALOG_CUSTOM_PREFIX}${persistenceKey}`;
+}
+
+function readPersistedOptions(persistenceKey?: string): string[] {
+  if (!persistenceKey) return [];
+  try {
+    const raw = globalThis.localStorage?.getItem(storageKey(persistenceKey));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return mergeOptions(parsed.filter((item): item is string => typeof item === 'string'));
+  } catch {
+    return [];
+  }
+}
+
+function persistOption(persistenceKey: string | undefined, value: string): string[] {
+  if (!persistenceKey) return [];
+  const next = mergeOptions(readPersistedOptions(persistenceKey), [value]);
+  try {
+    globalThis.localStorage?.setItem(storageKey(persistenceKey), JSON.stringify(next));
+  } catch {
+    return next;
+  }
+  return next;
+}
 
 export function CatalogSelect({
   value,
@@ -26,21 +77,46 @@ export function CatalogSelect({
   ariaLabel,
   optionLabels = {},
   optionGroups = {},
+  persistenceKey,
 }: CatalogSelectProps) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const selectId = useId();
   const [query, setQuery] = useState('');
   const [customValue, setCustomValue] = useState('');
+  const [persistedOptions, setPersistedOptions] = useState<string[]>(() => readPersistedOptions(persistenceKey));
+
+  useEffect(() => {
+    setPersistedOptions(readPersistedOptions(persistenceKey));
+
+    function refreshPersistedOptions(event: Event) {
+      const changedKey = (event as CustomEvent<string>).detail;
+      if (changedKey === persistenceKey) setPersistedOptions(readPersistedOptions(persistenceKey));
+    }
+
+    function refreshFromStorage(event: StorageEvent) {
+      if (!persistenceKey || event.key !== storageKey(persistenceKey)) return;
+      setPersistedOptions(readPersistedOptions(persistenceKey));
+    }
+
+    window.addEventListener(CATALOG_CUSTOM_EVENT, refreshPersistedOptions as EventListener);
+    window.addEventListener('storage', refreshFromStorage);
+    return () => {
+      window.removeEventListener(CATALOG_CUSTOM_EVENT, refreshPersistedOptions as EventListener);
+      window.removeEventListener('storage', refreshFromStorage);
+    };
+  }, [persistenceKey]);
+
+  const availableOptions = useMemo(() => mergeOptions(options, persistedOptions), [options, persistedOptions]);
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('fr-FR');
-    if (!normalized) return options;
-    return options.filter((option) => {
+    if (!normalized) return availableOptions;
+    return availableOptions.filter((option) => {
       const label = optionLabels[option] ?? option;
       const group = optionGroups[option] ?? '';
       return `${label} ${option} ${group}`.toLocaleLowerCase('fr-FR').includes(normalized);
     });
-  }, [optionGroups, optionLabels, options, query]);
+  }, [availableOptions, optionGroups, optionLabels, query]);
 
   useEffect(() => {
     function closeWhenAnotherCatalogOpens(event: Event) {
@@ -73,6 +149,11 @@ export function CatalogSelect({
   function addCustom() {
     const next = customValue.trim();
     if (!next) return;
+    if (persistenceKey) {
+      const persisted = persistOption(persistenceKey, next);
+      setPersistedOptions(persisted);
+      window.dispatchEvent(new CustomEvent<string>(CATALOG_CUSTOM_EVENT, { detail: persistenceKey }));
+    }
     choose(next);
     setCustomValue('');
   }
