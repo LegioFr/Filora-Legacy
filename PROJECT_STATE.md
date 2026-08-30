@@ -95,7 +95,7 @@ Voir `BATCH6.md` pour le contrat détaillé, les findings décidés, les limites
 - consommations, mouvements, nouvelles pesées successives, corrections/recalages, inventaire ;
 - nettoyage et suppression de références filament ;
 - cycle de vie complet des supports réutilisables ;
-- **Batch 7 : intégrer une suite Playwright responsive minimale** couvrant quelques résolutions représentatives (mobile, tablette, PC classique, grand écran/ultra-wide), avec vérifications robustes des débordements horizontaux, de l’accessibilité de la modale et de ses actions, des menus et de la grille de stock, plus captures automatiques utiles. Cette automatisation complète la validation humaine mais ne la remplace pas.
+- **Batch 7 : intégrer une suite Playwright responsive minimale** couvrant quelques résolutions représentatives (mobile, tablette, PC classique, grand écran/ultra-wide), avec vérifications robustes des débordements horizontaux, de l’accessibilité de la modale et de ses actions, des menus et de la grille de stock, plus captures automatiques utiles. Cette automatisation complète la validation humaine mais ne la remplace pas ; **évaluer également l’installation et l’usage de Graphify comme aide locale à la compréhension du code et à l’analyse d’impact pour les IA, sans en faire une source de vérité ni un mécanisme de preuve, et ne le conserver que si le gain pratique est réel.**
 
 ### Acceptés
 
