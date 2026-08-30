@@ -4,3 +4,6 @@ dist/
 *.log
 .DS_Store
 test-results/
+__pycache__/
+*.py[cod]
+.vercel/
