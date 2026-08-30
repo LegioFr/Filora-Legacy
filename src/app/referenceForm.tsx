@@ -20,6 +20,8 @@ import {
   type CatalogReferenceLike,
 } from './filamentCatalog';
 
+const NOMINAL_WEIGHT_OPTIONS = ['250', '500', '750', '1000', '2000', '3000', '5000'] as const;
+
 export interface ReferenceDraft {
   brand: string;
   material: string;
@@ -201,7 +203,7 @@ function applyMaterialDefaults(draft: ReferenceDraft, material: string): Referen
 export function ReferenceFields({
   draft,
   onChange,
-  idPrefix,
+  idPrefix: _idPrefix,
   existingReferences = [],
 }: ReferenceFieldsProps) {
   const set = (key: keyof ReferenceDraft) => (
@@ -211,6 +213,10 @@ export function ReferenceFields({
   const brandOptions = getBrandOptions(existingReferences);
   const materialOptions = getMaterialOptions(existingReferences);
   const diameterOptions = getDiameterOptions(existingReferences);
+  const nominalWeightOptions = Array.from(new Set([
+    ...NOMINAL_WEIGHT_OPTIONS,
+    ...existingReferences.map((reference) => String(reference.nominalWeightGrams)),
+  ]));
   const typeOptions = draft.brand ? getManufacturerTypes(draft.brand, existingReferences) : [];
   const colorOptions = draft.brand && draft.manufacturerType
     ? getManufacturerColors(draft.brand, draft.manufacturerType, existingReferences)
@@ -257,63 +263,26 @@ export function ReferenceFields({
       <div className="field-grid field-grid-3">
         <label className="field">
           <span>Marque <b>obligatoire</b></span>
-          <CatalogSelect
-            value={draft.brand}
-            options={brandOptions}
-            placeholder="Sélectionner une marque…"
-            onChange={chooseBrand}
-            customPlaceholder="Ajouter une marque…"
-            ariaLabel="Marque"
-          />
+          <CatalogSelect value={draft.brand} options={brandOptions} placeholder="Sélectionner une marque…" onChange={chooseBrand} customPlaceholder="Ajouter une marque…" ariaLabel="Marque" />
         </label>
         <label className="field">
           <span>Matière <b>obligatoire</b></span>
-          <CatalogSelect
-            value={draft.material}
-            options={materialOptions}
-            placeholder="Sélectionner une matière…"
-            onChange={chooseMaterial}
-            customPlaceholder="Ajouter une matière…"
-            ariaLabel="Matière"
-          />
+          <CatalogSelect value={draft.material} options={materialOptions} placeholder="Sélectionner une matière…" onChange={chooseMaterial} customPlaceholder="Ajouter une matière…" ariaLabel="Matière" />
         </label>
         <label className="field">
           <span>Diamètre <b>mm</b></span>
-          <CatalogSelect
-            value={draft.diameterMm}
-            options={diameterOptions}
-            placeholder="Sélectionner…"
-            onChange={(diameterMm) => onChange({ ...draft, diameterMm })}
-            customPlaceholder="Autre diamètre…"
-            ariaLabel="Diamètre"
-          />
+          <CatalogSelect value={draft.diameterMm} options={diameterOptions} placeholder="Sélectionner…" onChange={(diameterMm) => onChange({ ...draft, diameterMm })} customPlaceholder="Autre diamètre…" ariaLabel="Diamètre" />
         </label>
       </div>
 
       <div className="field-grid">
         <label className="field">
           <span>Type de filament fabricant</span>
-          <CatalogSelect
-            value={draft.manufacturerType}
-            options={typeOptions}
-            placeholder={draft.brand ? 'Sélectionner un type…' : 'Sélectionner d’abord une marque…'}
-            onChange={chooseType}
-            customPlaceholder="Ajouter un type / une gamme…"
-            disabled={!draft.brand}
-            ariaLabel="Type de filament fabricant"
-          />
+          <CatalogSelect value={draft.manufacturerType} options={typeOptions} placeholder={draft.brand ? 'Sélectionner un type…' : 'Sélectionner d’abord une marque…'} onChange={chooseType} customPlaceholder="Ajouter un type / une gamme…" disabled={!draft.brand} ariaLabel="Type de filament fabricant" />
         </label>
         <label className="field">
           <span>Couleur fabricant</span>
-          <CatalogSelect
-            value={draft.manufacturerColor}
-            options={colorOptions}
-            placeholder={draft.brand && draft.manufacturerType ? 'Sélectionner une couleur…' : 'Sélectionner d’abord un type…'}
-            onChange={chooseColor}
-            customPlaceholder="Ajouter une couleur…"
-            disabled={!draft.brand || !draft.manufacturerType}
-            ariaLabel="Couleur fabricant"
-          />
+          <CatalogSelect value={draft.manufacturerColor} options={colorOptions} placeholder={draft.brand && draft.manufacturerType ? 'Sélectionner une couleur…' : 'Sélectionner d’abord un type…'} onChange={chooseColor} customPlaceholder="Ajouter une couleur…" disabled={!draft.brand || !draft.manufacturerType} ariaLabel="Couleur fabricant" />
         </label>
       </div>
 
@@ -327,21 +296,13 @@ export function ReferenceFields({
         </label>
         <label className="field">
           <span>Poids nominal <b>g</b></span>
-          <input value={draft.nominalWeightGrams} onChange={set('nominalWeightGrams')} inputMode="decimal" placeholder="1000" />
+          <CatalogSelect value={draft.nominalWeightGrams} options={nominalWeightOptions} placeholder="Sélectionner un poids…" onChange={(nominalWeightGrams) => onChange({ ...draft, nominalWeightGrams })} customPlaceholder="Autre poids en grammes…" ariaLabel="Poids nominal" />
         </label>
       </div>
 
       <div className="color-preset-grid" aria-label="Palette de couleurs rapides">
         {COLOR_PRESETS.map((hex) => (
-          <button
-            key={hex}
-            className={hex.toUpperCase() === draft.colorHex.toUpperCase() ? 'selected' : ''}
-            type="button"
-            aria-label={`Utiliser la couleur ${hex}`}
-            title={hex}
-            style={{ background: hex }}
-            onClick={() => onChange({ ...draft, colorHex: hex })}
-          />
+          <button key={hex} className={hex.toUpperCase() === draft.colorHex.toUpperCase() ? 'selected' : ''} type="button" aria-label={`Utiliser la couleur ${hex}`} title={hex} style={{ background: hex }} onClick={() => onChange({ ...draft, colorHex: hex })} />
         ))}
       </div>
 
@@ -365,10 +326,7 @@ export function ReferenceFields({
       </div>
 
       <details className="advanced-panel">
-        <summary>
-          <span>Paramètres d’impression avancés</span>
-          <small>Facultatifs</small>
-        </summary>
+        <summary><span>Paramètres d’impression avancés</span><small>Facultatifs</small></summary>
         <div className="advanced-content field-grid field-grid-3">
           <label className="field"><span>Chambre <b>°C</b></span><input value={draft.chamberTemperatureC} onChange={set('chamberTemperatureC')} inputMode="decimal" /></label>
           <label className="field"><span>Première couche <b>°C</b></span><input value={draft.firstLayerTemperatureC} onChange={set('firstLayerTemperatureC')} inputMode="decimal" /></label>
