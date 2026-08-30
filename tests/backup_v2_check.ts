@@ -10,7 +10,11 @@ import {
   type PersistedSpoolV2,
   type StorageLocation,
 } from '../src/domains/spools/model.js';
-import type { InventorySnapshot, InventoryStore } from '../src/domains/spools/persistence/InventoryStore.js';
+import type {
+  InventoryBatchCreate,
+  InventorySnapshot,
+  InventoryStore,
+} from '../src/domains/spools/persistence/InventoryStore.js';
 
 function clone<T>(value: T): T {
   return structuredClone(value);
@@ -32,6 +36,13 @@ class MemoryInventoryStore implements InventoryStore {
   async getLocation(id: string) { return clone(this.snapshot.locations.find((item) => item.id === id)); }
   async createLocation(location: StorageLocation) { this.snapshot.locations.push(clone(location)); }
   async createSpools(spools: PersistedSpoolV2[]) { this.snapshot.spools.push(...clone(spools)); }
+  async createInventoryBatch(batch: InventoryBatchCreate) {
+    const next = clone(this.snapshot);
+    if (batch.filamentReference) next.filamentReferences.push(clone(batch.filamentReference));
+    if (batch.location) next.locations.push(clone(batch.location));
+    next.spools.push(...clone(batch.spools));
+    this.snapshot = next;
+  }
   async updateSpool(spool: PersistedSpoolV2) {
     const index = this.snapshot.spools.findIndex((item) => item.id === spool.id);
     if (index >= 0) this.snapshot.spools[index] = clone(spool);
