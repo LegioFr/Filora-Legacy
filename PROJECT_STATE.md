@@ -8,31 +8,33 @@ Ce fichier sert à reprendre Filora dans un nouveau contexte sans dépendre de l
 Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas d’écart, vérifier GitHub et les documents canoniques concernés avant d’agir.
 
 ## Reprise structurée
-- stage: Batch 4 — liste du stock mesuré
-- status: clôturé
+- stage: Batch 5 — sauvegarde et restauration du stock local
+- status: en validation
 - git: lire les HEAD, PR, workflows, artefacts, rulesets et Issues courants directement depuis GitHub ; ne pas mémoriser ici les SHA ou PR volatiles
-- next_action: déterminer explicitement la transition suivante depuis l’état intégré de `test-preview` avant toute nouvelle modification ou tout nouveau Batch ; consulter d’abord les Issues/findings ouverts pertinents et les conditions applicables
+- next_action: obtenir les contrôles CI applicables, puis les validations réelles tablette, PC et mobile, la preuve complète de recovery et la revue indépendante avant toute intégration du Batch 5
 
 ## État courant
 
-- **Étape :** Batch 4 clôturé, validé et intégré à `test-preview`.
+- **Étape :** Batch 5 en validation ; sauvegarde/restauration implémentée sur la branche de travail, non encore intégrée à `test-preview`.
 - **Phase F :** clôturée.
 - **Batch 0 :** clôturé et intégré à `main`.
 - **Batch 1 :** clôturé et intégré à `main`.
 - **Batch 2 :** clôturé, validé et promu vers `main`.
 - **Batch 3 :** clôturé, validé et intégré à `test-preview` ; il n’est pas encore promu vers `main`.
-- **Batch 4 :** clôturé après CI verte du candidat exact, validation humaine Preview, revue indépendante Codex normal conforme sans bloquant et intégration via la PR #59 ; le contrôle post-intégration applicable a réussi.
-- **Issues/findings GitHub ouverts pertinents au contrôle de clôture :** aucun.
+- **Batch 4 :** clôturé, validé et intégré à `test-preview`.
+- **Batch 5 :** en validation ; jalon humain en attente, revue indépendante en attente, intégration interdite tant que les preuves requises ne sont pas acquises.
+- **Issues/findings GitHub ouverts pertinents :** aucun au dernier contrôle ; revérifier GitHub avant toute clôture ou intégration.
 - **Protection externe GitHub :** un ruleset actif protège `main` et `test-preview`, exige une PR et le check `sentinel`, interdit les suppressions et force-push, et réserve le bypass administrateur au chemin PR explicite.
 - **Garde-fous permanents de revue IA :** actifs dans `DEVELOPMENT.md` et leurs contrôles associés.
+- **Préflight avant PR :** la règle canonique imposant le regroupement préalable des incohérences prévisibles est intégrée dans `DEVELOPMENT.md` ; la CI reste la preuve finale.
 - **Branche officielle :** `main`.
 - **Branche de validation :** `test-preview`.
-- **Branche historique de travail Batch 4 :** `batch4/stock-list`.
+- **Branche de travail courante :** `batch5/backup-restore`.
 - **État Git pertinent :** les détails volatils doivent être lus directement depuis GitHub et ne sont pas recopiés ici comme vérité persistante.
 
 ## Résultat fonctionnel acquis jusqu’au Batch 4
 
-Le domaine `spools` permet maintenant de :
+Le domaine `spools` permet de :
 
 - créer une bobine avec un identifiant stable ;
 - enregistrer un poids brut mesuré ;
@@ -46,49 +48,57 @@ Le domaine `spools` permet maintenant de :
 - charger cette liste au démarrage et la rafraîchir après un enregistrement réussi ;
 - distinguer un stock vide d’un échec de lecture.
 
-La persistance repose toujours sur IndexedDB direct : base `filora`, version `1`, object store `spoolIdentities`. Le Batch 4 n’a introduit ni migration, ni changement de schéma, ni nouvelle dépendance.
+La persistance repose sur IndexedDB direct : base `filora`, version `1`, object store `spoolIdentities`.
 
-## Batch 4 — résultat validé
+## Batch 5 — implémentation en validation
 
-La validation humaine sur Preview du candidat final a confirmé :
+Le candidat du Batch 5 ajoute, sans migration IndexedDB ni nouvelle dépendance :
 
-- `batch4-001` : 800 g brut, 200 g tare, 600 g disponible ;
-- `batch4-002` : 950 g brut, 250 g tare, 700 g disponible ;
-- les deux bobines visibles simultanément ;
-- les deux toujours présentes avec les mêmes valeurs après rechargement complet de la page.
+- un export JSON versionné `filora-backup` v1 des données métier actuellement persistées ;
+- une validation complète du fichier avant toute mutation ;
+- une restauration par remplacement complet du stock, jamais par fusion implicite ;
+- un remplacement persistant dans une transaction IndexedDB unique ;
+- une interface de téléchargement, sélection, validation, confirmation et restauration ;
+- des tests automatisés couvrant les principaux chemins nominaux et d’échec, y compris l’atomicité simulée.
 
-La revue indépendante Codex normal du candidat exact a conclu : **CONFORME**, aucun bloquant, aucun finding important, périmètre respecté et prêt pour intégration à `test-preview`.
+Ces éléments sont **implémentés mais pas encore validés comme Batch clôturé**. Les contrôles CI complets, les essais réels multi-appareil, la preuve canonique de recovery et la revue indépendante restent à acquérir.
 
-Le finding mineur signalé par Codex concernait uniquement ce fichier, qui décrivait encore l’implémentation et les validations comme des actions futures. La présente synchronisation de clôture traite ce décalage opérationnel.
+## Preuves encore requises pour le Batch 5
+
+Avant toute intégration à `test-preview`, il reste notamment à obtenir :
+
+1. CI applicable verte, incluant guard, architecture, tests, typecheck et build ;
+2. validation réelle du téléchargement, du sélecteur de fichier, de la restauration et de la persistance après rechargement sur tablette, PC et mobile ;
+3. au moins une démonstration complète `export → effacement volontaire des données locales Filora → réimport → comparaison de l’état restauré` ;
+4. revue indépendante adaptée au niveau Sensible sur le candidat exact ;
+5. absence de finding bloquant non traité.
 
 ## Findings / Issues pertinents
 
 - Issue #21 — fermée.
 - Issue #46 — fermée.
-- Issue #8 — fermée `not_planned` ; sans impact sur le Batch 4.
-- **Tests IndexedDB simulés : accepté avec preuve complémentaire.** Les tests automatisés sont complétés par la validation réelle sur Preview après rechargement.
-- **Encodage implicite du guard sous Windows : reporté hors Batch 4.** Défaut préexistant sans lien avec l’intention métier du Batch.
-- **Preuve externe de la validation navigateur :** consignée dans `BATCH4.md` ; Codex ne pouvait pas l’observer directement et l’a correctement classée comme invérifiable par lui-même.
-- **Issues/findings GitHub ouverts pertinents au contrôle de clôture : aucun.**
+- Issue #8 — fermée `not_planned`.
+- **Tests IndexedDB simulés : accepté avec preuve complémentaire.** Les tests automatisés doivent être complétés par une validation réelle navigateur/appareil.
+- **Encodage implicite du guard sous Windows : reporté hors Batch 5.** Défaut préexistant sans lien avec l’intention métier du Batch.
+- **Ancien décalage de `PROJECT_STATE.md` après les règles Codex : traité par la présente synchronisation.** Les règles Codex locale et de préflight sont désormais canoniques dans `DEVELOPMENT.md`.
+- **Issues/findings GitHub ouverts pertinents au dernier contrôle : aucun.**
 
 ## Réserves / limites connues
 
-- Filora ne possède pas encore de preuve complète de recovery ; la persistance locale ne constitue donc pas une sauvegarde suffisante pour en faire la source principale de données réelles.
+- Filora ne possède pas encore la preuve complète de recovery exigée par `DATA.md` ; il ne doit donc pas encore être considéré comme source principale de données réelles.
 - Les consommations, corrections, pesées successives, recalages et historiques ne sont pas encore implémentés.
-- La validation Preview ne prouve pas une compatibilité universelle de tous les navigateurs.
-- Le Batch 4 n’a pas élargi le modèle persistant et n’a introduit aucune migration.
-- Les Batch 3 et 4 ne sont pas encore promus vers `main` ; aucune promotion n’est implicite du fait de leur clôture dans `test-preview`.
+- La validation Preview du Batch 5 n’est pas encore acquise.
+- Les Batch 3 et 4 ne sont pas encore promus vers `main` ; aucune promotion n’est implicite.
+- Le Batch 5 ne prévoit ni migration de schéma, ni cloud, ni synchronisation, ni historique de sauvegardes.
 
 ## Prochaine action
 
-Avant toute nouvelle modification, promotion ou nouveau Batch :
-
-1. reconstruire l’état réel depuis GitHub et les documents canoniques ;
-2. consulter les Issues/findings ouverts pertinents ;
-3. déterminer explicitement la transition suivante et ses conditions ;
-4. ne pas considérer la clôture du Batch 4 comme une autorisation implicite d’élargir le périmètre fonctionnel.
-
-La règle opérationnelle Codex « dépôt local d’abord / pas de clone automatique » reste à intégrer séparément dans `DEVELOPMENT.md` pour devenir canonique ; cette modification ne fait pas partie de la clôture du Batch 4 et doit suivre son propre périmètre approuvé.
+1. laisser la PR du Batch 5 exécuter les contrôles CI sur le candidat mis en cohérence ;
+2. traiter en une fois tout éventuel blocage déterministe restant avant nouvelle mise à jour de PR ;
+3. après CI verte, effectuer les validations réelles sur tablette, PC et mobile ;
+4. réaliser la démonstration complète de recovery ;
+5. obtenir la revue indépendante du candidat exact ;
+6. ne proposer l’intégration à `test-preview` qu’après acquisition de toutes les preuves applicables.
 
 ## Règles opérationnelles Codex sous Windows
 
@@ -123,4 +133,4 @@ Règles communes :
 - `ARCHITECTURE.md`
 - `DEVELOPMENT.md`
 
-`BATCH1.md`, `BATCH2.md`, `BATCH3.md` et `BATCH4.md` conservent les dossiers propres à leurs Batches et ne remplacent pas les documents canoniques.
+`BATCH1.md`, `BATCH2.md`, `BATCH3.md`, `BATCH4.md` et `BATCH5.md` conservent les dossiers propres à leurs Batches et ne remplacent pas les documents canoniques.
