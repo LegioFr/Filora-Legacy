@@ -223,6 +223,21 @@
 .measured-step-label small { color: var(--muted); font-size: .65rem; }
 .measured-input-grid { margin-top: 0; }
 
+/* Finitions V1 : supprimer le texte technique quand il n'y a pas d'erreur. */
+.creation-footer-status > span:not(.form-status) { display: none; }
+
+/* Le bloc Achat & rangement reste complet mais prend moins de hauteur. */
+.creation-sections > .creation-section:nth-of-type(2) .creation-section-content {
+  padding-top: 12px;
+  padding-bottom: 13px;
+}
+.creation-sections > .creation-section:nth-of-type(2) .field-grid {
+  row-gap: 9px;
+}
+.creation-sections > .creation-section:nth-of-type(2) .field-grid + .field-grid {
+  margin-top: 9px;
+}
+
 @media (max-width: 900px) {
   .summary-compact {
     grid-template-columns: 34px minmax(0, 1fr) auto;
