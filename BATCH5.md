@@ -173,8 +173,8 @@ Les tests doivent couvrir au minimum :
 La validation humaine doit porter sur les appareils réellement utilisés pour Filora :
 
 - tablette ;
-- PC portable ;
-- PC fixe.
+- PC ;
+- mobile.
 
 Sur chacun, vérifier réellement dans le navigateur ciblé :
 
@@ -243,7 +243,7 @@ Tout changement réel qui ferait apparaître un critère Critique devra être si
 7. preuve qu'un fichier invalide ne modifie pas le stock existant ;
 8. preuve qu'un échec pendant la restauration ne produit pas de restauration partielle acceptée comme succès ;
 9. preuve du remplacement complet sans fusion ;
-10. validation humaine réelle du téléchargement et du sélecteur de fichier sur tablette, PC portable et PC fixe ;
+10. validation humaine réelle du téléchargement et du sélecteur de fichier sur tablette, PC et mobile ;
 11. démonstration réelle `export → effacement → réimport → comparaison` ;
 12. revue indépendante adaptée au niveau Sensible sur le candidat exact ;
 13. aucune Issue/finding bloquant non décidé ;
