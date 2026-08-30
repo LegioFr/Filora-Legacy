@@ -355,6 +355,15 @@ try {
 }
 assert(listFailureObserved, 'stock listing failures must propagate instead of becoming an empty stock');
 
+const emptyBackupFactory = new FakeFactory();
+const emptyBackupStore = new IndexedDbSpoolIdentityStore(
+  emptyBackupFactory as unknown as IDBFactory,
+  'filora-empty-backup-test',
+);
+const emptyBackupJson = await createFiloraBackupJson(emptyBackupStore);
+const parsedEmptyBackup = parseFiloraBackupJson(emptyBackupJson);
+assert(parsedEmptyBackup.spools.length === 0, 'export of an empty stock must produce an empty spool list');
+
 const backupSourceFactory = new FakeFactory();
 const backupSourceStore = new IndexedDbSpoolIdentityStore(
   backupSourceFactory as unknown as IDBFactory,
@@ -410,7 +419,36 @@ await registerMeasuredSpool(restoreTargetStore, {
 const targetBeforeInvalid = comparableStock(await listMeasuredSpools(restoreTargetStore));
 const writesBeforeInvalid = restoreTargetFactory.database.readwriteTransactionCount;
 const invalidBackups: unknown[] = [
+  { format: 'not-filora-backup', version: FILORA_BACKUP_VERSION, spools: [] },
   { format: FILORA_BACKUP_FORMAT, version: 999, spools: [] },
+  {
+    format: FILORA_BACKUP_FORMAT,
+    version: FILORA_BACKUP_VERSION,
+    spools: [
+      { id: '', grossMeasuredWeightGrams: 500, tareWeightGrams: 100, tareSource: 'manufacturer' },
+    ],
+  },
+  {
+    format: FILORA_BACKUP_FORMAT,
+    version: FILORA_BACKUP_VERSION,
+    spools: [
+      { id: 'bad-gross', grossMeasuredWeightGrams: 0, tareWeightGrams: 0, tareSource: 'manufacturer' },
+    ],
+  },
+  {
+    format: FILORA_BACKUP_FORMAT,
+    version: FILORA_BACKUP_VERSION,
+    spools: [
+      { id: 'negative-tare', grossMeasuredWeightGrams: 500, tareWeightGrams: -1, tareSource: 'manufacturer' },
+    ],
+  },
+  {
+    format: FILORA_BACKUP_FORMAT,
+    version: FILORA_BACKUP_VERSION,
+    spools: [
+      { id: 'unknown-source', grossMeasuredWeightGrams: 500, tareWeightGrams: 100, tareSource: 'unknown' },
+    ],
+  },
   {
     format: FILORA_BACKUP_FORMAT,
     version: FILORA_BACKUP_VERSION,
@@ -464,6 +502,18 @@ await restoreFiloraBackup(restoreTargetStore, parsedBackup);
 const restoredStock = await listMeasuredSpools(restoreTargetStore);
 assert(comparableStock(restoredStock) === comparableStock(backup.spools), 'restore must reproduce the complete saved stock');
 assert(await restoreTargetStore.get('old-stock') === undefined, 'restore must replace rather than merge the previous stock');
+const restoredBackup001 = restoredStock.find((spool) => spool.id === 'backup-001');
+const restoredBackup002 = restoredStock.find((spool) => spool.id === 'backup-002');
+assert(restoredBackup001 !== undefined, 'restored stock must contain backup-001');
+assert(restoredBackup002 !== undefined, 'restored stock must contain backup-002');
+assert(
+  Math.abs(calculateAvailableFilamentGrams(restoredBackup001) - 600) < 1e-9,
+  'available filament must be recalculated from restored gross weight and tare for backup-001',
+);
+assert(
+  Math.abs(calculateAvailableFilamentGrams(restoredBackup002) - 700) < 1e-9,
+  'available filament must be recalculated from restored gross weight and tare for backup-002',
+);
 assert(
   restoreTargetFactory.database.readwriteTransactionCount === writesBeforeRestore + 1,
   'complete restore must use one readwrite transaction',
