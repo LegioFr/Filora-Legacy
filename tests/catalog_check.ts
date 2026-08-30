@@ -7,6 +7,10 @@ import {
   type CatalogReferenceLike,
   type CatalogSpoolLike,
 } from '../src/app/filamentCatalog.js';
+import {
+  getManufacturerTypePresentation,
+  getVerifiedManufacturerColorHex,
+} from '../src/app/catalogPresentation.js';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -16,8 +20,22 @@ const builtInTypes = getManufacturerTypes('Polymaker', []);
 assert(builtInTypes.includes('Matte'), 'Polymaker doit proposer Matte.');
 assert(builtInTypes.includes('Panchroma Basic PLA'), 'Polymaker doit proposer Panchroma Basic PLA.');
 
+const presentation = getManufacturerTypePresentation('Polymaker', builtInTypes);
+assert(presentation.options[0] === 'Matte', 'Panchroma Matte doit être présenté en premier dans la famille Polymaker.');
+assert(presentation.labels.Matte === 'Matte PLA', 'Le libellé utilisateur doit distinguer clairement la finition Matte.');
+assert(presentation.groups.Matte === 'Panchroma', 'Les variantes Panchroma doivent être regroupées sous la même famille.');
+assert(presentation.labels['Panchroma Satin PLA'] === 'Satin PLA', 'Satin doit être présenté comme variante de Panchroma.');
+
 const matteColors = getManufacturerColors('Polymaker', 'Matte', []);
 assert(matteColors.includes('Army Blue'), 'La couleur Army Blue doit être proposée pour Polymaker Matte.');
+assert(matteColors.includes('Seafoam Green'), 'Seafoam Green doit être proposée pour Polymaker Matte.');
+assert(matteColors.includes('Emerald Green'), 'Emerald Green doit être proposée pour Polymaker Matte.');
+
+const seafoamHex = getVerifiedManufacturerColorHex('Polymaker', 'Matte', 'Seafoam Green', []);
+const emeraldHex = getVerifiedManufacturerColorHex('Polymaker', 'Matte', 'Emerald Green', []);
+assert(seafoamHex === '#7DD4BE', 'Seafoam Green doit reprendre le HEX publié par Polymaker.');
+assert(emeraldHex === '#22624F', 'Emerald Green doit reprendre le HEX publié par Polymaker.');
+assert(seafoamHex !== emeraldHex, 'Deux couleurs fabricant distinctes ne doivent pas conserver le même HEX précédent.');
 
 const bambuHex = getManufacturerColorHex('Bambu Lab', 'PETG HF', 'Lake Blue', []);
 assert(bambuHex === '#1F79E5', 'Le HEX Bambu PETG HF Lake Blue doit être connu.');
