@@ -182,6 +182,10 @@ interface ReferenceFieldsProps {
   onChange: (next: ReferenceDraft) => void;
   idPrefix: string;
   existingReferences?: readonly CatalogReferenceLike[];
+  spoolNozzleTemperatureC?: string;
+  spoolBedTemperatureC?: string;
+  onSpoolNozzleTemperatureChange?: (value: string) => void;
+  onSpoolBedTemperatureChange?: (value: string) => void;
 }
 
 function applyMaterialDefaults(draft: ReferenceDraft, material: string): ReferenceDraft {
@@ -194,12 +198,16 @@ function applyMaterialDefaults(draft: ReferenceDraft, material: string): Referen
     nozzleMax: temps ? String(temps.nozzle[1]) : '',
     bedMin: temps ? String(temps.bed[0]) : '',
     bedMax: temps ? String(temps.bed[1]) : '',
-    printSpeedMmPerSecond: draft.printSpeedMmPerSecond || print.printSpeedMmPerSecond || '',
-    flowPercent: draft.flowPercent || print.flowPercent || '',
-    flowRatio: draft.flowRatio || print.flowRatio || '',
-    fanPercent: draft.fanPercent || print.fanPercent || '',
-    retractionMm: draft.retractionMm || print.retractionMm || '',
-    retractionSpeedMmPerSecond: draft.retractionSpeedMmPerSecond || print.retractionSpeedMmPerSecond || '',
+    chamberTemperatureC: '',
+    firstLayerTemperatureC: '',
+    printSpeedMmPerSecond: print.printSpeedMmPerSecond ?? '',
+    flowPercent: print.flowPercent ?? '',
+    flowRatio: print.flowRatio ?? '',
+    pressureAdvance: '',
+    maxVolumetricSpeedMm3PerSecond: '',
+    fanPercent: print.fanPercent ?? '',
+    retractionMm: print.retractionMm ?? '',
+    retractionSpeedMmPerSecond: print.retractionSpeedMmPerSecond ?? '',
   };
 }
 
@@ -212,6 +220,10 @@ export function ReferenceFields({
   onChange,
   idPrefix: _idPrefix,
   existingReferences = [],
+  spoolNozzleTemperatureC = '',
+  spoolBedTemperatureC = '',
+  onSpoolNozzleTemperatureChange,
+  onSpoolBedTemperatureChange,
 }: ReferenceFieldsProps) {
   const set = (key: keyof ReferenceDraft) => (
     event: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -372,6 +384,8 @@ export function ReferenceFields({
             <label className="field"><span>Ventilation <b>%</b></span><input value={draft.fanPercent} onChange={set('fanPercent')} inputMode="decimal" /></label>
             <label className="field"><span>Rétraction <b>mm</b></span><input value={draft.retractionMm} onChange={set('retractionMm')} inputMode="decimal" /></label>
             <label className="field"><span>Vitesse rétraction <b>mm/s</b></span><input value={draft.retractionSpeedMmPerSecond} onChange={set('retractionSpeedMmPerSecond')} inputMode="decimal" /></label>
+            {onSpoolNozzleTemperatureChange ? <label className="field"><span>Buse pour cette bobine <b>°C</b></span><input value={spoolNozzleTemperatureC} onChange={(event) => onSpoolNozzleTemperatureChange(event.target.value)} inputMode="decimal" placeholder="ex. 205" /></label> : null}
+            {onSpoolBedTemperatureChange ? <label className="field"><span>Plateau pour cette bobine <b>°C</b></span><input value={spoolBedTemperatureC} onChange={(event) => onSpoolBedTemperatureChange(event.target.value)} inputMode="decimal" placeholder="ex. 55" /></label> : null}
           </div>
         </div>
       </details>
