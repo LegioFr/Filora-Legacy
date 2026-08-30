@@ -282,6 +282,40 @@ assert(afterAtomicCreate.filamentReferences.some((item) => item.id === seriesRef
 assert(afterAtomicCreate.locations.some((item) => item.id === seriesLocation.id), 'atomic batch must create its new location');
 assert(seriesSpools.every((item) => afterAtomicCreate.spools.some((stored) => stored.id === item.id)), 'atomic batch must create every physical spool');
 
+const updatedSharedReference = { ...seriesReference, manufacturerColor: 'Midnight Black' };
+await store.updateFilamentReference(updatedSharedReference);
+const afterSharedUpdate = await store.getSnapshot();
+assert(afterSharedUpdate.filamentReferences.find((item) => item.id === seriesReference.id)?.manufacturerColor === 'Midnight Black', 'shared reference correction must update the shared product record');
+assert(afterSharedUpdate.spools.filter((item) => item.filamentReferenceId === seriesReference.id).length === 2, 'shared reference correction must keep both physical spool links');
+
+const reassignedReference: FilamentReference = {
+  ...reference,
+  id: 'ref-reassigned',
+  brand: 'Rosa3D',
+  manufacturerColor: 'Carmin',
+};
+const targetBeforeReassignment = await store.getSpool('SP-0070');
+assert(targetBeforeReassignment, 'target spool must exist before reassignment');
+await store.createFilamentReferenceAndUpdateSpool(reassignedReference, {
+  ...targetBeforeReassignment,
+  filamentReferenceId: reassignedReference.id,
+});
+const afterReassignment = await store.getSnapshot();
+assert(afterReassignment.filamentReferences.some((item) => item.id === reassignedReference.id), 'new product reassignment must persist new reference');
+assert(afterReassignment.spools.find((item) => item.id === 'SP-0070')?.filamentReferenceId === reassignedReference.id, 'target spool must move to new product reference');
+assert(afterReassignment.spools.find((item) => item.id === 'SP-0071')?.filamentReferenceId === seriesReference.id, 'other spool sharing old product must remain unchanged');
+
+let orphanUpdateRejected = false;
+try {
+  const target = await store.getSpool('SP-0070');
+  assert(target, 'reassigned target must still exist');
+  await store.updateSpool({ ...target, filamentReferenceId: 'missing-reference' });
+} catch (error) {
+  orphanUpdateRejected = error instanceof Error && error.message.includes('référence filament introuvable');
+}
+assert(orphanUpdateRejected, 'ordinary spool update must reject orphaned product relation');
+assert((await store.getSpool('SP-0070'))?.filamentReferenceId === reassignedReference.id, 'rejected orphan update must leave persisted relation unchanged');
+
 const beforeAtomicFailure = await store.getSnapshot();
 const rollbackReference: FilamentReference = { ...reference, id: 'ref-rollback' };
 const rollbackLocation: StorageLocation = { id: 'loc-rollback', name: 'Rollback' };

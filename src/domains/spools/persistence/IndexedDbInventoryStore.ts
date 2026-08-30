@@ -56,6 +56,23 @@ function normalizeUnique<T extends { id: string }>(
   });
 }
 
+function findById<T extends { id: string }>(values: readonly T[], id: string): T | undefined {
+  const key = id.trim().toLowerCase();
+  return values.find((value) => value.id.toLowerCase() === key);
+}
+
+function validateSpoolRelations(snapshot: InventorySnapshot, spool: PersistedSpoolV2): void {
+  if (
+    spool.filamentReferenceId !== null
+    && !findById(snapshot.filamentReferences, spool.filamentReferenceId)
+  ) {
+    throw new Error(`Bobine ${spool.id} : référence filament introuvable.`);
+  }
+  if (spool.locationId !== null && !findById(snapshot.locations, spool.locationId)) {
+    throw new Error(`Bobine ${spool.id} : emplacement introuvable.`);
+  }
+}
+
 export function validateInventorySnapshot(snapshot: InventorySnapshot): InventorySnapshot {
   const filamentReferences = normalizeUnique(
     snapshot.filamentReferences,
@@ -64,20 +81,13 @@ export function validateInventorySnapshot(snapshot: InventorySnapshot): Inventor
   );
   const locations = normalizeUnique(snapshot.locations, validateStorageLocation, 'Emplacement');
   const spools = normalizeUnique(snapshot.spools, validatePersistedSpoolV2, 'Bobine');
-
-  const referenceIds = new Set(filamentReferences.map((reference) => reference.id.toLowerCase()));
-  const locationIds = new Set(locations.map((location) => location.id.toLowerCase()));
+  const normalized = { filamentReferences, locations, spools };
 
   for (const spool of spools) {
-    if (spool.filamentReferenceId !== null && !referenceIds.has(spool.filamentReferenceId.toLowerCase())) {
-      throw new Error(`Bobine ${spool.id} : référence filament introuvable.`);
-    }
-    if (spool.locationId !== null && !locationIds.has(spool.locationId.toLowerCase())) {
-      throw new Error(`Bobine ${spool.id} : emplacement introuvable.`);
-    }
+    validateSpoolRelations(normalized, spool);
   }
 
-  return { filamentReferences, locations, spools };
+  return normalized;
 }
 
 export class IndexedDbInventoryStore implements InventoryStore {
@@ -141,20 +151,8 @@ export class IndexedDbInventoryStore implements InventoryStore {
   }
 
   async getSpool(id: string): Promise<PersistedSpoolV2 | undefined> {
-    const database = await this.openDatabase();
-    try {
-      const transaction = database.transaction(SPOOL_IDENTITIES_STORE, 'readonly');
-      const done = transactionDone(transaction);
-      const raw = await requestResult(
-        transaction.objectStore(SPOOL_IDENTITIES_STORE).get(id) as IDBRequest<
-          LegacyPersistedSpoolIdentity | PersistedSpoolV2 | undefined
-        >,
-      );
-      await done;
-      return raw === undefined ? undefined : normalizePersistedSpool(raw);
-    } finally {
-      database.close();
-    }
+    const snapshot = await this.getSnapshot();
+    return findById(snapshot.spools, id);
   }
 
   async listFilamentReferences(): Promise<FilamentReference[]> {
@@ -163,18 +161,8 @@ export class IndexedDbInventoryStore implements InventoryStore {
   }
 
   async getFilamentReference(id: string): Promise<FilamentReference | undefined> {
-    const database = await this.openDatabase();
-    try {
-      const transaction = database.transaction(FILAMENT_REFERENCES_STORE, 'readonly');
-      const done = transactionDone(transaction);
-      const result = await requestResult(
-        transaction.objectStore(FILAMENT_REFERENCES_STORE).get(id) as IDBRequest<FilamentReference | undefined>,
-      );
-      await done;
-      return result === undefined ? undefined : validateFilamentReference(result);
-    } finally {
-      database.close();
-    }
+    const snapshot = await this.getSnapshot();
+    return findById(snapshot.filamentReferences, id);
   }
 
   async createFilamentReference(reference: FilamentReference): Promise<void> {
@@ -182,7 +170,13 @@ export class IndexedDbInventoryStore implements InventoryStore {
   }
 
   async updateFilamentReference(reference: FilamentReference): Promise<void> {
-    await this.putOne(FILAMENT_REFERENCES_STORE, validateFilamentReference(reference));
+    const validated = validateFilamentReference(reference);
+    const snapshot = await this.getSnapshot();
+    const existing = findById(snapshot.filamentReferences, validated.id);
+    if (!existing) {
+      throw new Error('La référence filament à modifier est introuvable.');
+    }
+    await this.putOne(FILAMENT_REFERENCES_STORE, { ...validated, id: existing.id });
   }
 
   async listLocations(): Promise<StorageLocation[]> {
@@ -191,18 +185,8 @@ export class IndexedDbInventoryStore implements InventoryStore {
   }
 
   async getLocation(id: string): Promise<StorageLocation | undefined> {
-    const database = await this.openDatabase();
-    try {
-      const transaction = database.transaction(LOCATIONS_STORE, 'readonly');
-      const done = transactionDone(transaction);
-      const result = await requestResult(
-        transaction.objectStore(LOCATIONS_STORE).get(id) as IDBRequest<StorageLocation | undefined>,
-      );
-      await done;
-      return result === undefined ? undefined : validateStorageLocation(result);
-    } finally {
-      database.close();
-    }
+    const snapshot = await this.getSnapshot();
+    return findById(snapshot.locations, id);
   }
 
   async createLocation(location: StorageLocation): Promise<void> {
@@ -221,30 +205,15 @@ export class IndexedDbInventoryStore implements InventoryStore {
     const spools = normalizeUnique(batch.spools, validatePersistedSpoolV2, 'Bobine');
 
     const current = await this.getSnapshot();
-    const referenceIds = new Set(current.filamentReferences.map((reference) => reference.id.toLowerCase()));
-    const locationIds = new Set(current.locations.map((item) => item.id.toLowerCase()));
-
-    if (filamentReference) {
-      if (referenceIds.has(filamentReference.id.toLowerCase())) {
-        throw duplicateError('Cette référence filament');
-      }
-      referenceIds.add(filamentReference.id.toLowerCase());
-    }
-    if (location) {
-      if (locationIds.has(location.id.toLowerCase())) {
-        throw duplicateError('Cet emplacement');
-      }
-      locationIds.add(location.id.toLowerCase());
-    }
-
-    for (const spool of spools) {
-      if (spool.filamentReferenceId !== null && !referenceIds.has(spool.filamentReferenceId.toLowerCase())) {
-        throw new Error(`Bobine ${spool.id} : référence filament introuvable.`);
-      }
-      if (spool.locationId !== null && !locationIds.has(spool.locationId.toLowerCase())) {
-        throw new Error(`Bobine ${spool.id} : emplacement introuvable.`);
-      }
-    }
+    const futureSnapshot: InventorySnapshot = {
+      filamentReferences: [
+        ...current.filamentReferences,
+        ...(filamentReference ? [filamentReference] : []),
+      ],
+      locations: [...current.locations, ...(location ? [location] : [])],
+      spools: [...current.spools, ...spools],
+    };
+    validateInventorySnapshot(futureSnapshot);
 
     const database = await this.openDatabase();
     try {
@@ -282,7 +251,65 @@ export class IndexedDbInventoryStore implements InventoryStore {
   }
 
   async updateSpool(spool: PersistedSpoolV2): Promise<void> {
-    await this.putOne(SPOOL_IDENTITIES_STORE, validatePersistedSpoolV2(spool));
+    const validated = validatePersistedSpoolV2(spool);
+    const snapshot = await this.getSnapshot();
+    const existing = findById(snapshot.spools, validated.id);
+    if (!existing) {
+      throw new Error('La bobine à modifier est introuvable.');
+    }
+    const normalized = { ...validated, id: existing.id };
+    validateSpoolRelations(snapshot, normalized);
+    await this.putOne(SPOOL_IDENTITIES_STORE, normalized);
+  }
+
+  async createFilamentReferenceAndUpdateSpool(
+    reference: FilamentReference,
+    spool: PersistedSpoolV2,
+  ): Promise<void> {
+    const validatedReference = validateFilamentReference(reference);
+    const validatedSpool = validatePersistedSpoolV2(spool);
+    if (validatedSpool.filamentReferenceId?.toLowerCase() !== validatedReference.id.toLowerCase()) {
+      throw new Error('La bobine doit être reliée à la nouvelle référence filament du même changement.');
+    }
+
+    const snapshot = await this.getSnapshot();
+    const existingSpool = findById(snapshot.spools, validatedSpool.id);
+    if (!existingSpool) {
+      throw new Error('La bobine à modifier est introuvable.');
+    }
+    if (findById(snapshot.filamentReferences, validatedReference.id)) {
+      throw duplicateError('Cette référence filament');
+    }
+    if (validatedSpool.locationId !== null && !findById(snapshot.locations, validatedSpool.locationId)) {
+      throw new Error(`Bobine ${validatedSpool.id} : emplacement introuvable.`);
+    }
+
+    const normalizedSpool = {
+      ...validatedSpool,
+      id: existingSpool.id,
+      filamentReferenceId: validatedReference.id,
+    };
+
+    const database = await this.openDatabase();
+    try {
+      const transaction = database.transaction(
+        [SPOOL_IDENTITIES_STORE, FILAMENT_REFERENCES_STORE],
+        'readwrite',
+      );
+      const done = transactionDone(transaction);
+      const referenceRequest = transaction.objectStore(FILAMENT_REFERENCES_STORE).add(validatedReference);
+      const spoolRequest = transaction.objectStore(SPOOL_IDENTITIES_STORE).put(normalizedSpool);
+      try {
+        await Promise.all([requestResult(referenceRequest), requestResult(spoolRequest), done]);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'ConstraintError') {
+          throw duplicateError('Cette référence filament');
+        }
+        throw error;
+      }
+    } finally {
+      database.close();
+    }
   }
 
   async replaceSnapshot(snapshot: InventorySnapshot): Promise<void> {

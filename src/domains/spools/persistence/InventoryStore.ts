@@ -30,5 +30,9 @@ export interface InventoryStore {
   createSpools(spools: PersistedSpoolV2[]): Promise<void>;
   createInventoryBatch(batch: InventoryBatchCreate): Promise<void>;
   updateSpool(spool: PersistedSpoolV2): Promise<void>;
+  createFilamentReferenceAndUpdateSpool(
+    reference: FilamentReference,
+    spool: PersistedSpoolV2,
+  ): Promise<void>;
   replaceSnapshot(snapshot: InventorySnapshot): Promise<void>;
 }

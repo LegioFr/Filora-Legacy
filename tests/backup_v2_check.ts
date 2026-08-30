@@ -47,6 +47,14 @@ class MemoryInventoryStore implements InventoryStore {
     const index = this.snapshot.spools.findIndex((item) => item.id === spool.id);
     if (index >= 0) this.snapshot.spools[index] = clone(spool);
   }
+  async createFilamentReferenceAndUpdateSpool(reference: FilamentReference, spool: PersistedSpoolV2) {
+    const next = clone(this.snapshot);
+    next.filamentReferences.push(clone(reference));
+    const index = next.spools.findIndex((item) => item.id === spool.id);
+    if (index < 0) throw new Error('missing spool');
+    next.spools[index] = clone(spool);
+    this.snapshot = next;
+  }
   async replaceSnapshot(snapshot: InventorySnapshot) { this.snapshot = clone(snapshot); }
 }
 
