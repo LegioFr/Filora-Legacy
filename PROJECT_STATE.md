@@ -9,7 +9,7 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - stage: Batch 7 — automatisation des tests d’interface avec Playwright
 - status: ouvert
 - git: lire le HEAD de `batch7/playwright-automation`, sa base `test-preview`, les workflows, Issues, PR et findings directement depuis GitHub avant toute décision de validation ou d’intégration
-- next_action: exécuter un sous-ensemble critique sur les viewports simulés mobile, tablette, PC et ultra-wide, puis préparer l’intégration CI Playwright maintenant que la suite locale est stable ; avant tout lancement Playwright local interactif, appliquer le garde-fou permanent de choix visible/arrière-plan et fournir une Preview HTTPS vérifiée si disponible
+- next_action: préparer l’intégration CI Playwright maintenant que la suite fonctionnelle et les 4 viewports représentatifs sont stables localement ; avant tout lancement Playwright local interactif, appliquer le garde-fou permanent de choix visible/arrière-plan, de simplicité d’exécution et de Preview HTTPS vérifiée si disponible
 
 ## État courant
 
@@ -21,8 +21,8 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - **Batch 4 :** clôturé, validé et intégré à `test-preview`.
 - **Batch 5 :** clôturé, validé et réellement intégré à `test-preview` par la PR #62.
 - **Batch 6 :** clôturé, validé et réellement intégré à `test-preview` par la PR #64 ; le HEAD de `test-preview` a été vérifié après fusion avant l’ouverture du Batch 7.
-- **Batch 7 :** ouvert sur `batch7/playwright-automation`. La faisabilité Codex → Playwright est démontrée localement avec Chromium ; Playwright `1.62.1` est versionné ; une suite E2E fonctionnelle de 28 tests est présente sur la branche. Codex rapporte 28/28 tests locaux, typecheck, build et architecture PASS ; ce résultat local n’est pas encore une preuve CI distante indépendante.
-- **HEAD Batch 7 vérifié après construction de la suite E2E :** `6014fadcf3f969527d6686ad961caf01cf341e61`.
+- **Batch 7 :** ouvert sur `batch7/playwright-automation`. La faisabilité Codex → Playwright est démontrée localement avec Chromium ; Playwright `1.62.1` est versionné ; une suite E2E fonctionnelle de 28 tests et 4 tests de viewports représentatifs est présente sur la branche. Codex rapporte localement 32 tests Playwright verts au total, ainsi que typecheck, build et architecture PASS ; ce résultat local n’est pas encore une preuve CI distante indépendante.
+- **HEAD Batch 7 vérifié après ajout des viewports :** `8d63454d1ffb1c0e0c33827f8162ce471744b968`.
 - **Issues GitHub ouvertes au contrôle d’ouverture du Batch 7 :** aucune.
 - **PR GitHub ouvertes au contrôle d’ouverture du Batch 7 :** aucune.
 - **Commentaires/reviews/threads GitHub en attente sur la PR #64 au contrôle d’ouverture :** aucun.
@@ -68,7 +68,9 @@ L’ordre de travail est volontairement progressif :
 6. évaluer Graphify séparément comme aide locale à la compréhension du code ;
 7. ajouter éventuellement un test navigateur du rollback IndexedDB / catalogue personnel seulement si cela reste simple, propre et utile.
 
-Les étapes 1 à 4 sont désormais réalisées localement. La suite E2E couvre notamment navigation, création de bobines, références nouvelles/existantes, stock nominal/mesuré, création en série, modification de référence, changement de filament, sauvegarde/restauration et isolation des contextes.
+Les étapes 1 à 4 sont réalisées localement. Les 4 viewports représentatifs mobile `390×844`, tablette `800×1280`, PC `1440×900` et ultra-wide `2560×1080` sont également couverts par un sous-ensemble critique dédié. La prochaine étape Playwright est l’intégration CI minimale.
+
+La suite E2E couvre notamment navigation, création de bobines, références nouvelles/existantes, stock nominal/mesuré, création en série, modification de référence, changement de filament, sauvegarde/restauration, isolation des contextes et utilisabilité critique sur les quatre tailles de viewport retenues.
 
 Les viewports mobile, tablette, PC et ultra-wide sont principalement des **simulations de taille d’écran**. Ils ne constituent pas une preuve que le comportement est identique sur les appareils physiques réels.
 
@@ -125,6 +127,21 @@ Au même moment, le coordinateur doit fournir à Mickaël, lorsqu’elle existe 
 
 Si aucune Preview HTTPS vérifiable n’est disponible, le coordinateur doit le dire explicitement. Il ne doit jamais inventer une URL ni présenter une adresse locale `http://127.0.0.1`, `http://192.168.x.x` ou équivalente comme si elle constituait la Preview HTTPS attendue. Une adresse locale peut être proposée séparément comme solution de repli lorsque cela est utile, avec sa nature locale clairement indiquée.
 
+### Principe de simplicité pour les sessions répétées
+
+Lorsque les tests concernés existent déjà et qu’un runtime Playwright fonctionnel a déjà été établi sur la machine, la session suivante doit **réutiliser ce chemin connu** et démarrer les tests directement. Une simple démonstration ne doit pas déclencher à nouveau une cartographie générale du dépôt, une réanalyse complète des tests existants ou une exploration de plusieurs méthodes d’exécution si une méthode connue fonctionne déjà.
+
+En mode VISIBLE :
+
+- utiliser en priorité le lancement Playwright headed déjà connu comme fonctionnel ;
+- la maximisation de la fenêtre est un confort d’observation et non une propriété technique à prouver par un outil Windows séparé ; `--start-maximized` ou l’équivalent peut être demandé sans créer une chaîne de contrôle supplémentaire ;
+- ne pas construire de wrapper, configuration temporaire, serveur intermédiaire ou adaptation npm/pnpm supplémentaire si la commande connue fonctionne ; si un contournement est réellement nécessaire, choisir le plus simple, le garder hors du dépôt et ne pas poursuivre l’exploration après obtention d’un chemin fonctionnel ;
+- réserver le ralentissement aux tests que Mickaël observe réellement et ne pas ralentir les contrôles headless, typecheck, build ou architecture.
+
+La Preview HTTPS est un accès manuel complémentaire. Sa vérification ou sa création ne doit pas retarder inutilement le lancement Playwright lorsque le test lui-même est local et indépendant de Vercel. Une Preview existante correspondant exactement au SHA testé doit être réutilisée lorsqu’elle est encore accessible. Un nouveau déploiement n’est créé que si aucune Preview vérifiable du bon état n’existe et qu’un lien manuel est réellement nécessaire pour la session.
+
+Ce principe de simplicité n’autorise jamais à sauter un contrôle technique requis ; il interdit seulement de refaire des préparations ou des preuves sans valeur supplémentaire.
+
 Ce garde-fou organise le choix d’exécution et l’accès manuel à la Preview ; il ne crée pas à lui seul une exigence de validation humaine pour chaque test et ne remplace aucune preuve technique requise.
 
 ## Conditions de transition
@@ -149,7 +166,7 @@ Les fichiers `BATCH<n>.md` sont des dossiers de Batch et ne remplacent pas les d
 - GitHub est la source de vérité pour l’état réel, les branches, commits, PR, checks et Issues.
 - Ne pas transformer une déclaration d’agent en preuve.
 - Avant une PR de validation ou d’intégration, effectuer le préflight en lecture seule des contrôles applicables.
-- Pour toute session locale/manuelle de tests d’interface, appliquer le garde-fou permanent ci-dessus : demander le mode VISIBLE ou ARRIÈRE-PLAN avant exécution et fournir une Preview HTTPS vérifiée lorsqu’elle est disponible.
+- Pour toute session locale/manuelle de tests d’interface, appliquer le garde-fou permanent ci-dessus : demander le mode VISIBLE ou ARRIÈRE-PLAN avant exécution, réutiliser le chemin Playwright déjà fonctionnel sans préparation superflue et fournir une Preview HTTPS vérifiée lorsqu’elle est disponible.
 - Pour les missions Codex locales sous Windows, utiliser en priorité le dépôt Filora local déjà disponible lorsque cela respecte l’indépendance de la mission.
 - Réserver Codex Security aux propriétés qui justifient réellement une revue de sécurité renforcée.
 - Éviter les boucles de revue sans réduction de risque réelle.
