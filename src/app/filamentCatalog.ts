@@ -3,6 +3,7 @@ export interface CatalogReferenceLike {
   brand: string;
   material: string;
   diameterMm: number;
+  nominalWeightGrams: number;
   manufacturerType: string | null;
   manufacturerColor: string | null;
   colorHex: string | null;
