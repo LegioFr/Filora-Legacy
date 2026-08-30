@@ -5,6 +5,20 @@ import {
   type PrintSettings,
   type TemperatureRangeC,
 } from '../domains/spools/model';
+import { CatalogSelect } from './CatalogSelect';
+import {
+  COLOR_PRESETS,
+  MATERIAL_PRINT_DEFAULTS,
+  getBrandOptions,
+  getDiameterOptions,
+  getManufacturerColorHex,
+  getManufacturerColors,
+  getManufacturerTypes,
+  getMaterialOptions,
+  getTemperatureDefaults,
+  inferMaterial,
+  type CatalogReferenceLike,
+} from './filamentCatalog';
 
 export interface ReferenceDraft {
   brand: string;
@@ -37,7 +51,7 @@ export function emptyReferenceDraft(): ReferenceDraft {
     diameterMm: '1.75',
     manufacturerType: '',
     manufacturerColor: '',
-    colorHex: '#38bdf8',
+    colorHex: '#38BDF8',
     nominalWeightGrams: '1000',
     nozzleMin: '',
     nozzleMax: '',
@@ -67,7 +81,7 @@ export function referenceToDraft(reference: FilamentReference): ReferenceDraft {
     diameterMm: String(reference.diameterMm),
     manufacturerType: reference.manufacturerType ?? '',
     manufacturerColor: reference.manufacturerColor ?? '',
-    colorHex: reference.colorHex ?? '#38bdf8',
+    colorHex: reference.colorHex ?? '#38BDF8',
     nominalWeightGrams: String(reference.nominalWeightGrams),
     nozzleMin: reference.nozzleTemperatureC ? String(reference.nozzleTemperatureC.min) : '',
     nozzleMax: reference.nozzleTemperatureC ? String(reference.nozzleTemperatureC.max) : '',
@@ -162,48 +176,144 @@ interface ReferenceFieldsProps {
   draft: ReferenceDraft;
   onChange: (next: ReferenceDraft) => void;
   idPrefix: string;
+  existingReferences?: readonly CatalogReferenceLike[];
 }
 
-export function ReferenceFields({ draft, onChange, idPrefix }: ReferenceFieldsProps) {
+function applyMaterialDefaults(draft: ReferenceDraft, material: string): ReferenceDraft {
+  const temps = getTemperatureDefaults(draft.brand, draft.manufacturerType, material);
+  const print = MATERIAL_PRINT_DEFAULTS[material] ?? {};
+  return {
+    ...draft,
+    material,
+    nozzleMin: temps ? String(temps.nozzle[0]) : draft.nozzleMin,
+    nozzleMax: temps ? String(temps.nozzle[1]) : draft.nozzleMax,
+    bedMin: temps ? String(temps.bed[0]) : draft.bedMin,
+    bedMax: temps ? String(temps.bed[1]) : draft.bedMax,
+    printSpeedMmPerSecond: draft.printSpeedMmPerSecond || print.printSpeedMmPerSecond || '',
+    flowPercent: draft.flowPercent || print.flowPercent || '',
+    flowRatio: draft.flowRatio || print.flowRatio || '',
+    fanPercent: draft.fanPercent || print.fanPercent || '',
+    retractionMm: draft.retractionMm || print.retractionMm || '',
+    retractionSpeedMmPerSecond: draft.retractionSpeedMmPerSecond || print.retractionSpeedMmPerSecond || '',
+  };
+}
+
+export function ReferenceFields({
+  draft,
+  onChange,
+  idPrefix,
+  existingReferences = [],
+}: ReferenceFieldsProps) {
   const set = (key: keyof ReferenceDraft) => (
     event: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => onChange({ ...draft, [key]: event.target.value });
-  const colorValue = /^#[0-9a-f]{6}$/i.test(draft.colorHex) ? draft.colorHex : '#38bdf8';
+
+  const brandOptions = getBrandOptions(existingReferences);
+  const materialOptions = getMaterialOptions(existingReferences);
+  const diameterOptions = getDiameterOptions(existingReferences);
+  const typeOptions = draft.brand ? getManufacturerTypes(draft.brand, existingReferences) : [];
+  const colorOptions = draft.brand && draft.manufacturerType
+    ? getManufacturerColors(draft.brand, draft.manufacturerType, existingReferences)
+    : [];
+  const colorValue = /^#[0-9a-f]{6}$/i.test(draft.colorHex) ? draft.colorHex : '#38BDF8';
+
+  function chooseBrand(brand: string) {
+    onChange({ ...draft, brand, manufacturerType: '', manufacturerColor: '' });
+  }
+
+  function chooseMaterial(material: string) {
+    onChange(applyMaterialDefaults(draft, material));
+  }
+
+  function chooseType(manufacturerType: string) {
+    const material = inferMaterial(draft.brand, manufacturerType) ?? draft.material;
+    const next = applyMaterialDefaults({ ...draft, manufacturerType, manufacturerColor: '' }, material);
+    const temps = getTemperatureDefaults(draft.brand, manufacturerType, material);
+    onChange({
+      ...next,
+      nozzleMin: temps ? String(temps.nozzle[0]) : next.nozzleMin,
+      nozzleMax: temps ? String(temps.nozzle[1]) : next.nozzleMax,
+      bedMin: temps ? String(temps.bed[0]) : next.bedMin,
+      bedMax: temps ? String(temps.bed[1]) : next.bedMax,
+    });
+  }
+
+  function chooseColor(manufacturerColor: string) {
+    const catalogHex = getManufacturerColorHex(
+      draft.brand,
+      draft.manufacturerType,
+      manufacturerColor,
+      existingReferences,
+    );
+    onChange({
+      ...draft,
+      manufacturerColor,
+      colorHex: catalogHex ?? draft.colorHex,
+    });
+  }
 
   return (
     <div className="reference-fields">
       <div className="field-grid field-grid-3">
         <label className="field">
           <span>Marque <b>obligatoire</b></span>
-          <input list={`${idPrefix}-brands`} value={draft.brand} onChange={set('brand')} placeholder="Bambu Lab, Polymaker…" />
-          <datalist id={`${idPrefix}-brands`}>
-            <option value="Bambu Lab" /><option value="Polymaker" /><option value="Rosa3D" />
-            <option value="eSUN" /><option value="SUNLU" /><option value="Prusament" />
-            <option value="Overture" /><option value="ERYONE" /><option value="Creality" />
-          </datalist>
+          <CatalogSelect
+            value={draft.brand}
+            options={brandOptions}
+            placeholder="Sélectionner une marque…"
+            onChange={chooseBrand}
+            customPlaceholder="Ajouter une marque…"
+            ariaLabel="Marque"
+          />
         </label>
         <label className="field">
           <span>Matière <b>obligatoire</b></span>
-          <input list={`${idPrefix}-materials`} value={draft.material} onChange={set('material')} placeholder="PLA" />
-          <datalist id={`${idPrefix}-materials`}>
-            <option value="PLA" /><option value="PLA+" /><option value="PETG" /><option value="ABS" />
-            <option value="ASA" /><option value="TPU" /><option value="PA / Nylon" /><option value="PC" />
-          </datalist>
+          <CatalogSelect
+            value={draft.material}
+            options={materialOptions}
+            placeholder="Sélectionner une matière…"
+            onChange={chooseMaterial}
+            customPlaceholder="Ajouter une matière…"
+            ariaLabel="Matière"
+          />
         </label>
         <label className="field">
           <span>Diamètre <b>mm</b></span>
-          <input value={draft.diameterMm} onChange={set('diameterMm')} inputMode="decimal" placeholder="1,75" />
+          <CatalogSelect
+            value={draft.diameterMm}
+            options={diameterOptions}
+            placeholder="Sélectionner…"
+            onChange={(diameterMm) => onChange({ ...draft, diameterMm })}
+            customPlaceholder="Autre diamètre…"
+            ariaLabel="Diamètre"
+          />
         </label>
       </div>
 
       <div className="field-grid">
         <label className="field">
-          <span>Gamme / type fabricant</span>
-          <input value={draft.manufacturerType} onChange={set('manufacturerType')} placeholder="Matte, Basic, Silk…" />
+          <span>Type de filament fabricant</span>
+          <CatalogSelect
+            value={draft.manufacturerType}
+            options={typeOptions}
+            placeholder={draft.brand ? 'Sélectionner un type…' : 'Sélectionner d’abord une marque…'}
+            onChange={chooseType}
+            customPlaceholder="Ajouter un type / une gamme…"
+            disabled={!draft.brand}
+            ariaLabel="Type de filament fabricant"
+          />
         </label>
         <label className="field">
           <span>Couleur fabricant</span>
-          <input value={draft.manufacturerColor} onChange={set('manufacturerColor')} placeholder="Jade White, Galaxy Black…" />
+          <CatalogSelect
+            value={draft.manufacturerColor}
+            options={colorOptions}
+            placeholder={draft.brand && draft.manufacturerType ? 'Sélectionner une couleur…' : 'Sélectionner d’abord un type…'}
+            onChange={chooseColor}
+            customPlaceholder="Ajouter une couleur…"
+            disabled={!draft.brand || !draft.manufacturerType}
+            ariaLabel="Couleur fabricant"
+          />
         </label>
       </div>
 
@@ -219,6 +329,20 @@ export function ReferenceFields({ draft, onChange, idPrefix }: ReferenceFieldsPr
           <span>Poids nominal <b>g</b></span>
           <input value={draft.nominalWeightGrams} onChange={set('nominalWeightGrams')} inputMode="decimal" placeholder="1000" />
         </label>
+      </div>
+
+      <div className="color-preset-grid" aria-label="Palette de couleurs rapides">
+        {COLOR_PRESETS.map((hex) => (
+          <button
+            key={hex}
+            className={hex.toUpperCase() === draft.colorHex.toUpperCase() ? 'selected' : ''}
+            type="button"
+            aria-label={`Utiliser la couleur ${hex}`}
+            title={hex}
+            style={{ background: hex }}
+            onClick={() => onChange({ ...draft, colorHex: hex })}
+          />
+        ))}
       </div>
 
       <div className="field-grid">
