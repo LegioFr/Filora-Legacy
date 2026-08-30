@@ -216,7 +216,7 @@ Mickaël a autorisé le 2026-08-30 la correction du problème `gitDirty` puis le
 
 L’essai Graphify n’a produit aucune dépendance permanente, aucun hook, aucune CI et aucun changement de gouvernance dans Filora.
 
-### Jalon humain requis — NON REQUIS à ce stade
+### Jalon humain requis — NON REQUIS
 
 Le Batch 7 porte sur l’outillage et l’automatisation des tests et n’introduit pas de modification produit/UX. Une validation humaine applicative n’est donc pas requise pour les propriétés déjà automatisées. L’essai Graphify était un essai d’outillage local.
 
