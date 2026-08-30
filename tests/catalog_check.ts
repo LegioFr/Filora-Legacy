@@ -35,7 +35,7 @@ const seafoamHex = getVerifiedManufacturerColorHex('Polymaker', 'Matte', 'Seafoa
 const emeraldHex = getVerifiedManufacturerColorHex('Polymaker', 'Matte', 'Emerald Green', []);
 assert(seafoamHex === '#7DD4BE', 'Seafoam Green doit reprendre le HEX publié par Polymaker.');
 assert(emeraldHex === '#22624F', 'Emerald Green doit reprendre le HEX publié par Polymaker.');
-assert(seafoamHex !== emeraldHex, 'Deux couleurs fabricant distinctes ne doivent pas conserver le même HEX précédent.');
+assert(new Set<string | null>([seafoamHex, emeraldHex]).size === 2, 'Deux couleurs fabricant distinctes doivent conserver des HEX distincts.');
 
 const bambuHex = getManufacturerColorHex('Bambu Lab', 'PETG HF', 'Lake Blue', []);
 assert(bambuHex === '#1F79E5', 'Le HEX Bambu PETG HF Lake Blue doit être connu.');
