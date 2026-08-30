@@ -7,9 +7,9 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 
 ## Reprise structurée
 - stage: Batch 6 — création complète d’une bobine
-- status: ouvert
-- git: lire le HEAD de `batch6/spool-creation`, sa base `test-preview`, les workflows, Issues, PR et findings directement depuis GitHub avant toute décision de clôture ou d’intégration
-- next_action: vérifier la CI du candidat corrigeant la compatibilité des IDs historiques Batch 5 et le rollback backup/catalogue, puis obtenir une nouvelle revue indépendante sur ce SHA exact ; si elle ne remonte aucun finding bloquant non décidé, préparer la clôture du Batch 6 sans démarrer Batch 7 prématurément
+- status: clôturé
+- git: lire le HEAD de `batch6/spool-creation`, sa base `test-preview`, les workflows, Issues, PR et findings directement depuis GitHub avant toute décision d’intégration ou de démarrage du Batch 7
+- next_action: vérifier la CI du commit de clôture du Batch 6, puis fusionner séparément la PR #64 vers `test-preview` si elle reste verte et mergeable ; vérifier ensuite que `test-preview` contient réellement la clôture avant toute préparation effective du Batch 7
 
 ## État courant
 
@@ -20,9 +20,9 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - **Batch 3 :** clôturé, validé et intégré à `test-preview`, non encore promu vers `main`.
 - **Batch 4 :** clôturé, validé et intégré à `test-preview`.
 - **Batch 5 :** clôturé, validé et réellement intégré à `test-preview` par la PR #62.
-- **Batch 6 :** démarré sur une branche dédiée depuis le HEAD vérifié de `test-preview` après intégration du Batch 5 ; validation humaine fonctionnelle et visuelle acquise le 2026-08-30, mais clôture encore bloquée jusqu’à CI et nouvelle revue indépendante du candidat corrigeant les findings finaux de migration/recovery.
-- **Issues GitHub ouvertes au contrôle de démarrage :** aucune.
-- **PR GitHub ouverte au contrôle de démarrage :** aucune.
+- **Batch 6 :** clôturé sur sa branche de travail après validation humaine, CI verte et revue indépendante finale `CONFORME AVEC RÉSERVES` sans bloquant ; l’intégration réelle à `test-preview` reste à effectuer et à vérifier explicitement.
+- **Issues GitHub ouvertes au contrôle de clôture :** aucune.
+- **Commentaires/reviews/threads GitHub en attente sur la PR #64 au contrôle de clôture :** aucun.
 - **Branche officielle :** `main`.
 - **Branche de validation :** `test-preview`.
 - **Branche de travail courante :** `batch6/spool-creation`.
@@ -46,9 +46,9 @@ Le domaine `spools` sait déjà :
 
 La persistance de départ est IndexedDB direct : base `filora`, version `1`, store `spoolIdentities`.
 
-## Batch 6 — cible validée
+## Batch 6 — livré et validé
 
-Le Batch 6 doit livrer une création complète de bobine avec une interface propre et structurée, inspirée fonctionnellement de l’ancien écran Filora sans obligation d’en reprendre le design.
+Le Batch 6 livre une création complète de bobine avec une interface propre et structurée, inspirée fonctionnellement de l’ancien écran Filora sans obligation d’en reprendre le design.
 
 Le modèle sépare :
 
@@ -64,23 +64,27 @@ Le stock distingue :
 
 Le filament restant et son pourcentage sont calculés ; ils ne constituent pas une seconde autorité persistante.
 
-La création en série conserve des identités `SP-####` distinctes et doit vérifier tout le lot avant écriture.
+La création en série conserve des identités `SP-####` distinctes et vérifie le lot avant écriture.
 
 Une référence partagée peut être corrigée avec avertissement explicite sur toutes les bobines affectées. Changer uniquement le produit d’une bobine est une action distincte de réaffectation. La suppression de références reste hors Batch 6 ; une référence sans bobine peut subsister volontairement.
 
 Les paramètres avancés repris de l’ancien code vérifié sont : température chambre, température première couche, vitesse d’impression, débit %, rapport de flux, facteur K/Pressure Advance, vitesse volumétrique maximale, ventilation, rétraction et vitesse de rétraction.
 
-Toute nouvelle donnée persistante doit entrer dans le backup/recovery et une sauvegarde Batch 5 v1 doit rester importable sans invention de données.
+Toute nouvelle donnée persistante entre dans le backup/recovery, y compris le catalogue personnel, et une sauvegarde Batch 5 v1 reste importable sans invention de données.
+
+La compatibilité historique des IDs Batch 5 sensibles à la casse est préservée : des bobines anciennes `A` et `a` restent distinctes. Les nouvelles créations restent protégées contre les doublons ne différant que par la casse. Toute résolution interne privilégie la correspondance exacte, puis un fallback insensible à la casse seulement s’il est unique ; une ambiguïté historique échoue explicitement.
 
 Voir `BATCH6.md` pour le contrat détaillé, les findings décidés, les limites et les conditions de clôture.
 
-## Findings / décisions en cours
+## Findings / décisions de clôture
 
-### À traiter dans Batch 6
+### Traités dans Batch 6
 
-- finaliser la preuve de compatibilité des IDs Batch 5 distincts uniquement par la casse lors de la migration IndexedDB et de l’import backup v1 ;
-- finaliser la preuve de rollback si la restauration IndexedDB réussit mais que l’écriture du catalogue personnel échoue ;
-- obtenir une nouvelle revue indépendante du candidat exact après ces corrections.
+- compatibilité des IDs Batch 5 distincts uniquement par la casse lors de la migration IndexedDB et de l’import backup v1 ;
+- rollback compensatoire si la restauration de l’inventaire réussit mais que l’écriture du catalogue personnel échoue ;
+- sauvegarde/restauration du catalogue personnel ;
+- validation humaine sur tablette, PC classique, ultra-wide et mobile ;
+- revue indépendante finale sur le candidat exact, verdict `CONFORME AVEC RÉSERVES`, sans bloquant.
 
 ### Reportés
 
@@ -90,6 +94,7 @@ Voir `BATCH6.md` pour le contrat détaillé, les findings décidés, les limites
 - consommations, mouvements, nouvelles pesées successives, corrections/recalages, inventaire ;
 - nettoyage et suppression de références filament ;
 - cycle de vie complet des supports réutilisables ;
+- preuve navigateur du rollback inter-stockages avec vraie instance IndexedDB et panne injectée : la logique compensatoire est couverte par test mémoire ; un test navigateur pourra être ajouté si Playwright apporte une preuve utile ;
 - **Batch 7 : intégrer Playwright comme automatisation réelle des tests d’interface et de navigation.** Commencer par un petit test de faisabilité technique dans l’environnement Windows actuel : Codex doit essayer de lancer Filora et de piloter Playwright sur un scénario simple (ouvrir l’application, cliquer sur une action, vérifier le résultat). Si le pilotage interactif Codex → Playwright n’est pas fiable ou disponible, ne pas bloquer le Batch : utiliser des tests Playwright classiques exécutables localement et/ou dans GitHub Actions. Automatiser ensuite les parcours répétitifs rentables : boutons, menus déroulants, modales, formulaires, validations, messages d’erreur, navigation, rechargement/persistance visible, débordements horizontaux, accessibilité des actions et grille de stock, avec captures et traces utiles en cas d’échec. Les profils mobile, tablette, PC et grand écran/ultra-wide sont principalement des **tailles de viewport simulées**, pas une preuve de comportement sur les appareils physiques ; conserver donc quelques contrôles humains rapides sur de vrais appareils. Les scénarios plus complexes nécessitant une injection de panne, par exemple une erreur IndexedDB, peuvent être ajoutés ensuite s’ils apportent une preuve utile et ne doivent pas bloquer l’adoption initiale de Playwright. Mickaël conserve la validation humaine du rendu, de la compréhension et du confort réel d’utilisation. **Évaluer également l’installation et l’usage de Graphify comme aide locale à la compréhension du code et à l’analyse d’impact pour les IA, sans en faire une source de vérité ni un mécanisme de preuve, et ne le conserver que si le gain pratique est réel.**
 
 ### Acceptés
@@ -97,13 +102,16 @@ Voir `BATCH6.md` pour le contrat détaillé, les findings décidés, les limites
 - IndexedDB direct sans Dexie tant qu’aucun besoin concret ne justifie cette dépendance ;
 - références filament inutilisées autorisées ;
 - référence filament `null` pour les bobines héritées dont le produit est réellement inconnu ;
-- compatibilité historique des IDs Batch 5 sensible à la casse : des bobines anciennes `A` et `a` restent distinctes et ne sont ni renommées ni fusionnées. Pour toute nouvelle bobine, l’unicité reste insensible à la casse. Une résolution interne d’ID utilise d’abord la correspondance exacte, puis un fallback insensible à la casse seulement s’il est unique ; une ambiguïté historique échoue explicitement. Aucun écran de désambiguïsation n’est ajouté tant qu’aucune recherche libre ou fonction de scan QR/code-barres par ID n’existe ; ce comportement devra être redécidé si une telle fonctionnalité est ajoutée plus tard.
+- compatibilité historique des IDs Batch 5 sensible à la casse : des bobines anciennes `A` et `a` restent distinctes et ne sont ni renommées ni fusionnées. Pour toute nouvelle bobine, l’unicité reste insensible à la casse. Une résolution interne d’ID utilise d’abord la correspondance exacte, puis un fallback insensible à la casse seulement s’il est unique ; une ambiguïté historique échoue explicitement. Aucun écran de désambiguïsation n’est ajouté tant qu’aucune recherche libre ou fonction de scan QR/code-barres par ID n’existe ; ce comportement devra être redécidé si une telle fonctionnalité est ajoutée plus tard ;
+- duplication actuelle des préfixes `localStorage` du catalogue personnel entre UI et adaptateur de domaine : dette technique non bloquante acceptée à la clôture. Ne pas refactoriser sans besoin concret ; supprimer ce couplage lors d’une future évolution de cette persistance.
 
 ## Conditions de transition
 
-Le Batch 6 est classé **Sensible**. La clôture exigera donc une revue indépendante sur le candidat exact ainsi qu’une validation humaine réelle du fonctionnement et du rendu. La validation humaine est acquise, mais la revue indépendante doit encore être obtenue sur le candidat final. `next_batch_allowed` doit rester `false` tant que le Batch est ouvert.
+Le Batch 6 est classé **Sensible** et est clôturé après revue indépendante et validation humaine réelles. `workflow/state.json` peut donc porter `batch_status: closed`, `independent_review: passed` et `next_batch_allowed: true`, conformément au guard.
 
-Aucun Batch 7 ne doit être préparé simplement parce que le développement semble terminé : vérifier d’abord les conditions complètes de clôture de `BATCH6.md`, la CI, la validation humaine, la revue indépendante, les Issues/findings et l’intégration réelle à `test-preview`.
+Cette autorisation machine ne vaut pas preuve d’intégration. **Aucun Batch 7 ne doit être préparé ou démarré tant que la PR #64 n’a pas été réellement fusionnée dans `test-preview` et que cet état n’a pas été vérifié depuis GitHub.**
+
+Après fusion, reconstruire l’état depuis `test-preview`, vérifier la CI/les Issues/findings et seulement ensuite préparer le périmètre du Batch 7.
 
 ## Documents canoniques
 

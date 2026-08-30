@@ -1,7 +1,8 @@
 # BATCH6.md — Création complète d’une bobine
 
-**Statut : ouvert**  
-**Date de démarrage : 2026-08-30**
+**Statut : clôturé**  
+**Date de démarrage : 2026-08-30**  
+**Date de clôture : 2026-08-30**
 
 ## Intention
 
@@ -225,9 +226,9 @@ Le Batch doit :
 
 Justification : le Batch modifie le modèle de stock, la persistance locale, la migration de données, les relations métier et le format de sauvegarde/restauration.
 
-Aucun critère Critique n’est prévu : la migration est conçue comme additive et non destructive, les garde-fous ne sont pas modifiés et aucune autorité métier protégée n’est affaiblie.
+Aucun critère Critique n’est atteint : la migration reste additive et non destructive, les garde-fous ne sont pas affaiblis et aucune autorité métier protégée n’est déplacée.
 
-Une revue indépendante adaptée au niveau Sensible sera requise avant clôture.
+La revue indépendante finale du candidat exact a été acquise avant clôture.
 
 ### Jalon humain requis — VALIDÉ
 
@@ -248,9 +249,25 @@ Les vérifications humaines du Batch ont couvert notamment :
 
 Cette validation humaine ne remplace pas la revue indépendante ni les preuves automatisées de migration/recovery exigées avant clôture.
 
+## Revue indépendante finale et traitement des findings
+
+- candidat examiné : `13cd730ac0b6b731e4c5d679fc89af9344105d9e` ;
+- classification confirmée : **Sensible** ;
+- verdict indépendant : **CONFORME AVEC RÉSERVES** ;
+- bloquants : **aucun** ;
+- prêt pour clôture du Batch 6 : **oui** ;
+- prêt pour intégration à `test-preview` : **oui** ;
+- CI `Filora guard` #238 vérifiée verte sur ce candidat avant le commit de clôture ;
+- aucune Issue GitHub ouverte, aucun commentaire/review/thread GitHub en attente au dernier contrôle de clôture.
+
+Les réserves non bloquantes sont traitées explicitement ainsi :
+
+1. **Rollback inter-stockages testé avec un store inventaire mémoire plutôt qu’une vraie instance IndexedDB navigateur** : reporté. La logique de compensation est couverte automatiquement ; un test navigateur avec injection de panne pourra être ajouté dans le cadre des tests Playwright du Batch 7 s’il apporte une preuve utile et proportionnée.
+2. **Préfixes `localStorage` du catalogue personnel dupliqués entre l’UI et l’adaptateur de persistance** : accepté comme dette technique non bloquante. Aucun refactor de dernière minute n’est introduit ; ce couplage sera supprimé lorsqu’une évolution future nécessitera de retoucher cette persistance.
+
 ## Conditions de clôture
 
-Le Batch 6 ne pourra être déclaré clôturé que lorsque :
+Le Batch 6 est déclaré clôturé après vérification des conditions suivantes :
 
 1. toutes les fonctions listées dans le périmètre sont réellement implémentées ;
 2. les anciennes données Batch 5 restent récupérables sans invention ni perte silencieuse ;
@@ -259,8 +276,10 @@ Le Batch 6 ne pourra être déclaré clôturé que lorsque :
 5. les relations persistantes actives sont cohérentes ;
 6. la création en série ne peut pas produire de succès partiel silencieux ;
 7. le backup/recovery couvre toutes les nouvelles données persistantes ;
-8. les tests automatisés applicables, typecheck, build, architecture et garde-fous sont verts ;
+8. les tests automatisés applicables, typecheck, build, architecture et garde-fous sont verts sur le candidat examiné ;
 9. une revue indépendante du candidat exact est acquise sans finding bloquant non décidé ;
 10. la validation humaine ci-dessus est **VALIDÉE** ;
 11. le rendu final de l’écran de création est jugé propre et utilisable par Mickaël ;
 12. les Issues/findings apparus pendant le Batch sont traités, reportés, acceptés ou rejetés explicitement avant clôture.
+
+La clôture versionnée de la branche n’est pas une preuve d’intégration : la PR #64 doit encore être fusionnée puis `test-preview` vérifié explicitement avant toute préparation effective du Batch 7.
