@@ -72,10 +72,14 @@ Ces profils sont des simulations Chromium de taille d’écran. Ils ne remplacen
 - `@playwright/test` : version exacte `1.62.1` ;
 - Chromium : installé/utilisé ; Firefox/WebKit : non ajoutés ;
 - smoke initial : PASS local ;
-- suite fonctionnelle : 28 tests présents ;
-- viewports représentatifs : 4 tests dédiés présents ;
-- total actuel : 32 tests Playwright ;
-- validation locale rapportée : 32 tests Playwright, typecheck, build et architecture verts ;
+- suite fonctionnelle initiale : 28 tests ;
+- test navigateur de rollback inter-stockages : 1 test supplémentaire ;
+- viewports représentatifs : 4 tests dédiés ;
+- total actuel : **33 tests Playwright** ;
+- CI Playwright sur `f7dd2775454ede1f4fe5161e901022f0a2f66937` : **33/33 PASS** ;
+- le test de rollback navigateur passe réellement en Chromium après injection d’une panne unique de `localStorage`, puis recharge l’application pour vérifier que l’ancien IndexedDB et l’ancien catalogue personnel sont revenus ;
+- aucun crochet de test ni modification du code métier n’a été nécessaire pour cette injection ;
+- validation locale précédemment rapportée : typecheck, build et architecture verts ;
 - démonstration visible des quatre viewports réalisée ;
 - aucun bug produit découvert lors de ces parcours ;
 - la suite visible n’est qu’un complément : la couverture automatisée applicable complète reste obligatoire en arrière-plan ;
@@ -84,11 +88,26 @@ Ces profils sont des simulations Chromium de taille d’écran. Ils ne remplacen
 - CI Playwright : `permissions: contents: read`, aucun secret, Node 22, `npm ci`, Chromium uniquement, suite `npm run test:e2e` complète, traces/captures conservées seulement en cas d’échec ;
 - `playwright.config.ts` utilise `forbidOnly` en CI et conserve trace/capture uniquement en cas d’échec ;
 - PR #65 ouverte en brouillon vers `test-preview` pour obtenir les preuves CI sans déclarer le Batch prêt à fusionner ;
-- Playwright E2E a réellement réussi dans GitHub Actions sur le candidat `9a7505e0f52e9cca0038a9005a07102a47ca931b`, puis de nouveau sur le candidat Critique `cda0fa5a96b00d4b582e4cd8fba58d1aadcc7cbe` ;
-- Filora guard a d’abord refusé correctement la classification `sensitive` car l’ajout d’un workflow GitHub Actions exige objectivement un risque `critical` ;
+- Filora guard a correctement refusé la classification initiale `sensitive` car l’ajout d’un workflow GitHub Actions exige objectivement un risque `critical` ;
 - aucun garde-fou n’a été affaibli pour contourner ce résultat ;
-- après alignement de `workflow/state.json` sur `risk: critical` et `owner_approval: obtained`, Filora guard #242 est réellement vert sur `cda0fa5a96b00d4b582e4cd8fba58d1aadcc7cbe` ;
+- après alignement de `workflow/state.json` sur `risk: critical` et `owner_approval: obtained`, le guard est redevenu vert ;
+- sur le candidat `f7dd2775454ede1f4fe5161e901022f0a2f66937`, Filora guard #245 est réellement **SUCCESS** et la suite Playwright complète est **SUCCESS** ;
 - Filora guard sentinel reste applicable et n’a pas été modifié.
+
+## Décision Graphify
+
+Graphify est **conservé comme aide locale optionnelle**, sans intégration au projet.
+
+Décision proportionnée :
+
+- l’outil open source peut construire localement un graphe du code à partir de l’AST et sait s’intégrer à Codex ;
+- ce graphe peut être utile pour des analyses d’impact transversales lorsque Filora grandira ;
+- Graphify n’est ni une source de vérité, ni une preuve, ni un contrôle de conformité ;
+- aucune dépendance Graphify n’est ajoutée à `package.json` ou aux outils du dépôt ;
+- aucun workflow CI, hook Git ou serveur MCP Graphify n’est ajouté au projet ;
+- `graphify-out/`, caches et rapports Graphify ne sont pas destinés à être versionnés dans Filora ;
+- toute conclusion importante issue du graphe doit être vérifiée dans le code et GitHub ;
+- aucune preuve de gain mesuré sur l’environnement Windows local de Mickaël n’est revendiquée à ce stade. L’outil reste disponible comme accélérateur facultatif si un futur changement transversal justifie réellement son coût de préparation.
 
 ## Garde-fou d’exécution des tests d’interface
 
@@ -109,15 +128,12 @@ Le garde-fou permanent détaillé se trouve dans `PROJECT_STATE.md` et s’appli
 - automatisation Playwright des parcours répétitifs ;
 - faisabilité Codex → Playwright ;
 - dépendance et lockfile reproductibles ;
-- 28 parcours fonctionnels automatisés ;
+- 28 parcours fonctionnels initiaux automatisés ;
 - 4 viewports représentatifs ;
 - intégration CI Playwright minimale ;
-- correction des artefacts locaux responsables d’un checkout sale lors de la Preview précédente.
-
-### À décider avant clôture
-
-- rollback navigateur entre IndexedDB et catalogue personnel : traiter si simple/propre, sinon reporter explicitement ;
-- Graphify : conserver comme aide locale si gain réel, sinon abandonner.
+- correction des artefacts locaux responsables d’un checkout sale lors de la Preview précédente ;
+- rollback navigateur IndexedDB / catalogue personnel : **traité** par un vrai test Chromium de panne inter-stockages, sans modification du code produit ;
+- Graphify : **décision acquise**, conservé uniquement comme aide locale optionnelle non intégrée au dépôt.
 
 ### Reportés
 
@@ -179,3 +195,5 @@ Le Batch 7 ne pourra être déclaré clôturé que si :
 10. la revue indépendante requise par le niveau Critique est acquise sans finding bloquant non décidé ;
 11. l’accord propriétaire reste enregistré comme obtenu ;
 12. les Issues/findings apparus pendant le Batch sont tous traités, reportés, acceptés ou rejetés explicitement avant clôture.
+
+Les conditions 1 à 8 et 11 sont maintenant acquises. Les prochaines étapes sont le préflight final, la revue indépendante Critique, la décision sur tout finding de revue, puis la clôture et ses preuves finales.
