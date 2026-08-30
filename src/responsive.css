@@ -1,0 +1,162 @@
+/* Ajustements de présentation Batch 6.
+   Le modèle métier et les données ne dépendent pas de ces règles visuelles. */
+
+.sidebar-note {
+  display: none;
+}
+
+.intro-card {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: 24px 28px;
+}
+
+.intro-card h2 {
+  max-width: none;
+  font-size: clamp(1.45rem, 2.35vw, 2rem);
+}
+
+.intro-card p {
+  max-width: 900px;
+}
+
+/* Les trois libellés étaient surtout des termes d'implémentation et
+   alourdissaient fortement l'écran de création. */
+.intro-facts {
+  display: none;
+}
+
+@media (max-width: 1400px) {
+  .creation-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .summary-card {
+    position: static;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0 22px;
+  }
+
+  .summary-head,
+  .spool-visual,
+  .summary-rule,
+  .summary-series {
+    grid-column: 1 / -1;
+  }
+
+  .summary-metric {
+    border-right: 1px solid var(--border-soft);
+    padding-right: 22px;
+  }
+
+  .summary-grid {
+    padding-left: 0;
+  }
+}
+
+/* Une tablette doit privilégier la saisie : la navigation devient une barre
+   horizontale plutôt que de réserver près d'un quart de l'écran. */
+@media (max-width: 1320px) {
+  .sidebar {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 12px 18px;
+    flex-direction: row;
+    align-items: center;
+    gap: 18px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .brand {
+    padding: 0 18px 0 0;
+    border-bottom: 0;
+    border-right: 1px solid var(--border-soft);
+  }
+
+  .brand small,
+  .sidebar-stats {
+    display: none;
+  }
+
+  .side-nav {
+    padding: 0;
+    display: flex;
+    flex: 1;
+  }
+
+  .side-nav a {
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: .78rem;
+  }
+
+  .workspace {
+    margin-left: 0;
+    padding: 24px clamp(18px, 3vw, 34px) 60px;
+    max-width: none;
+  }
+
+  .topbar {
+    margin-bottom: 18px;
+  }
+
+  .intro-card {
+    margin-bottom: 18px;
+  }
+
+  .field-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .stock-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    overflow-x: auto;
+    gap: 10px;
+  }
+
+  .brand {
+    flex: 0 0 auto;
+  }
+
+  .side-nav {
+    min-width: max-content;
+  }
+
+  .workspace {
+    padding: 20px 14px 48px;
+  }
+
+  .intro-card {
+    padding: 18px;
+  }
+
+  .field-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .summary-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .summary-head,
+  .spool-visual,
+  .summary-rule,
+  .summary-series {
+    grid-column: auto;
+  }
+
+  .summary-metric {
+    border-right: 0;
+    padding-right: 0;
+  }
+}
