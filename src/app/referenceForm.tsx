@@ -15,7 +15,7 @@ import {
   getManufacturerTypes,
   getMaterialOptions,
   getTemperatureDefaults,
-  inferMaterial,
+  isVerifiedCatalogBrand,
   type CatalogReferenceLike,
 } from './filamentCatalog';
 import {
@@ -190,10 +190,10 @@ function applyMaterialDefaults(draft: ReferenceDraft, material: string): Referen
   return {
     ...draft,
     material,
-    nozzleMin: temps ? String(temps.nozzle[0]) : draft.nozzleMin,
-    nozzleMax: temps ? String(temps.nozzle[1]) : draft.nozzleMax,
-    bedMin: temps ? String(temps.bed[0]) : draft.bedMin,
-    bedMax: temps ? String(temps.bed[1]) : draft.bedMax,
+    nozzleMin: temps ? String(temps.nozzle[0]) : '',
+    nozzleMax: temps ? String(temps.nozzle[1]) : '',
+    bedMin: temps ? String(temps.bed[0]) : '',
+    bedMax: temps ? String(temps.bed[1]) : '',
     printSpeedMmPerSecond: draft.printSpeedMmPerSecond || print.printSpeedMmPerSecond || '',
     flowPercent: draft.flowPercent || print.flowPercent || '',
     flowRatio: draft.flowRatio || print.flowRatio || '',
@@ -201,6 +201,10 @@ function applyMaterialDefaults(draft: ReferenceDraft, material: string): Referen
     retractionMm: draft.retractionMm || print.retractionMm || '',
     retractionSpeedMmPerSecond: draft.retractionSpeedMmPerSecond || print.retractionSpeedMmPerSecond || '',
   };
+}
+
+function sameText(left: string, right: string): boolean {
+  return left.trim().localeCompare(right.trim(), 'fr', { sensitivity: 'base' }) === 0;
 }
 
 export function ReferenceFields({
@@ -214,39 +218,53 @@ export function ReferenceFields({
   ) => onChange({ ...draft, [key]: event.target.value });
 
   const brandOptions = getBrandOptions(existingReferences);
-  const materialOptions = getMaterialOptions(existingReferences);
+  const materialOptions = getMaterialOptions(existingReferences, draft.brand);
   const diameterOptions = getDiameterOptions(existingReferences);
   const nominalWeightOptions = Array.from(new Set([
     ...NOMINAL_WEIGHT_OPTIONS,
     ...existingReferences.map((reference) => String(reference.nominalWeightGrams)),
   ]));
-  const rawTypeOptions = draft.brand ? getManufacturerTypes(draft.brand, existingReferences) : [];
+  const rawTypeOptions = draft.brand && draft.material
+    ? getManufacturerTypes(draft.brand, existingReferences, draft.material)
+    : [];
   const typePresentation = getManufacturerTypePresentation(draft.brand, rawTypeOptions);
-  const colorOptions = draft.brand && draft.manufacturerType
-    ? getManufacturerColors(draft.brand, draft.manufacturerType, existingReferences)
+  const colorOptions = draft.brand && draft.material && draft.manufacturerType
+    ? getManufacturerColors(draft.brand, draft.manufacturerType, existingReferences, draft.material)
     : [];
   const colorValue = /^#[0-9a-f]{6}$/i.test(draft.colorHex) ? draft.colorHex : '#38BDF8';
 
   function chooseBrand(brand: string) {
-    onChange({ ...draft, brand, manufacturerType: '', manufacturerColor: '' });
+    const supportedMaterials = getMaterialOptions(existingReferences, brand);
+    const material = isVerifiedCatalogBrand(brand)
+      && !supportedMaterials.some((candidate) => sameText(candidate, draft.material))
+      ? supportedMaterials[0] ?? draft.material
+      : draft.material;
+    onChange(applyMaterialDefaults({
+      ...draft,
+      brand,
+      manufacturerType: '',
+      manufacturerColor: '',
+      colorHex: '',
+    }, material));
   }
 
   function chooseMaterial(material: string) {
-    onChange(applyMaterialDefaults(draft, material));
+    onChange(applyMaterialDefaults({
+      ...draft,
+      manufacturerType: '',
+      manufacturerColor: '',
+      colorHex: '',
+    }, material));
   }
 
   function chooseType(manufacturerType: string) {
-    const material = inferMaterial(draft.brand, manufacturerType) ?? draft.material;
-    const next = applyMaterialDefaults({ ...draft, manufacturerType, manufacturerColor: '' }, material);
-    const temps = getTemperatureDefaults(draft.brand, manufacturerType, material);
-    onChange({
-      ...next,
-      colorHex: '#38BDF8',
-      nozzleMin: temps ? String(temps.nozzle[0]) : next.nozzleMin,
-      nozzleMax: temps ? String(temps.nozzle[1]) : next.nozzleMax,
-      bedMin: temps ? String(temps.bed[0]) : next.bedMin,
-      bedMax: temps ? String(temps.bed[1]) : next.bedMax,
-    });
+    const next = applyMaterialDefaults({
+      ...draft,
+      manufacturerType,
+      manufacturerColor: '',
+      colorHex: '',
+    }, draft.material);
+    onChange(next);
   }
 
   function chooseColor(manufacturerColor: string) {
@@ -255,11 +273,12 @@ export function ReferenceFields({
       draft.manufacturerType,
       manufacturerColor,
       existingReferences,
+      draft.material,
     );
     onChange({
       ...draft,
       manufacturerColor,
-      colorHex: catalogHex ?? '#38BDF8',
+      colorHex: catalogHex ?? '',
     });
   }
 
@@ -288,16 +307,16 @@ export function ReferenceFields({
             options={typePresentation.options}
             optionLabels={typePresentation.labels}
             optionGroups={typePresentation.groups}
-            placeholder={draft.brand ? 'Sélectionner une gamme…' : 'Sélectionner d’abord une marque…'}
+            placeholder={draft.brand && draft.material ? 'Sélectionner une gamme…' : 'Sélectionner d’abord une marque et une matière…'}
             onChange={chooseType}
             customPlaceholder="Ajouter une gamme / un type…"
-            disabled={!draft.brand}
+            disabled={!draft.brand || !draft.material}
             ariaLabel="Gamme ou type de filament fabricant"
           />
         </label>
         <label className="field">
           <span>Couleur fabricant</span>
-          <CatalogSelect value={draft.manufacturerColor} options={colorOptions} placeholder={draft.brand && draft.manufacturerType ? 'Sélectionner une couleur…' : 'Sélectionner d’abord une gamme…'} onChange={chooseColor} customPlaceholder="Ajouter une couleur…" disabled={!draft.brand || !draft.manufacturerType} ariaLabel="Couleur fabricant" />
+          <CatalogSelect value={draft.manufacturerColor} options={colorOptions} placeholder={draft.brand && draft.material && draft.manufacturerType ? 'Sélectionner une couleur…' : 'Sélectionner d’abord une gamme…'} onChange={chooseColor} customPlaceholder="Ajouter une couleur…" disabled={!draft.brand || !draft.material || !draft.manufacturerType} ariaLabel="Couleur fabricant" />
         </label>
       </div>
 
