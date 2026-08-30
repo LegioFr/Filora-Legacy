@@ -6,10 +6,10 @@
 Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationnelle. GitHub et les documents canoniques restent la source de vérité.
 
 ## Reprise structurée
-- stage: Batch 6 — création complète d’une bobine
+- stage: Batch 7 — clôturé sur branche, intégration PR #65 restante
 - status: clôturé
-- git: lire le HEAD de `batch6/spool-creation`, sa base `test-preview`, les workflows, Issues, PR et findings directement depuis GitHub avant toute décision d’intégration ou de démarrage du Batch 7
-- next_action: vérifier la CI du commit de clôture du Batch 6, puis fusionner séparément la PR #64 vers `test-preview` si elle reste verte et mergeable ; vérifier ensuite que `test-preview` contient réellement la clôture avant toute préparation effective du Batch 7
+- git: PR #65 ouverte vers `test-preview`, branche `batch7/playwright-automation`; vérifier son HEAD et les checks du commit de clôture avant toute fusion
+- next_action: lorsque les contrôles du commit de clôture sont verts, intégrer la PR #65 à `test-preview`, puis vérifier le HEAD réel de `test-preview` et la présence effective du merge avant tout Batch 8
 
 ## État courant
 
@@ -17,101 +17,218 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - **Batch 0 :** clôturé et intégré à `main`.
 - **Batch 1 :** clôturé et intégré à `main`.
 - **Batch 2 :** clôturé, validé et promu vers `main`.
-- **Batch 3 :** clôturé, validé et intégré à `test-preview`, non encore promu vers `main`.
+- **Batch 3 :** clôturé, validé et intégré à `test-preview`.
 - **Batch 4 :** clôturé, validé et intégré à `test-preview`.
-- **Batch 5 :** clôturé, validé et réellement intégré à `test-preview` par la PR #62.
-- **Batch 6 :** clôturé sur sa branche de travail après validation humaine, CI verte et revue indépendante finale `CONFORME AVEC RÉSERVES` sans bloquant ; l’intégration réelle à `test-preview` reste à effectuer et à vérifier explicitement.
-- **Issues GitHub ouvertes au contrôle de clôture :** aucune.
-- **Commentaires/reviews/threads GitHub en attente sur la PR #64 au contrôle de clôture :** aucun.
+- **Batch 5 :** clôturé et intégré à `test-preview` par la PR #62.
+- **Batch 6 :** clôturé et intégré à `test-preview` par la PR #64.
+- **Batch 7 :** **clôturé sur sa branche de travail**, avec Playwright, CI, rollback navigateur et évaluation réelle de Graphify terminés. Graphify `0.9.53` a été essayé puis retiré ; verdict : **RETIRER pour Filora aujourd’hui**.
+- **Risque Batch 7 :** Critique, car l’ajout d’un workflow sous `.github/workflows/` constitue une surface structurelle de contrôle selon le guard Filora.
+- **Accord propriétaire F4.4 :** obtenu pour la correction du checkout sale et l’introduction de la CI Playwright minimale.
+- **Revue indépendante :** `passed`. Codex a revu le candidat `0dd038681b6f51f9369cebf5624cbfd7e8a1bede`, trouvé un unique P2 documentaire dans ce fichier, puis ce finding a été corrigé dans `69798abfaa88dff57cdfb254155cf39876368a2d`, avec guard/e2e/sentinel verts et thread résolu. Une re-review supplémentaire de `69798ab...` a été demandée mais n’est pas utilisée comme preuve tant qu’elle n’a pas produit de verdict ; aucune boucle supplémentaire n’est requise pour ce correctif documentaire ciblé.
+- **Jalon humain applicatif :** non requis ; le Batch 7 n’introduit pas de modification produit/UX.
 - **Branche officielle :** `main`.
 - **Branche de validation :** `test-preview`.
-- **Branche de travail courante :** `batch6/spool-creation`.
-- **Protection externe GitHub :** ruleset actif sur `main` et `test-preview`, PR et check `sentinel` requis, suppressions et force-push interdits.
+- **Branche de travail Batch 7 :** `batch7/playwright-automation`.
 
-## Base fonctionnelle acquise avant Batch 6
+`workflow/state.json` doit porter après clôture : `current_batch: 7`, `batch_status: closed`, `risk: critical`, `independent_review: passed`, `owner_approval: obtained`, `next_batch_allowed: true`.
 
-Le domaine `spools` sait déjà :
+`next_batch_allowed: true` signifie que les conditions de clôture du Batch sont satisfaites ; la règle opérationnelle reste qu’aucun Batch 8 ne doit être démarré avant vérification de l’intégration réelle de la PR #65 dans `test-preview`.
+
+## Base fonctionnelle acquise avant Batch 7
+
+Le domaine `spools` sait notamment :
 
 - créer une bobine avec identité stable ;
+- créer plusieurs bobines physiques distinctes reliées à une même référence filament ;
+- séparer référence filament commune et bobine physique ;
 - persister un poids brut réellement mesuré ;
 - persister une tare et son origine ;
-- calculer le filament disponible par `poids brut - tare` ;
+- calculer le filament disponible à partir des faits applicables ;
+- distinguer stock nominal / non vérifié et stock mesuré ;
 - refuser une tare supérieure au poids brut ;
-- refuser un ID dupliqué ;
+- protéger les nouvelles identités contre les doublons insensibles à la casse tout en préservant les IDs historiques sensibles à la casse ;
 - relire et afficher l’ensemble du stock local ;
-- sauvegarder le stock minimal dans `filora-backup` v1 ;
-- valider entièrement une sauvegarde avant mutation ;
-- restaurer par remplacement complet atomique ;
+- corriger une référence partagée avec avertissement sur les bobines affectées ;
+- réaffecter une seule bobine vers un autre produit sans modifier les autres ;
+- sauvegarder et restaurer références filament, emplacements, bobines, catalogue personnel et relations dans le backup v2 ;
+- importer encore un backup Batch 5 v1 sans invention de données ;
+- restaurer par remplacement cohérent avec rollback compensatoire entre les stockages techniques ;
 - démontrer réellement le recovery sur navigateur/appareil.
 
-La persistance de départ est IndexedDB direct : base `filora`, version `1`, store `spoolIdentities`.
+La persistance métier actuelle utilise IndexedDB direct sans Dexie, conformément à la décision acceptée tant qu’aucun besoin concret ne justifie cette dépendance.
 
-## Batch 6 — livré et validé
+## Batch 7 — Playwright acquis
 
-Le Batch 6 livre une création complète de bobine avec une interface propre et structurée, inspirée fonctionnellement de l’ancien écran Filora sans obligation d’en reprendre le design.
+Playwright `1.62.1` est versionné avec Chromium uniquement. Firefox et WebKit n’ont pas été ajoutés.
 
-Le modèle sépare :
+La suite E2E comprend :
 
-- **référence filament commune** : marque, matière, diamètre, gamme/type fabricant, couleur, représentation de couleur, poids nominal, températures recommandées et paramètres d’impression avancés ;
-- **bobine physique** : ID, dates, fournisseur, emplacement, prix, séchage, lien de rachat, support/tare, éventuelle pesée réelle, qualité du stock et notes.
+- 28 tests fonctionnels couvrant les parcours utilisateur déjà implémentés : navigation, création de bobines, références nouvelles/existantes, paramètres d’impression, achat/rangement, stock nominal/mesuré, création en série, modification de référence, changement de filament, sauvegarde/restauration et isolation ;
+- 1 test navigateur de rollback inter-stockages IndexedDB / catalogue personnel ;
+- 4 tests de viewports représentatifs : mobile `390×844`, tablette `800×1280`, PC `1440×900`, ultra-wide `2560×1080` ;
+- soit **33 tests Playwright au total**.
 
-La migration des bobines Batch 5 conserve strictement leurs faits existants et utilise une référence filament inconnue (`null`) plutôt que d’inventer des données produit.
+Le test de rollback navigateur fabrique les états par l’interface dans deux contextes Chromium isolés, injecte une panne unique sur l’écriture du catalogue local après le remplacement IndexedDB, puis recharge l’application. Il vérifie que l’ancienne bobine est réellement restaurée, que la bobine cible n’est pas restée dans IndexedDB, que l’ancien choix personnalisé du catalogue est revenu et que le choix cible n’a pas fui. Aucun crochet de test n’a été ajouté au code produit.
 
-Le stock distingue :
+La démonstration visible des quatre viewports a été réalisée. Ces tailles restent des simulations Chromium et ne constituent pas une preuve matérielle sur appareil physique.
 
-- **nominal / non vérifié** lorsqu’aucune pesée réelle n’existe ;
-- **mesuré** uniquement à partir d’un vrai poids brut mesuré et de la tare applicable.
+## CI Playwright
 
-Le filament restant et son pourcentage sont calculés ; ils ne constituent pas une seconde autorité persistante.
+Le workflow séparé `.github/workflows/playwright-e2e.yml` :
 
-La création en série conserve des identités `SP-####` distinctes et vérifie le lot avant écriture.
+- se déclenche sur les PR vers `test-preview` et `main` ;
+- checkout le SHA exact de la PR et exige un checkout propre ;
+- utilise Node 22 ;
+- exécute `npm ci --no-audit --no-fund` ;
+- installe Chromium uniquement ;
+- exécute la suite complète `npm run test:e2e` ;
+- utilise seulement `permissions: contents: read` ;
+- n’utilise aucun secret ;
+- conserve les preuves Playwright uniquement en cas d’échec.
 
-Une référence partagée peut être corrigée avec avertissement explicite sur toutes les bobines affectées. Changer uniquement le produit d’une bobine est une action distincte de réaffectation. La suppression de références reste hors Batch 6 ; une référence sans bobine peut subsister volontairement.
+`playwright.config.ts` interdit `test.only` en CI avec `forbidOnly` et conserve trace/capture uniquement en cas d’échec.
 
-Les paramètres avancés repris de l’ancien code vérifié sont : température chambre, température première couche, vitesse d’impression, débit %, rapport de flux, facteur K/Pressure Advance, vitesse volumétrique maximale, ventilation, rétraction et vitesse de rétraction.
+Le workflow `filora-guard.yml`, son sentinel, `DEVELOPMENT.md`, `workflow/contract.json` et les scripts de garde n’ont pas été modifiés par le Batch 7.
 
-Toute nouvelle donnée persistante entre dans le backup/recovery, y compris le catalogue personnel, et une sauvegarde Batch 5 v1 reste importable sans invention de données.
+### Preuves acquises avant le commit de clôture
 
-La compatibilité historique des IDs Batch 5 sensibles à la casse est préservée : des bobines anciennes `A` et `a` restent distinctes. Les nouvelles créations restent protégées contre les doublons ne différant que par la casse. Toute résolution interne privilégie la correspondance exacte, puis un fallback insensible à la casse seulement s’il est unique ; une ambiguïté historique échoue explicitement.
+Sur `f1c5e8af46eb226d8698e6a9fd6155bcdacd2452` : `e2e`, `guard` et `sentinel` SUCCESS, Playwright **33/33 PASS**, rollback navigateur PASS, checkout exact/propre PASS, architecture/typecheck/build/tests du guard PASS.
 
-Voir `BATCH6.md` pour le contrat détaillé, les findings décidés, les limites et les conditions de clôture.
+Le premier candidat documentaire de clôture `67dcfa3ddb395713131d895f78c6eb825cfb581d` a également passé `e2e`, `guard`, `sentinel` et **33/33 Playwright**.
 
-## Findings / décisions de clôture
+Après l’essai Graphify, `0dd038681b6f51f9369cebf5624cbfd7e8a1bede` a obtenu `guard`, `sentinel` et la suite Playwright complète en SUCCESS. La revue Codex de ce SHA a remonté uniquement l’incohérence documentaire de `PROJECT_STATE.md`.
 
-### Traités dans Batch 6
+Le correctif `69798abfaa88dff57cdfb254155cf39876368a2d` a ensuite obtenu `guard`, `sentinel` et la suite Playwright E2E complète en SUCCESS ; le thread correspondant a été résolu.
 
-- compatibilité des IDs Batch 5 distincts uniquement par la casse lors de la migration IndexedDB et de l’import backup v1 ;
-- rollback compensatoire si la restauration de l’inventaire réussit mais que l’écriture du catalogue personnel échoue ;
-- sauvegarde/restauration du catalogue personnel ;
-- validation humaine sur tablette, PC classique, ultra-wide et mobile ;
-- revue indépendante finale sur le candidat exact, verdict `CONFORME AVEC RÉSERVES`, sans bloquant.
+Le commit de clôture doit lui-même repasser les contrôles applicables avant fusion.
+
+## Revue indépendante Batch 7
+
+Une première contre-revue Codex normale a examiné `f1c5e8af46eb226d8698e6a9fd6155bcdacd2452` avec une mission couvrant le diff, Playwright/lockfile, les 33 tests, le rollback, la CI, permissions/secrets/réseau, guards, F4.2/F4.3, F4.4 et findings. Codex GitHub a répondu qu’il n’avait trouvé aucun problème majeur.
+
+Après l’essai Graphify, Codex a revu `0dd038681b6f51f9369cebf5624cbfd7e8a1bede`. Il n’a pas remis en cause les propriétés Playwright/CI mais a identifié un finding P2 documentaire : cet index indiquait encore que Graphify restait à installer/tester alors que `BATCH7.md` enregistrait déjà l’essai et le verdict RETIRER.
+
+Ce finding a été corrigé dans `69798abfaa88dff57cdfb254155cf39876368a2d`. Le diff de correction est documentaire, les contrôles du SHA sont verts et le thread a été résolu. Cette chaîne de revue + correction vérifiée satisfait la revue indépendante sans ajouter une boucle de relecture obligatoire sans réduction de risque.
+
+Une demande de re-review supplémentaire de `69798ab...` a été déclenchée ; son éventuel résultat ultérieur doit être traité s’il apporte un nouveau finding concret, mais il n’est pas présenté ici comme une preuve acquise.
+
+## Correction du checkout sale / `gitDirty`
+
+La Preview Vercel vérifiée pour l’ancien SHA `8d63454d1ffb1c0e0c33827f8162ce471744b968` était `READY` mais portait `gitDirty: 1`.
+
+Les artefacts locaux connus sont désormais exclus de Git :
+
+- `__pycache__/` ;
+- `*.py[cod]` ;
+- `.vercel/`.
+
+La CI Playwright prouve qu’un checkout GitHub neuf du candidat est propre avant exécution. Aucune nouvelle Preview Vercel du checkout corrigé n’a été créée de manière contrôlée ; `gitDirty: 0` dans Vercel n’est donc pas revendiqué.
+
+## Graphify — essai terminé, verdict RETIRER
+
+Graphify `0.9.53` a été réellement installé et essayé localement avec Codex sur l’environnement Windows de développement, puis retiré à l’issue de l’essai.
+
+Le rapport Codex local — **déclaration d’agent, pas preuve GitHub** — indique notamment :
+
+- graphe AST généré en mode `--code-only` : 851 nœuds, 1 966 arêtes, 45 communautés ;
+- build par défaut bloqué par une demande de clé LLM à cause des documents détectés ;
+- `graphify codex install` a tenté d’écrire dans le dépôt et d’installer un hook ;
+- l’intégration utilisateur et le sidecar `.graphify_python` ont nécessité des contournements ;
+- les premières requêtes ont surtout produit du bruit autour des imports et n’ont pas reconstitué immédiatement le chemin métier recherché ;
+- selon le rapport local, le dépôt suivi est resté propre après nettoyage et les éléments Graphify ont été désinstallés/supprimés ; `uv` et son Python géré ont été conservés.
+
+Décision Batch 7 : **RETIRER Graphify pour Filora aujourd’hui**. L’effort de configuration et de dépannage observé est supérieur au gain de compréhension démontré dans cet environnement. Aucun package Graphify, hook, workflow, MCP, cache, graphe ou rapport n’est intégré/versionné dans Filora.
+
+Graphify pourra être réévalué dans une version ultérieure si l’intégration Windows/Codex devient plus simple et si un gain concret peut être démontré sans contournements. Il ne sera dans tous les cas ni source de vérité ni preuve : GitHub, le code, les tests et les preuves rattachées à un SHA restent autoritaires.
+
+## Findings / décisions Batch 7
+
+### Traités
+
+- faisabilité Codex → Playwright ;
+- dépendance et lockfile Playwright reproductibles ;
+- suite E2E fonctionnelle ;
+- viewports mobile/tablette/PC/ultra-wide ;
+- CI Playwright minimale ;
+- artefacts locaux Python/Vercel exclus du suivi Git ;
+- rollback navigateur IndexedDB / catalogue personnel par un vrai test Chromium ;
+- Graphify `0.9.53` : essai local réalisé, utilité insuffisante dans l’environnement Windows/Codex actuel, verdict **RETIRER** ;
+- finding P2 Codex sur l’index de reprise Graphify : corrigé et thread résolu.
 
 ### Reportés
 
 - encodage implicite du guard sous Windows ;
-- ordre d’export `localeCompare()` sans locale explicite sauf nécessité fonctionnelle ;
-- compteur du téléchargement basé sur l’état UI ;
-- consommations, mouvements, nouvelles pesées successives, corrections/recalages, inventaire ;
-- nettoyage et suppression de références filament ;
+- `localeCompare()` sans locale explicite sauf nécessité fonctionnelle ;
+- compteur de téléchargement basé sur l’état UI ;
+- consommations, mouvements, pesées successives, corrections/recalages et inventaire ;
+- nettoyage/suppression de références filament ;
 - cycle de vie complet des supports réutilisables ;
-- preuve navigateur du rollback inter-stockages avec vraie instance IndexedDB et panne injectée : la logique compensatoire est couverte par test mémoire ; un test navigateur pourra être ajouté si Playwright apporte une preuve utile ;
-- **Batch 7 : intégrer Playwright comme automatisation réelle des tests d’interface et de navigation.** Commencer par un petit test de faisabilité technique dans l’environnement Windows actuel : Codex doit essayer de lancer Filora et de piloter Playwright sur un scénario simple (ouvrir l’application, cliquer sur une action, vérifier le résultat). Si le pilotage interactif Codex → Playwright n’est pas fiable ou disponible, ne pas bloquer le Batch : utiliser des tests Playwright classiques exécutables localement et/ou dans GitHub Actions. Automatiser ensuite les parcours répétitifs rentables : boutons, menus déroulants, modales, formulaires, validations, messages d’erreur, navigation, rechargement/persistance visible, débordements horizontaux, accessibilité des actions et grille de stock, avec captures et traces utiles en cas d’échec. Les profils mobile, tablette, PC et grand écran/ultra-wide sont principalement des **tailles de viewport simulées**, pas une preuve de comportement sur les appareils physiques ; conserver donc quelques contrôles humains rapides sur de vrais appareils. Les scénarios plus complexes nécessitant une injection de panne, par exemple une erreur IndexedDB, peuvent être ajoutés ensuite s’ils apportent une preuve utile et ne doivent pas bloquer l’adoption initiale de Playwright. Mickaël conserve la validation humaine du rendu, de la compréhension et du confort réel d’utilisation. **Évaluer également l’installation et l’usage de Graphify comme aide locale à la compréhension du code et à l’analyse d’impact pour les IA, sans en faire une source de vérité ni un mécanisme de preuve, et ne le conserver que si le gain pratique est réel.**
+- duplication des préfixes `localStorage` du catalogue personnel entre UI et adaptateur de domaine.
 
-### Acceptés
+Ces éléments restent hors du périmètre du Batch 7 et doivent être réévalués explicitement dans un futur Batch avant traitement.
 
-- IndexedDB direct sans Dexie tant qu’aucun besoin concret ne justifie cette dépendance ;
-- références filament inutilisées autorisées ;
-- référence filament `null` pour les bobines héritées dont le produit est réellement inconnu ;
-- compatibilité historique des IDs Batch 5 sensible à la casse : des bobines anciennes `A` et `a` restent distinctes et ne sont ni renommées ni fusionnées. Pour toute nouvelle bobine, l’unicité reste insensible à la casse. Une résolution interne d’ID utilise d’abord la correspondance exacte, puis un fallback insensible à la casse seulement s’il est unique ; une ambiguïté historique échoue explicitement. Aucun écran de désambiguïsation n’est ajouté tant qu’aucune recherche libre ou fonction de scan QR/code-barres par ID n’existe ; ce comportement devra être redécidé si une telle fonctionnalité est ajoutée plus tard ;
-- duplication actuelle des préfixes `localStorage` du catalogue personnel entre UI et adaptateur de domaine : dette technique non bloquante acceptée à la clôture. Ne pas refactoriser sans besoin concret ; supprimer ce couplage lors d’une future évolution de cette persistance.
+### Rejetés
+
+- Graphify comme outil local permanent dans sa version `0.9.53` et l’environnement Windows/Codex testé ; réévaluation future autorisée si les conditions changent.
+
+## Classification Batch 7
+
+### F4.2 / F4.3
+
+**Critique.** Le nouveau workflow `.github/workflows/playwright-e2e.yml` constitue objectivement une surface structurelle de contrôle. Le guard Filora a rejeté la classification initiale Sensible et l’état a été remonté à `critical` sans affaiblissement du guard.
+
+### F4.4
+
+**Accord propriétaire obtenu.** L’autorisation de corriger le checkout sale puis de passer à la CI couvre l’introduction de la CI Playwright minimale. Graphify n’étant finalement pas intégré, aucun accord supplémentaire n’est nécessaire pour cet outil.
+
+### Jalon humain applicatif
+
+**NON REQUIS.** Aucun changement produit/UX n’est introduit par le Batch 7.
+
+## Garde-fou permanent — tests d’interface interactifs
+
+Cette règle s’applique aux futurs Batches et aux sessions locales/manuelles de tests d’interface. Elle ne bloque pas les exécutions automatiques de CI.
+
+Avant une nouvelle session locale/manuelle, demander explicitement :
+
+- **VISIBLE** : navigateur visible, maximisé lorsque possible, ralentissement léger seulement pour les scénarios réellement observés ;
+- **ARRIÈRE-PLAN** : exécution headless rapide.
+
+Le choix est redemandé pour chaque nouvelle session pertinente.
+
+Au même moment, fournir une **Preview HTTPS vérifiée** correspondant à l’état réellement testé lorsqu’elle existe. Ne jamais inventer une URL ni présenter localhost/une IP LAN comme Preview HTTPS. Si aucune Preview vérifiable n’existe, le dire explicitement ; une adresse locale peut seulement être proposée séparément comme solution de repli.
+
+### Simplicité sans perte d’efficacité
+
+Lorsque les tests et le runtime existent déjà :
+
+- réutiliser le chemin Playwright connu au lieu de refaire une cartographie du dépôt ou plusieurs contournements techniques ;
+- ne pas créer de wrapper/configuration temporaire ou contrôle Windows supplémentaire si la commande connue fonctionne ;
+- la maximisation de fenêtre est un confort, pas une propriété technique exigeant une preuve séparée ;
+- ne ralentir que la démonstration visible, jamais les contrôles headless/typecheck/build/architecture ;
+- ne pas recréer une Preview si une Preview du bon SHA existe déjà et reste accessible.
+
+La simplification ne doit **jamais** réduire l’efficacité des tests :
+
+- exécuter la suite automatisée applicable complète en arrière-plan ;
+- une démonstration VISIBLE est complémentaire et ne remplace jamais la suite complète ;
+- ne jamais supprimer, ignorer, contourner ou affaiblir un test pour gagner du temps ;
+- comprendre tout échec avant de poursuivre ;
+- étendre la suite lorsque de nouveaux comportements deviennent automatisables de manière proportionnée ;
+- ne pas transférer à l’utilisateur la détection manuelle de régressions que Playwright peut raisonnablement vérifier.
+
+Objectif : **réduire le temps perdu autour des tests, jamais leur qualité, afin que les contrôles automatiques prennent réellement en charge les régressions automatisables.**
 
 ## Conditions de transition
 
-Le Batch 6 est classé **Sensible** et est clôturé après revue indépendante et validation humaine réelles. `workflow/state.json` peut donc porter `batch_status: closed`, `independent_review: passed` et `next_batch_allowed: true`, conformément au guard.
+Le Batch 7 est **clôturé sur sa branche**. Son état machine doit être `closed / critical / independent_review: passed / owner_approval: obtained / next_batch_allowed: true`.
 
-Cette autorisation machine ne vaut pas preuve d’intégration. **Aucun Batch 7 ne doit être préparé ou démarré tant que la PR #64 n’a pas été réellement fusionnée dans `test-preview` et que cet état n’a pas été vérifié depuis GitHub.**
+Avant tout Batch 8 :
 
-Après fusion, reconstruire l’état depuis `test-preview`, vérifier la CI/les Issues/findings et seulement ensuite préparer le périmètre du Batch 7.
+1. vérifier que les checks du commit de clôture sont verts ;
+2. intégrer la PR #65 à `test-preview` seulement après ces checks ;
+3. vérifier ensuite le HEAD réel de `test-preview` et la présence effective du merge ;
+4. recontrôler Issues/findings ouverts pertinents avant de préparer le Batch suivant.
 
 ## Documents canoniques
 
@@ -120,13 +237,14 @@ Après fusion, reconstruire l’état depuis `test-preview`, vérifier la CI/les
 - `ARCHITECTURE.md`
 - `DEVELOPMENT.md`
 
-Les fichiers `BATCH<n>.md` sont des dossiers de Batch et ne remplacent pas les documents canoniques.
+Les fichiers `BATCH<n>.md` documentent un Batch mais ne remplacent pas les contrats canoniques.
 
 ## Règles opérationnelles
 
-- GitHub est la source de vérité pour l’état réel, les branches, commits, PR, checks et Issues.
-- Ne pas transformer une déclaration d’agent en preuve.
-- Pour les missions Codex locales sous Windows, utiliser en priorité le dépôt Filora local déjà disponible lorsque cela respecte l’indépendance de la mission.
-- Réserver Codex Security aux propriétés qui justifient réellement une revue de sécurité renforcée.
-- Éviter les boucles de revue sans réduction de risque réelle.
-- Ne pas ajouter de dépendance, abstraction ou processus sans besoin concret.
+- GitHub est la source de vérité pour branches, commits, PR, checks, Issues et preuves GitHub.
+- Une déclaration d’agent n’est pas une preuve mécanique.
+- Avant une intégration ou un nouveau Batch, effectuer le préflight applicable.
+- Ne pas modifier un garde-fou pour faire passer un changement qu’il refuse.
+- Réserver les revues renforcées aux propriétés qui les justifient réellement.
+- Éviter les boucles de revue et la gouvernance sans réduction de risque réelle.
+- Ne pas traiter opportunément un finding reporté sans décision de périmètre.
