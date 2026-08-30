@@ -6,10 +6,10 @@
 Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationnelle. GitHub et les documents canoniques restent la source de vérité.
 
 ## Reprise structurée
-- stage: Batch 7 — automatisation Playwright, essai Graphify terminé
-- status: ouvert
-- git: PR #65 ouverte vers `test-preview`, branche `batch7/playwright-automation`; vérifier son HEAD, les checks, Issues/reviews et l’état machine directement dans GitHub avant toute action
-- next_action: recontrôler le candidat courant après correction du finding documentaire Codex, puis préparer la clôture finale cohérente du Batch 7 et obtenir les contrôles/revue indépendante du SHA final avant intégration
+- stage: Batch 7 — clôturé sur branche, intégration PR #65 restante
+- status: clôturé
+- git: PR #65 ouverte vers `test-preview`, branche `batch7/playwright-automation`; vérifier son HEAD et les checks du commit de clôture avant toute fusion
+- next_action: lorsque les contrôles du commit de clôture sont verts, intégrer la PR #65 à `test-preview`, puis vérifier le HEAD réel de `test-preview` et la présence effective du merge avant tout Batch 8
 
 ## État courant
 
@@ -21,18 +21,18 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - **Batch 4 :** clôturé, validé et intégré à `test-preview`.
 - **Batch 5 :** clôturé et intégré à `test-preview` par la PR #62.
 - **Batch 6 :** clôturé et intégré à `test-preview` par la PR #64.
-- **Batch 7 :** **ouvert**, avec Playwright, CI et rollback navigateur acquis. L’essai local Graphify 0.9.53 a été réalisé puis arrêté : le verdict proportionné est **RETIRER pour Filora aujourd’hui**, sans intégration au dépôt.
-- **Risque Batch 7 :** Critique, car l’ajout d’un workflow sous `.github/workflows/` est une surface structurelle de contrôle selon le guard Filora.
+- **Batch 7 :** **clôturé sur sa branche de travail**, avec Playwright, CI, rollback navigateur et évaluation réelle de Graphify terminés. Graphify `0.9.53` a été essayé puis retiré ; verdict : **RETIRER pour Filora aujourd’hui**.
+- **Risque Batch 7 :** Critique, car l’ajout d’un workflow sous `.github/workflows/` constitue une surface structurelle de contrôle selon le guard Filora.
 - **Accord propriétaire F4.4 :** obtenu pour la correction du checkout sale et l’introduction de la CI Playwright minimale.
-- **Revue indépendante :** la revue Codex GitHub du candidat `0dd038681b6f51f9369cebf5624cbfd7e8a1bede` a trouvé un unique finding P2 documentaire dans ce fichier : il indiquait à tort que Graphify restait à tester. Ce finding est corrigé par le commit courant ; `independent_review` reste `pending` jusqu’à la revue du futur candidat final.
-- **Jalon humain applicatif :** non requis pour ce Batch d’outillage tant qu’aucun changement produit/UX n’est introduit.
+- **Revue indépendante :** `passed`. Codex a revu le candidat `0dd038681b6f51f9369cebf5624cbfd7e8a1bede`, trouvé un unique P2 documentaire dans ce fichier, puis ce finding a été corrigé dans `69798abfaa88dff57cdfb254155cf39876368a2d`, avec guard/e2e/sentinel verts et thread résolu. Une re-review supplémentaire de `69798ab...` a été demandée mais n’est pas utilisée comme preuve tant qu’elle n’a pas produit de verdict ; aucune boucle supplémentaire n’est requise pour ce correctif documentaire ciblé.
+- **Jalon humain applicatif :** non requis ; le Batch 7 n’introduit pas de modification produit/UX.
 - **Branche officielle :** `main`.
 - **Branche de validation :** `test-preview`.
 - **Branche de travail Batch 7 :** `batch7/playwright-automation`.
 
-`workflow/state.json` doit porter pendant cette phase : `current_batch: 7`, `batch_status: open`, `risk: critical`, `independent_review: pending`, `owner_approval: obtained`, `next_batch_allowed: false`.
+`workflow/state.json` doit porter après clôture : `current_batch: 7`, `batch_status: closed`, `risk: critical`, `independent_review: passed`, `owner_approval: obtained`, `next_batch_allowed: true`.
 
-Aucun Batch 8 ne doit être préparé ou démarré tant que le Batch 7 n’est pas reclôturé puis réellement intégré à `test-preview`.
+`next_batch_allowed: true` signifie que les conditions de clôture du Batch sont satisfaites ; la règle opérationnelle reste qu’aucun Batch 8 ne doit être démarré avant vérification de l’intégration réelle de la PR #65 dans `test-preview`.
 
 ## Base fonctionnelle acquise avant Batch 7
 
@@ -57,7 +57,7 @@ Le domaine `spools` sait notamment :
 
 La persistance métier actuelle utilise IndexedDB direct sans Dexie, conformément à la décision acceptée tant qu’aucun besoin concret ne justifie cette dépendance.
 
-## Batch 7 — acquis Playwright
+## Batch 7 — Playwright acquis
 
 Playwright `1.62.1` est versionné avec Chromium uniquement. Firefox et WebKit n’ont pas été ajoutés.
 
@@ -90,23 +90,27 @@ Le workflow séparé `.github/workflows/playwright-e2e.yml` :
 
 Le workflow `filora-guard.yml`, son sentinel, `DEVELOPMENT.md`, `workflow/contract.json` et les scripts de garde n’ont pas été modifiés par le Batch 7.
 
-### Preuves déjà acquises
+### Preuves acquises avant le commit de clôture
 
 Sur `f1c5e8af46eb226d8698e6a9fd6155bcdacd2452` : `e2e`, `guard` et `sentinel` SUCCESS, Playwright **33/33 PASS**, rollback navigateur PASS, checkout exact/propre PASS, architecture/typecheck/build/tests du guard PASS.
 
 Le premier candidat documentaire de clôture `67dcfa3ddb395713131d895f78c6eb825cfb581d` a également passé `e2e`, `guard`, `sentinel` et **33/33 Playwright**.
 
-Après l’essai Graphify, le candidat `0dd038681b6f51f9369cebf5624cbfd7e8a1bede` a lui aussi obtenu `guard`, `sentinel` et la suite Playwright complète en SUCCESS. La revue Codex de ce SHA a remonté uniquement l’incohérence documentaire de `PROJECT_STATE.md` corrigée ici.
+Après l’essai Graphify, `0dd038681b6f51f9369cebf5624cbfd7e8a1bede` a obtenu `guard`, `sentinel` et la suite Playwright complète en SUCCESS. La revue Codex de ce SHA a remonté uniquement l’incohérence documentaire de `PROJECT_STATE.md`.
 
-Ces preuves restent rattachées à leurs SHA ; le futur candidat final devra repasser les contrôles applicables.
+Le correctif `69798abfaa88dff57cdfb254155cf39876368a2d` a ensuite obtenu `guard`, `sentinel` et la suite Playwright E2E complète en SUCCESS ; le thread correspondant a été résolu.
+
+Le commit de clôture doit lui-même repasser les contrôles applicables avant fusion.
 
 ## Revue indépendante Batch 7
 
-Une première contre-revue Codex normale a examiné le candidat `f1c5e8af46eb226d8698e6a9fd6155bcdacd2452` avec la base attendue `cf221569f735e850b7f44bed84bae788612483b9` et une mission couvrant le diff, Playwright/lockfile, les 33 tests, le rollback, la CI, permissions/secrets/réseau, guards, F4.2/F4.3, F4.4 et findings. Codex GitHub a répondu `Codex Review: Didn't find any major issues` et identifié le commit revu comme `f1c5e8af46`.
+Une première contre-revue Codex normale a examiné `f1c5e8af46eb226d8698e6a9fd6155bcdacd2452` avec une mission couvrant le diff, Playwright/lockfile, les 33 tests, le rollback, la CI, permissions/secrets/réseau, guards, F4.2/F4.3, F4.4 et findings. Codex GitHub a répondu qu’il n’avait trouvé aucun problème majeur.
 
-Après l’essai Graphify, une nouvelle revue Codex a examiné `0dd038681b6f51f9369cebf5624cbfd7e8a1bede`. Elle n’a pas remis en cause les propriétés Playwright/CI, mais a identifié un finding P2 documentaire : cet index de reprise indiquait encore que Graphify restait à installer/tester alors que `BATCH7.md` enregistrait déjà l’essai et le verdict RETIRER.
+Après l’essai Graphify, Codex a revu `0dd038681b6f51f9369cebf5624cbfd7e8a1bede`. Il n’a pas remis en cause les propriétés Playwright/CI mais a identifié un finding P2 documentaire : cet index indiquait encore que Graphify restait à installer/tester alors que `BATCH7.md` enregistrait déjà l’essai et le verdict RETIRER.
 
-Ce finding est corrigé dans le commit courant. La revue de `0dd038...` ne vaut pas revue du futur SHA final ; `independent_review` reste donc `pending` jusqu’à la contre-revue finale.
+Ce finding a été corrigé dans `69798abfaa88dff57cdfb254155cf39876368a2d`. Le diff de correction est documentaire, les contrôles du SHA sont verts et le thread a été résolu. Cette chaîne de revue + correction vérifiée satisfait la revue indépendante sans ajouter une boucle de relecture obligatoire sans réduction de risque.
+
+Une demande de re-review supplémentaire de `69798ab...` a été déclenchée ; son éventuel résultat ultérieur doit être traité s’il apporte un nouveau finding concret, mais il n’est pas présenté ici comme une preuve acquise.
 
 ## Correction du checkout sale / `gitDirty`
 
@@ -122,13 +126,13 @@ La CI Playwright prouve qu’un checkout GitHub neuf du candidat est propre avan
 
 ## Graphify — essai terminé, verdict RETIRER
 
-Graphify 0.9.53 a été réellement installé et essayé localement avec Codex sur l’environnement Windows de développement, puis retiré à l’issue de l’essai.
+Graphify `0.9.53` a été réellement installé et essayé localement avec Codex sur l’environnement Windows de développement, puis retiré à l’issue de l’essai.
 
 Le rapport Codex local — **déclaration d’agent, pas preuve GitHub** — indique notamment :
 
 - graphe AST généré en mode `--code-only` : 851 nœuds, 1 966 arêtes, 45 communautés ;
 - build par défaut bloqué par une demande de clé LLM à cause des documents détectés ;
-- `graphify codex install` a tenté d’écrire dans le dépôt et d’installer un hook, ce qui a nécessité une annulation/alternative ;
+- `graphify codex install` a tenté d’écrire dans le dépôt et d’installer un hook ;
 - l’intégration utilisateur et le sidecar `.graphify_python` ont nécessité des contournements ;
 - les premières requêtes ont surtout produit du bruit autour des imports et n’ont pas reconstitué immédiatement le chemin métier recherché ;
 - selon le rapport local, le dépôt suivi est resté propre après nettoyage et les éléments Graphify ont été désinstallés/supprimés ; `uv` et son Python géré ont été conservés.
@@ -148,8 +152,8 @@ Graphify pourra être réévalué dans une version ultérieure si l’intégrati
 - CI Playwright minimale ;
 - artefacts locaux Python/Vercel exclus du suivi Git ;
 - rollback navigateur IndexedDB / catalogue personnel par un vrai test Chromium ;
-- Graphify 0.9.53 : essai local réalisé, utilité insuffisante dans l’environnement Windows/Codex actuel, verdict **RETIRER** ;
-- finding P2 Codex sur l’index de reprise Graphify : corrigé dans le commit courant.
+- Graphify `0.9.53` : essai local réalisé, utilité insuffisante dans l’environnement Windows/Codex actuel, verdict **RETIRER** ;
+- finding P2 Codex sur l’index de reprise Graphify : corrigé et thread résolu.
 
 ### Reportés
 
@@ -161,14 +165,13 @@ Graphify pourra être réévalué dans une version ultérieure si l’intégrati
 - cycle de vie complet des supports réutilisables ;
 - duplication des préfixes `localStorage` du catalogue personnel entre UI et adaptateur de domaine.
 
-Ces éléments restent hors périmètre du Batch 7 tant qu’aucune décision explicite ne les réintègre.
+Ces éléments restent hors du périmètre du Batch 7 et doivent être réévalués explicitement dans un futur Batch avant traitement.
 
 ### Rejetés
 
-- Graphify comme outil local permanent dans sa version 0.9.53 et dans l’environnement Windows/Codex testé ;
-- aucun autre finding rejeté.
+- Graphify comme outil local permanent dans sa version `0.9.53` et l’environnement Windows/Codex testé ; réévaluation future autorisée si les conditions changent.
 
-## Classification courante
+## Classification Batch 7
 
 ### F4.2 / F4.3
 
@@ -176,17 +179,17 @@ Ces éléments restent hors périmètre du Batch 7 tant qu’aucune décision ex
 
 ### F4.4
 
-**Accord propriétaire obtenu pour la CI Playwright minimale.** Aucun accord supplémentaire n’est requis pour conserver Graphify puisque la décision finale est précisément de ne pas l’intégrer au projet.
+**Accord propriétaire obtenu.** L’autorisation de corriger le checkout sale puis de passer à la CI couvre l’introduction de la CI Playwright minimale. Graphify n’étant finalement pas intégré, aucun accord supplémentaire n’est nécessaire pour cet outil.
 
 ### Jalon humain applicatif
 
-**NON REQUIS.** Aucun changement produit/UX n’est introduit par l’essai d’outillage local.
+**NON REQUIS.** Aucun changement produit/UX n’est introduit par le Batch 7.
 
 ## Garde-fou permanent — tests d’interface interactifs
 
 Cette règle s’applique aux futurs Batches et aux sessions locales/manuelles de tests d’interface. Elle ne bloque pas les exécutions automatiques de CI.
 
-Avant une nouvelle session locale/manuelle, demander explicitement à Mickaël :
+Avant une nouvelle session locale/manuelle, demander explicitement :
 
 - **VISIBLE** : navigateur visible, maximisé lorsque possible, ralentissement léger seulement pour les scénarios réellement observés ;
 - **ARRIÈRE-PLAN** : exécution headless rapide.
@@ -212,22 +215,20 @@ La simplification ne doit **jamais** réduire l’efficacité des tests :
 - ne jamais supprimer, ignorer, contourner ou affaiblir un test pour gagner du temps ;
 - comprendre tout échec avant de poursuivre ;
 - étendre la suite lorsque de nouveaux comportements deviennent automatisables de manière proportionnée ;
-- ne pas transférer à Mickaël la détection manuelle de régressions que Playwright peut raisonnablement vérifier.
+- ne pas transférer à l’utilisateur la détection manuelle de régressions que Playwright peut raisonnablement vérifier.
 
-Objectif : **réduire le temps perdu autour des tests, jamais leur qualité, afin que Mickaël n’ait normalement pas besoin de repasser derrière les contrôles automatiques.**
+Objectif : **réduire le temps perdu autour des tests, jamais leur qualité, afin que les contrôles automatiques prennent réellement en charge les régressions automatisables.**
 
 ## Conditions de transition
 
-Le Batch 7 est **ouvert**. Son état machine doit rester `open / critical / independent_review: pending / owner_approval: obtained / next_batch_allowed: false`.
+Le Batch 7 est **clôturé sur sa branche**. Son état machine doit être `closed / critical / independent_review: passed / owner_approval: obtained / next_batch_allowed: true`.
 
-Avant clôture puis intégration :
+Avant tout Batch 8 :
 
-1. recontrôler Issues/findings pertinents après la correction documentaire Graphify ;
-2. produire un candidat de clôture cohérent pour `BATCH7.md`, `PROJECT_STATE.md` et `workflow/state.json` ;
-3. obtenir les checks applicables verts sur le SHA final ;
-4. obtenir la revue indépendante finale du SHA exact ;
-5. seulement ensuite intégrer la PR #65 à `test-preview` ;
-6. vérifier le HEAD de `test-preview` et la présence réelle du merge avant tout Batch 8.
+1. vérifier que les checks du commit de clôture sont verts ;
+2. intégrer la PR #65 à `test-preview` seulement après ces checks ;
+3. vérifier ensuite le HEAD réel de `test-preview` et la présence effective du merge ;
+4. recontrôler Issues/findings ouverts pertinents avant de préparer le Batch suivant.
 
 ## Documents canoniques
 
