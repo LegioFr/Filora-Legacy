@@ -23,6 +23,7 @@ import {
   updateSharedFilamentReference,
 } from '../domains/spools/referenceActions';
 import { CatalogSelect } from './CatalogSelect';
+import { displayManufacturerType } from './catalogPresentation';
 import {
   MATERIAL_PRINT_DEFAULTS,
   buildShortcutPresets,
@@ -64,7 +65,7 @@ interface SpoolDraft {
   lastDriedDate: string;
   purchaseUrl: string;
   supportKind: FormSupportKind;
-  tareSource: TareSource;
+  tareSource: TareSource | null;
   tareWeightGrams: string;
   tarePresetLabel: string;
   stockBasis: StockBasis;
@@ -146,9 +147,9 @@ function emptySpoolDraft(): SpoolDraft {
     lastDriedDate: '',
     purchaseUrl: '',
     supportKind: 'original',
-    tareSource: 'measured_empty_support',
+    tareSource: null,
     tareWeightGrams: '',
-    tarePresetLabel: MANUAL_TARE_LABEL,
+    tarePresetLabel: '',
     stockBasis: 'nominal',
     grossMeasuredWeightGrams: '',
     quantity: '1',
@@ -213,7 +214,9 @@ function optionalUrl(value: string): string | null {
 }
 
 function looseNumber(value: string): number | null {
-  const parsed = Number(value.trim().replace(',', '.'));
+  const normalized = value.trim().replace(',', '.');
+  if (!normalized) return null;
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -229,8 +232,10 @@ function qualityLabel(basis: StockBasis): string {
   return basis === 'measured' ? 'Mesuré' : 'Nominal · non vérifié';
 }
 
-function tareSourceLabel(source: TareSource): string {
-  return source === 'measured_empty_support' ? 'Support vide pesé' : 'Valeur fabricant';
+function tareSourceLabel(source: TareSource | null): string {
+  if (source === 'measured_empty_support') return 'Support vide pesé';
+  if (source === 'manufacturer') return 'Valeur fabricant';
+  return 'Non renseignée';
 }
 
 function supportLabel(kind: SupportKind): string {
@@ -244,9 +249,11 @@ function backupFileName(): string {
 }
 
 function referenceLabel(reference: FilamentReference): string {
-  return [reference.brand, reference.manufacturerType, reference.manufacturerColor]
-    .filter(Boolean)
-    .join(' · ');
+  return [
+    reference.brand,
+    displayManufacturerType(reference.brand, reference.manufacturerType),
+    reference.manufacturerColor,
+  ].filter(Boolean).join(' · ');
 }
 
 function sameText(left: string, right: string): boolean {
@@ -356,9 +363,10 @@ export function App() {
   const summaryColor = referenceMode === 'existing'
     ? selectedReference?.colorHex ?? '#334155'
     : referenceDraft.colorHex;
+  const draftTypeLabel = displayManufacturerType(referenceDraft.brand, referenceDraft.manufacturerType);
   const summaryTitle = referenceMode === 'existing'
     ? selectedReference ? referenceLabel(selectedReference) : 'Choisir une référence'
-    : [referenceDraft.brand || 'Nouvelle référence', referenceDraft.manufacturerColor].filter(Boolean).join(' · ');
+    : [referenceDraft.brand || 'Nouvelle référence', draftTypeLabel, referenceDraft.manufacturerColor].filter(Boolean).join(' · ');
 
   const selectedLocationName = spoolDraft.locationMode === 'existing'
     ? snapshot.locations.find((location) => location.id === spoolDraft.existingLocationId)?.name ?? ''
@@ -380,6 +388,25 @@ export function App() {
 
   function closeCreation() {
     if (!saving) setCreationOpen(false);
+  }
+
+  function selectStockBasis(stockBasis: StockBasis) {
+    setSpoolDraft((current) => stockBasis === 'measured'
+      ? {
+          ...current,
+          stockBasis,
+          tarePresetLabel: current.tarePresetLabel || MANUAL_TARE_LABEL,
+          tareSource: current.tareSource ?? 'measured_empty_support',
+        }
+      : { ...current, stockBasis, grossMeasuredWeightGrams: '' });
+  }
+
+  function patchTareWeight(value: string) {
+    setSpoolDraft((current) => ({
+      ...current,
+      tareWeightGrams: value,
+      tareSource: value.trim() ? current.tareSource ?? 'measured_empty_support' : current.tareSource,
+    }));
   }
 
   function applyShortcut(shortcut: ShortcutPreset) {
@@ -461,7 +488,11 @@ export function App() {
           ? { kind: 'existing' as const, id: spoolDraft.existingLocationId }
           : { kind: 'new' as const, location: { id: newLocationId, name: spoolDraft.newLocationName } };
 
-      const tareWeightGrams = nonNegativeDecimal(spoolDraft.tareWeightGrams, 'Tare');
+      const tareWeightGrams = optionalNonNegativeDecimal(spoolDraft.tareWeightGrams, 'Tare');
+      if (spoolDraft.stockBasis === 'measured' && tareWeightGrams === null) {
+        throw new Error('Pour une bobine pesée, renseigne le poids de la bobine vide (tare).');
+      }
+      const tareSource = tareWeightGrams === null ? null : spoolDraft.tareSource ?? 'measured_empty_support';
       const grossMeasuredWeightGrams = spoolDraft.stockBasis === 'measured'
         ? positiveDecimal(spoolDraft.grossMeasuredWeightGrams, 'Poids brut mesuré')
         : null;
@@ -480,7 +511,7 @@ export function App() {
           purchaseUrl: optionalUrl(spoolDraft.purchaseUrl),
           supportKind: spoolDraft.supportKind,
           tareWeightGrams,
-          tareSource: spoolDraft.tareSource,
+          tareSource,
           grossMeasuredWeightGrams,
           stockBasis: spoolDraft.stockBasis,
           notes: optionalText(spoolDraft.notes),
@@ -658,9 +689,8 @@ export function App() {
             ) : null}
 
             <section className="stock-section stock-main-section">
-              <div className="section-title-row">
+              <div className="section-title-row stock-list-head">
                 <div><p className="eyebrow">Stock</p><h2>Mes bobines</h2><span>{loading ? 'Chargement…' : `${snapshot.spools.length} bobine${snapshot.spools.length > 1 ? 's' : ''}`}</span></div>
-                <button className="secondary-button stock-add-secondary" type="button" onClick={openCreation}>＋ Ajouter</button>
               </div>
               {!loading && snapshot.spools.length === 0 ? <div className="empty-state"><strong>Aucune bobine enregistrée</strong><span>Utilise « Ajouter une bobine » pour créer ton premier exemplaire.</span></div> : null}
               <div className="stock-grid">
@@ -711,7 +741,7 @@ export function App() {
                           <div className="shortcut-list">
                             {shortcuts.map((shortcut) => (
                               <button type="button" key={`${shortcut.brand}-${shortcut.material}-${shortcut.diameterMm}-${shortcut.manufacturerType}`} onClick={() => applyShortcut(shortcut)}>
-                                <strong>{shortcut.brand} · {shortcut.manufacturerType}</strong>
+                                <strong>{shortcut.brand} · {displayManufacturerType(shortcut.brand, shortcut.manufacturerType)}</strong>
                                 <small>{shortcut.material} · {shortcut.diameterMm} mm · {shortcut.count} bobines</small>
                               </button>
                             ))}
@@ -751,23 +781,51 @@ export function App() {
                       </div>
                     </CreationSection>
 
-                    <CreationSection step="3" eyebrow="Poids & support" title="Source du stock" open={creationSections.stock} onToggle={() => toggleCreationSection('stock')}>
-                      <div className="segmented stock-basis-toggle">
-                        <button type="button" className={spoolDraft.stockBasis === 'nominal' ? 'selected' : ''} onClick={() => patchSpool('stockBasis', 'nominal')}><strong>Nominal</strong><small>non pesée</small></button>
-                        <button type="button" className={spoolDraft.stockBasis === 'measured' ? 'selected' : ''} onClick={() => patchSpool('stockBasis', 'measured')}><strong>Mesuré</strong><small>pesée réelle</small></button>
+                    <CreationSection step="3" eyebrow="Poids & support" title="Quantité de filament" open={creationSections.stock} onToggle={() => toggleCreationSection('stock')}>
+                      <div className="weight-mode-heading"><strong>Comment veux-tu enregistrer cette bobine ?</strong><span>Choisis simplement si tu l’as réellement pesée ou non.</span></div>
+                      <div className="weight-mode-grid" role="group" aria-label="Méthode de calcul du stock">
+                        <button type="button" className={spoolDraft.stockBasis === 'nominal' ? 'selected' : ''} onClick={() => selectStockBasis('nominal')}>
+                          <strong>Bobine neuve / non pesée</strong><span>Filora utilise le poids nominal annoncé par le fabricant.</span>
+                        </button>
+                        <button type="button" className={spoolDraft.stockBasis === 'measured' ? 'selected' : ''} onClick={() => selectStockBasis('measured')}>
+                          <strong>Je viens de la peser</strong><span>Filora calcule le filament réellement restant.</span>
+                        </button>
                       </div>
-                      <div className="field-grid">
-                        <label className="field"><span>Type de support <b>obligatoire</b></span><select value={spoolDraft.supportKind} onChange={(e) => patchSpool('supportKind', e.target.value as FormSupportKind)}><option value="original">Bobine d’origine</option><option value="reusable">Support réutilisable / refill</option></select></label>
-                        <label className="field"><span>Bobine vide / tare de référence</span><CatalogSelect value={spoolDraft.tarePresetLabel} options={tarePresetOptions} placeholder="Sélectionner une bobine vide…" onChange={chooseTarePreset} allowCustom={false} /></label>
-                      </div>
-                      {spoolDraft.tarePresetLabel !== MANUAL_TARE_LABEL ? (() => {
-                        const preset = tarePresets.find((item) => emptySpoolPresetLabel(item) === spoolDraft.tarePresetLabel);
-                        return preset ? <div className="tare-source-note"><strong>{preset.tareGrams === null ? 'Tare à mesurer' : `${preset.tareGrams} g`}</strong><span>{preset.source}</span></div> : null;
-                      })() : null}
-                      <div className="field-grid">
-                        <label className="field"><span>Tare bobine vide <b>g · obligatoire</b></span><input value={spoolDraft.tareWeightGrams} onChange={(e) => patchSpool('tareWeightGrams', e.target.value)} inputMode="decimal" placeholder="210,1" /></label>
-                        {spoolDraft.stockBasis === 'measured' ? <label className="field measured-field"><span>Poids brut réellement mesuré <b>g · obligatoire</b></span><input value={spoolDraft.grossMeasuredWeightGrams} onChange={(e) => patchSpool('grossMeasuredWeightGrams', e.target.value)} inputMode="decimal" placeholder="842,6" /></label> : <div className="nominal-note"><strong>Aucune fausse pesée.</strong><span>Le stock initial utilisera le poids nominal de la référence et restera marqué « non vérifié ».</span></div>}
-                      </div>
+
+                      <label className="field support-kind-field"><span>Type de support <b>obligatoire</b></span><select value={spoolDraft.supportKind} onChange={(e) => patchSpool('supportKind', e.target.value as FormSupportKind)}><option value="original">Bobine d’origine</option><option value="reusable">Support réutilisable / refill</option></select></label>
+
+                      {spoolDraft.stockBasis === 'nominal' ? (
+                        <div className="nominal-workflow">
+                          <div className="nominal-result-card"><span>Stock initial enregistré</span><strong>{summaryNominal === null ? 'Poids nominal à renseigner' : formatGrams(summaryNominal)}</strong><small>État : nominal, non vérifié par une pesée.</small></div>
+                          <details className="optional-tare-panel">
+                            <summary><span>Préparer une tare pour une future pesée</span><small>Facultatif</small></summary>
+                            <div className="optional-tare-content">
+                              <label className="field"><span>Bobine vide / tare de référence</span><CatalogSelect value={spoolDraft.tarePresetLabel} options={tarePresetOptions} placeholder="Aucune tare renseignée" onChange={chooseTarePreset} allowCustom={false} /></label>
+                              {spoolDraft.tarePresetLabel && spoolDraft.tarePresetLabel !== MANUAL_TARE_LABEL ? (() => {
+                                const preset = tarePresets.find((item) => emptySpoolPresetLabel(item) === spoolDraft.tarePresetLabel);
+                                return preset ? <div className="tare-source-note"><strong>{preset.tareGrams === null ? 'Tare à mesurer' : `${preset.tareGrams} g`}</strong><span>{preset.source}</span></div> : null;
+                              })() : null}
+                              <label className="field"><span>Poids de la bobine vide <b>g</b></span><input value={spoolDraft.tareWeightGrams} onChange={(e) => patchTareWeight(e.target.value)} inputMode="decimal" placeholder="Facultatif" /></label>
+                            </div>
+                          </details>
+                        </div>
+                      ) : (
+                        <div className="measured-workflow">
+                          <div className="measured-step-label"><span>1</span><div><strong>Renseigne la bobine vide</strong><small>La tare est indispensable pour retirer le poids du support.</small></div></div>
+                          <label className="field"><span>Bobine vide / tare de référence</span><CatalogSelect value={spoolDraft.tarePresetLabel} options={tarePresetOptions} placeholder="Choisir une tare ou saisir la tienne…" onChange={chooseTarePreset} allowCustom={false} /></label>
+                          {spoolDraft.tarePresetLabel && spoolDraft.tarePresetLabel !== MANUAL_TARE_LABEL ? (() => {
+                            const preset = tarePresets.find((item) => emptySpoolPresetLabel(item) === spoolDraft.tarePresetLabel);
+                            return preset ? <div className="tare-source-note"><strong>{preset.tareGrams === null ? 'Tare à mesurer' : `${preset.tareGrams} g`}</strong><span>{preset.source}</span></div> : null;
+                          })() : null}
+                          <div className="field-grid measured-input-grid">
+                            <label className="field"><span>Poids de la bobine vide <b>g · obligatoire</b></span><input value={spoolDraft.tareWeightGrams} onChange={(e) => patchTareWeight(e.target.value)} inputMode="decimal" placeholder="200" /></label>
+                            <label className="field measured-field"><span>Poids total sur la balance <b>g · obligatoire</b></span><input value={spoolDraft.grossMeasuredWeightGrams} onChange={(e) => patchSpool('grossMeasuredWeightGrams', e.target.value)} inputMode="decimal" placeholder="1015" /></label>
+                          </div>
+                          <div className={`measured-result-card${summaryRemaining === null ? ' is-empty' : ''}`}>
+                            <span>Filament restant calculé</span><strong>{summaryRemaining === null ? 'Renseigne les deux poids' : formatGrams(summaryRemaining)}</strong>{summaryPercent !== null ? <small>{summaryPercent.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} % du poids nominal</small> : null}
+                          </div>
+                        </div>
+                      )}
                     </CreationSection>
 
                     <CreationSection step="4" eyebrow="Création en série" title="Exemplaires physiques" open={creationSections.series} onToggle={() => toggleCreationSection('series')}>
@@ -780,14 +838,22 @@ export function App() {
                     </CreationSection>
                   </div>
 
-                  <aside className="summary-card creation-summary" aria-label="Résumé avant enregistrement">
-                    <div className="summary-head"><span>Résumé</span><span className={`quality-badge ${spoolDraft.stockBasis}`}>{qualityLabel(spoolDraft.stockBasis)}</span></div>
-                    <div className="spool-visual"><div className="spool-ring"><span style={{ background: /^#[0-9a-f]{6}$/i.test(summaryColor ?? '') ? summaryColor ?? '#334155' : '#334155' }} /></div><div><h3>{summaryTitle}</h3><p>{referenceMode === 'existing' ? selectedReference?.material ?? '—' : referenceDraft.material || '—'} · {referenceMode === 'existing' ? selectedReference?.diameterMm ?? '—' : referenceDraft.diameterMm || '—'} mm</p></div></div>
-                    <div className="summary-metric"><span>Filament disponible</span><strong>{summaryRemaining === null ? '—' : formatGrams(summaryRemaining)}</strong>{summaryPercent !== null ? <small>{summaryPercent.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} % du nominal</small> : null}</div>
-                    <div className="summary-grid"><div><span>Poids nominal</span><strong>{summaryNominal === null ? '—' : formatGrams(summaryNominal)}</strong></div><div><span>Tare</span><strong>{summaryTare === null ? '—' : formatGrams(summaryTare)}</strong></div><div><span>Support</span><strong>{supportLabel(spoolDraft.supportKind)}</strong></div><div><span>Origine tare</span><strong>{tareSourceLabel(spoolDraft.tareSource)}</strong></div></div>
-                    <div className="summary-rule"><span className={spoolDraft.stockBasis === 'measured' ? 'dot green' : 'dot amber'} />{spoolDraft.stockBasis === 'measured' ? 'Poids brut conservé comme mesure physique.' : 'Aucune mesure physique ne sera inventée.'}</div>
-                    <div className="summary-series"><span>Lot</span><strong>{previewIds.length || 0} exemplaire{previewIds.length > 1 ? 's' : ''}</strong><small>{previewIds.slice(0, 3).join(' · ')}{previewIds.length > 3 ? ` · +${previewIds.length - 3}` : ''}</small></div>
-                  </aside>
+                  <details className="summary-card creation-summary" aria-label="Résumé avant enregistrement">
+                    <summary className="summary-compact">
+                      <span className="summary-compact-swatch" style={{ background: /^#[0-9a-f]{6}$/i.test(summaryColor ?? '') ? summaryColor ?? '#334155' : '#334155' }} />
+                      <span className="summary-compact-copy"><small>Résumé</small><strong>{summaryTitle}</strong></span>
+                      <span className="summary-compact-metric"><strong>{summaryRemaining === null ? '—' : formatGrams(summaryRemaining)}</strong>{summaryPercent !== null ? <small>{summaryPercent.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %</small> : null}</span>
+                      <span className={`quality-badge ${spoolDraft.stockBasis}`}>{qualityLabel(spoolDraft.stockBasis)}</span>
+                      <span className="summary-details-cue">Détails</span>
+                    </summary>
+                    <div className="summary-details">
+                      <div className="spool-visual"><div className="spool-ring"><span style={{ background: /^#[0-9a-f]{6}$/i.test(summaryColor ?? '') ? summaryColor ?? '#334155' : '#334155' }} /></div><div><h3>{summaryTitle}</h3><p>{referenceMode === 'existing' ? selectedReference?.material ?? '—' : referenceDraft.material || '—'} · {referenceMode === 'existing' ? selectedReference?.diameterMm ?? '—' : referenceDraft.diameterMm || '—'} mm</p></div></div>
+                      <div className="summary-metric"><span>Filament disponible</span><strong>{summaryRemaining === null ? '—' : formatGrams(summaryRemaining)}</strong>{summaryPercent !== null ? <small>{summaryPercent.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} % du nominal</small> : null}</div>
+                      <div className="summary-grid"><div><span>Poids nominal</span><strong>{summaryNominal === null ? '—' : formatGrams(summaryNominal)}</strong></div><div><span>Tare</span><strong>{summaryTare === null ? 'Non renseignée' : formatGrams(summaryTare)}</strong></div><div><span>Support</span><strong>{supportLabel(spoolDraft.supportKind)}</strong></div><div><span>Origine tare</span><strong>{tareSourceLabel(summaryTare === null ? null : spoolDraft.tareSource)}</strong></div></div>
+                      <div className="summary-rule"><span className={spoolDraft.stockBasis === 'measured' ? 'dot green' : 'dot amber'} />{spoolDraft.stockBasis === 'measured' ? 'Poids brut conservé comme mesure physique.' : 'Aucune mesure physique ni tare ne sera inventée.'}</div>
+                      <div className="summary-series"><span>Lot</span><strong>{previewIds.length || 0} exemplaire{previewIds.length > 1 ? 's' : ''}</strong><small>{previewIds.slice(0, 3).join(' · ')}{previewIds.length > 3 ? ` · +${previewIds.length - 3}` : ''}</small></div>
+                    </div>
+                  </details>
                 </div>
               </form>
             </div>
