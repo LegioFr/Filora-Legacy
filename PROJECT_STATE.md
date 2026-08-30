@@ -138,6 +138,21 @@ En mode VISIBLE :
 - ne pas construire de wrapper, configuration temporaire, serveur intermédiaire ou adaptation npm/pnpm supplémentaire si la commande connue fonctionne ; si un contournement est réellement nécessaire, choisir le plus simple, le garder hors du dépôt et ne pas poursuivre l’exploration après obtention d’un chemin fonctionnel ;
 - réserver le ralentissement aux tests que Mickaël observe réellement et ne pas ralentir les contrôles headless, typecheck, build ou architecture.
 
+### Garantie d’efficacité des tests
+
+La simplification d’une session ne doit jamais diminuer la couverture automatisée applicable ni transférer vers Mickaël la responsabilité de détecter les régressions que Playwright peut raisonnablement vérifier.
+
+Lorsqu’une modification nécessite une validation d’interface :
+
+- exécuter en arrière-plan la **suite automatisée applicable complète**, y compris les tests de régression déjà pertinents pour la zone modifiée ;
+- si Mickaël choisit le mode VISIBLE, la démonstration visible peut être limitée aux scénarios utiles à observer, mais elle vient **en complément** de la suite complète et ne la remplace jamais ;
+- ne pas supprimer, ignorer, contourner ou réduire un test uniquement pour accélérer la session ;
+- un test existant qui échoue doit être traité comme un signal à comprendre, pas comme une étape à sauter ;
+- lorsque de nouvelles fonctions ou de nouveaux risques deviennent automatisables de manière proportionnée, étendre la suite afin de conserver l’objectif que Mickaël n’ait normalement pas à repasser manuellement derrière les contrôles automatiques ;
+- la vérification manuelle de Mickaël reste disponible pour son confort ou pour les propriétés réellement humaines/physiques, mais elle ne doit pas devenir le mécanisme par défaut pour compenser une automatisation insuffisante.
+
+Autrement dit, **on réduit le temps perdu autour des tests, jamais la qualité des tests eux-mêmes**.
+
 La Preview HTTPS est un accès manuel complémentaire. Sa vérification ou sa création ne doit pas retarder inutilement le lancement Playwright lorsque le test lui-même est local et indépendant de Vercel. Une Preview existante correspondant exactement au SHA testé doit être réutilisée lorsqu’elle est encore accessible. Un nouveau déploiement n’est créé que si aucune Preview vérifiable du bon état n’existe et qu’un lien manuel est réellement nécessaire pour la session.
 
 Ce principe de simplicité n’autorise jamais à sauter un contrôle technique requis ; il interdit seulement de refaire des préparations ou des preuves sans valeur supplémentaire.
@@ -166,7 +181,7 @@ Les fichiers `BATCH<n>.md` sont des dossiers de Batch et ne remplacent pas les d
 - GitHub est la source de vérité pour l’état réel, les branches, commits, PR, checks et Issues.
 - Ne pas transformer une déclaration d’agent en preuve.
 - Avant une PR de validation ou d’intégration, effectuer le préflight en lecture seule des contrôles applicables.
-- Pour toute session locale/manuelle de tests d’interface, appliquer le garde-fou permanent ci-dessus : demander le mode VISIBLE ou ARRIÈRE-PLAN avant exécution, réutiliser le chemin Playwright déjà fonctionnel sans préparation superflue et fournir une Preview HTTPS vérifiée lorsqu’elle est disponible.
+- Pour toute session locale/manuelle de tests d’interface, appliquer le garde-fou permanent ci-dessus : demander le mode VISIBLE ou ARRIÈRE-PLAN avant exécution, réutiliser le chemin Playwright déjà fonctionnel sans préparation superflue, exécuter la suite automatisée applicable sans réduction de couverture et fournir une Preview HTTPS vérifiée lorsqu’elle est disponible.
 - Pour les missions Codex locales sous Windows, utiliser en priorité le dépôt Filora local déjà disponible lorsque cela respecte l’indépendance de la mission.
 - Réserver Codex Security aux propriétés qui justifient réellement une revue de sécurité renforcée.
 - Éviter les boucles de revue sans réduction de risque réelle.
