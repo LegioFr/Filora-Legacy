@@ -164,7 +164,10 @@ const legacy: LegacyPersistedSpoolIdentity = {
   tareWeightGrams: 210.1,
   tareSource: 'measured_empty_support',
 };
-factory.database.stores.get(SPOOL_IDENTITIES_STORE)!.set(legacy.id, structuredClone(legacy) as StoredRecord);
+factory.database.stores.get(SPOOL_IDENTITIES_STORE)!.set(
+  legacy.id,
+  structuredClone(legacy) as unknown as StoredRecord,
+);
 
 const store = new IndexedDbInventoryStore(factory as unknown as IDBFactory, 'filora-v2-test');
 const migrated = await store.getSpool(legacy.id);
