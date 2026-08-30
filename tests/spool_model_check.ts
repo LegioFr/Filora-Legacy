@@ -73,16 +73,32 @@ const nominal: PersistedSpoolV2 = validatePersistedSpoolV2({
   lastDriedDate: null,
   purchaseUrl: null,
   supportKind: 'original',
-  tareWeightGrams: 200,
-  tareSource: 'manufacturer',
+  tareWeightGrams: null,
+  tareSource: null,
   grossMeasuredWeightGrams: null,
   stockBasis: 'nominal',
   notes: null,
 });
+assert(nominal.tareWeightGrams === null && nominal.tareSource === null, 'unweighed nominal stock may keep tare unknown');
 assert(
   calculateFilamentRemainingGrams(nominal, reference) === 1000,
-  'unweighed spool must use nominal filament amount without inventing gross measured weight',
+  'unweighed spool must use nominal filament amount without inventing gross measured weight or tare',
 );
+
+const nominalPreparedTare = validatePersistedSpoolV2({
+  ...nominal,
+  tareWeightGrams: 200,
+  tareSource: 'manufacturer',
+});
+assert(nominalPreparedTare.tareWeightGrams === 200, 'nominal stock may optionally keep a known tare for later use');
+
+let halfTareRejected = false;
+try {
+  validatePersistedSpoolV2({ ...nominal, tareWeightGrams: 200, tareSource: null });
+} catch (error) {
+  halfTareRejected = error instanceof Error && error.message.includes('ensemble');
+}
+assert(halfTareRejected, 'tare value and source must stay paired');
 
 let fakeMeasurementRejected = false;
 try {
@@ -92,9 +108,19 @@ try {
 }
 assert(fakeMeasurementRejected, 'nominal stock must reject a synthetic measured gross value');
 
+let missingMeasuredTareRejected = false;
+try {
+  validatePersistedSpoolV2({ ...nominal, id: 'SP-0069', grossMeasuredWeightGrams: 1200, stockBasis: 'measured' });
+} catch (error) {
+  missingMeasuredTareRejected = error instanceof Error && error.message.includes('tare utilisée');
+}
+assert(missingMeasuredTareRejected, 'measured stock must require the tare used for its calculation');
+
 const measured = validatePersistedSpoolV2({
   ...nominal,
   id: 'SP-0069',
+  tareWeightGrams: 200,
+  tareSource: 'measured_empty_support',
   grossMeasuredWeightGrams: 1200,
   stockBasis: 'measured',
 });
