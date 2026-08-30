@@ -77,7 +77,8 @@ function pwaAssetsPlugin(): Plugin {
     name: 'filora-pwa-assets',
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
-        const url = new URL(request.url ?? '/', 'http://127.0.0.1')
+        const rawUrl = Reflect.get(request, 'url')
+        const url = new URL(typeof rawUrl === 'string' ? rawUrl : '/', 'http://127.0.0.1')
 
         if (url.pathname === '/manifest.webmanifest') {
           response.statusCode = 200
