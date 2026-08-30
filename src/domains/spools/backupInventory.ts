@@ -15,6 +15,14 @@ import {
 } from './backupMeasuredSpools.js';
 import type { InventorySnapshot, InventoryStore } from './persistence/InventoryStore.js';
 import { validateInventorySnapshot } from './persistence/IndexedDbInventoryStore.js';
+import {
+  emptyPersonalCatalogSnapshot,
+  getBrowserPersonalCatalogStorage,
+  readPersonalCatalogStorage,
+  replacePersonalCatalogStorage,
+  type PersonalCatalogSnapshot,
+  type PersonalCatalogStorage,
+} from './persistence/PersonalCatalogStorage.js';
 
 export const FILORA_BACKUP_VERSION_V2 = 2 as const;
 
@@ -24,11 +32,13 @@ export interface FiloraInventoryBackupV2 {
   filamentReferences: FilamentReference[];
   locations: StorageLocation[];
   spools: PersistedSpoolV2[];
+  personalCatalog: PersonalCatalogSnapshot;
 }
 
 export interface ValidatedInventoryBackup {
   sourceVersion: 1 | 2;
   snapshot: InventorySnapshot;
+  personalCatalog: PersonalCatalogSnapshot;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -238,8 +248,46 @@ function validateBackupSpoolV2(value: unknown, index: number): PersistedSpoolV2 
   });
 }
 
+function validateStringArrayRecord(value: unknown, context: string): Record<string, string[]> {
+  if (!isRecord(value)) throw new Error(`${context} est invalide.`);
+  const result: Record<string, string[]> = {};
+  for (const [scope, options] of Object.entries(value)) {
+    if (!scope || !Array.isArray(options) || options.some((item) => typeof item !== 'string' || !item.trim())) {
+      throw new Error(`${context}.${scope || '?'} est invalide.`);
+    }
+    result[scope] = options.map((item) => item.trim());
+  }
+  return result;
+}
+
+function validateHexRecord(value: unknown, context: string): Record<string, string> {
+  if (!isRecord(value)) throw new Error(`${context} est invalide.`);
+  const result: Record<string, string> = {};
+  for (const [scope, hex] of Object.entries(value)) {
+    if (!scope || typeof hex !== 'string' || !/^#[0-9a-f]{6}$/i.test(hex)) {
+      throw new Error(`${context}.${scope || '?'} est invalide.`);
+    }
+    result[scope] = hex.toUpperCase();
+  }
+  return result;
+}
+
+function validatePersonalCatalog(value: unknown): PersonalCatalogSnapshot {
+  if (!isRecord(value)) throw new Error('Le catalogue personnel de la sauvegarde est invalide.');
+  assertExactKeys(value, ['customOptions', 'colorHexes'], 'Le catalogue personnel');
+  return {
+    customOptions: validateStringArrayRecord(value.customOptions, 'Le catalogue personnel.customOptions'),
+    colorHexes: validateHexRecord(value.colorHexes, 'Le catalogue personnel.colorHexes'),
+  };
+}
+
 function validateV2(value: Record<string, unknown>): ValidatedInventoryBackup {
-  assertExactKeys(value, ['format', 'version', 'filamentReferences', 'locations', 'spools'], 'La sauvegarde');
+  assertRequiredAndAllowedKeys(
+    value,
+    ['format', 'version', 'filamentReferences', 'locations', 'spools'],
+    ['personalCatalog'],
+    'La sauvegarde',
+  );
   if (!Array.isArray(value.filamentReferences) || !Array.isArray(value.locations) || !Array.isArray(value.spools)) {
     throw new Error('Les collections de la sauvegarde Filora v2 sont invalides.');
   }
@@ -249,7 +297,10 @@ function validateV2(value: Record<string, unknown>): ValidatedInventoryBackup {
     locations: value.locations.map(validateBackupLocation),
     spools: value.spools.map(validateBackupSpoolV2),
   });
-  return { sourceVersion: 2, snapshot };
+  const personalCatalog = Object.prototype.hasOwnProperty.call(value, 'personalCatalog')
+    ? validatePersonalCatalog(value.personalCatalog)
+    : emptyPersonalCatalogSnapshot();
+  return { sourceVersion: 2, snapshot, personalCatalog };
 }
 
 export function validateInventoryBackup(value: unknown): ValidatedInventoryBackup {
@@ -265,6 +316,7 @@ export function validateInventoryBackup(value: unknown): ValidatedInventoryBacku
         locations: [],
         spools: legacy.spools.map(migrateLegacySpool),
       }),
+      personalCatalog: emptyPersonalCatalogSnapshot(),
     };
   }
   if (value.version === FILORA_BACKUP_VERSION_V2) return validateV2(value);
@@ -281,7 +333,10 @@ export function parseInventoryBackupJson(text: string): ValidatedInventoryBackup
   return validateInventoryBackup(value);
 }
 
-export async function createInventoryBackup(store: InventoryStore): Promise<FiloraInventoryBackupV2> {
+export async function createInventoryBackup(
+  store: InventoryStore,
+  personalCatalogStorage: PersonalCatalogStorage | null = getBrowserPersonalCatalogStorage(),
+): Promise<FiloraInventoryBackupV2> {
   const snapshot = validateInventorySnapshot(await store.getSnapshot());
   return {
     format: FILORA_BACKUP_FORMAT,
@@ -289,18 +344,37 @@ export async function createInventoryBackup(store: InventoryStore): Promise<Filo
     filamentReferences: snapshot.filamentReferences,
     locations: snapshot.locations,
     spools: snapshot.spools,
+    personalCatalog: readPersonalCatalogStorage(personalCatalogStorage),
   };
 }
 
-export async function createInventoryBackupJson(store: InventoryStore): Promise<string> {
-  return JSON.stringify(await createInventoryBackup(store), null, 2);
+export async function createInventoryBackupJson(
+  store: InventoryStore,
+  personalCatalogStorage: PersonalCatalogStorage | null = getBrowserPersonalCatalogStorage(),
+): Promise<string> {
+  return JSON.stringify(await createInventoryBackup(store, personalCatalogStorage), null, 2);
 }
 
 export async function restoreInventoryBackup(
   store: InventoryStore,
   backup: unknown,
+  personalCatalogStorage: PersonalCatalogStorage | null = getBrowserPersonalCatalogStorage(),
 ): Promise<ValidatedInventoryBackup> {
   const validated = validateInventoryBackup(backup);
-  await store.replaceSnapshot(validated.snapshot);
+  const previousSnapshot = validateInventorySnapshot(await store.getSnapshot());
+  const previousPersonalCatalog = readPersonalCatalogStorage(personalCatalogStorage);
+
+  try {
+    await store.replaceSnapshot(validated.snapshot);
+    replacePersonalCatalogStorage(validated.personalCatalog, personalCatalogStorage);
+  } catch (error) {
+    try {
+      await store.replaceSnapshot(previousSnapshot);
+      replacePersonalCatalogStorage(previousPersonalCatalog, personalCatalogStorage);
+    } catch {
+      throw new Error('La restauration a échoué et l’état précédent de Filora n’a pas pu être garanti.');
+    }
+    throw error;
+  }
   return validated;
 }
