@@ -181,8 +181,11 @@ function validateBackupSpoolV2(value: unknown, index: number): PersistedSpoolV2 
   if (value.recordVersion !== 2 || typeof value.id !== 'string') {
     throw new Error(`${context} : version ou ID invalide.`);
   }
-  if (typeof value.tareWeightGrams !== 'number' || typeof value.tareSource !== 'string') {
+  if (value.tareWeightGrams !== null && typeof value.tareWeightGrams !== 'number') {
     throw new Error(`${context} : tare invalide.`);
+  }
+  if (value.tareSource !== null && typeof value.tareSource !== 'string') {
+    throw new Error(`${context} : origine de tare invalide.`);
   }
   if (value.grossMeasuredWeightGrams !== null && typeof value.grossMeasuredWeightGrams !== 'number') {
     throw new Error(`${context} : poids brut mesuré invalide.`);
@@ -204,8 +207,8 @@ function validateBackupSpoolV2(value: unknown, index: number): PersistedSpoolV2 
     lastDriedDate: optionalString(value.lastDriedDate, `${context}.lastDriedDate`),
     purchaseUrl: optionalString(value.purchaseUrl, `${context}.purchaseUrl`),
     supportKind: value.supportKind as PersistedSpoolV2['supportKind'],
-    tareWeightGrams: value.tareWeightGrams,
-    tareSource: value.tareSource as PersistedSpoolV2['tareSource'],
+    tareWeightGrams: optionalNumber(value.tareWeightGrams, `${context}.tareWeightGrams`),
+    tareSource: optionalString(value.tareSource, `${context}.tareSource`) as PersistedSpoolV2['tareSource'],
     grossMeasuredWeightGrams: value.grossMeasuredWeightGrams,
     stockBasis: value.stockBasis as PersistedSpoolV2['stockBasis'],
     notes: optionalString(value.notes, `${context}.notes`),
