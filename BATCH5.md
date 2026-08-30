@@ -170,6 +170,8 @@ Les tests doivent couvrir au minimum :
 
 ## Validation humaine réelle attendue
 
+### Jalon humain requis — EN ATTENTE
+
 La validation humaine doit porter sur les appareils réellement utilisés pour Filora :
 
 - tablette ;
