@@ -91,7 +91,21 @@ export function CatalogSelect({
     >
       <summary aria-label={ariaLabel} aria-disabled={disabled} onClick={(event) => { if (disabled) event.preventDefault(); }}>
         <span className={value ? '' : 'catalog-placeholder'}>{value ? optionLabels[value] ?? value : placeholder}</span>
-        <span className="catalog-chevron">⌄</span>
+        <span
+          aria-hidden="true"
+          style={{ width: 16, height: 16, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}
+        >
+          <svg width="14" height="8" viewBox="0 0 14 8" aria-hidden="true">
+            <path
+              d="M2 1.5 7 6.5 12 1.5"
+              fill="none"
+              stroke="#97a9bf"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
       </summary>
       {!disabled ? (
         <div className="catalog-popover" onClick={(event) => event.stopPropagation()}>
