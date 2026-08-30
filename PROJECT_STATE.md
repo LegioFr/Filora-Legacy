@@ -9,7 +9,7 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - stage: Batch 7 — automatisation des tests d’interface avec Playwright
 - status: ouvert
 - git: lire le HEAD de `batch7/playwright-automation`, sa base `test-preview`, les workflows, Issues, PR et findings directement depuis GitHub avant toute décision de validation ou d’intégration
-- next_action: réaliser d’abord le smoke test local de faisabilité Codex → Playwright avec Chromium sur un scénario simple ; ne préparer l’intégration CI qu’après obtention d’une petite suite E2E locale réellement stable
+- next_action: exécuter un sous-ensemble critique sur les viewports simulés mobile, tablette, PC et ultra-wide, puis préparer l’intégration CI Playwright maintenant que la suite locale est stable ; avant tout lancement Playwright local interactif, appliquer le garde-fou permanent de choix visible/arrière-plan et fournir une Preview HTTPS vérifiée si disponible
 
 ## État courant
 
@@ -21,7 +21,8 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - **Batch 4 :** clôturé, validé et intégré à `test-preview`.
 - **Batch 5 :** clôturé, validé et réellement intégré à `test-preview` par la PR #62.
 - **Batch 6 :** clôturé, validé et réellement intégré à `test-preview` par la PR #64 ; le HEAD de `test-preview` a été vérifié après fusion avant l’ouverture du Batch 7.
-- **Batch 7 :** ouvert sur `batch7/playwright-automation` pour introduire progressivement Playwright, commencer par une preuve de faisabilité locale Codex → Playwright, puis construire une petite suite E2E stable avant toute intégration CI.
+- **Batch 7 :** ouvert sur `batch7/playwright-automation`. La faisabilité Codex → Playwright est démontrée localement avec Chromium ; Playwright `1.62.1` est versionné ; une suite E2E fonctionnelle de 28 tests est présente sur la branche. Codex rapporte 28/28 tests locaux, typecheck, build et architecture PASS ; ce résultat local n’est pas encore une preuve CI distante indépendante.
+- **HEAD Batch 7 vérifié après construction de la suite E2E :** `6014fadcf3f969527d6686ad961caf01cf341e61`.
 - **Issues GitHub ouvertes au contrôle d’ouverture du Batch 7 :** aucune.
 - **PR GitHub ouvertes au contrôle d’ouverture du Batch 7 :** aucune.
 - **Commentaires/reviews/threads GitHub en attente sur la PR #64 au contrôle d’ouverture :** aucun.
@@ -67,6 +68,8 @@ L’ordre de travail est volontairement progressif :
 6. évaluer Graphify séparément comme aide locale à la compréhension du code ;
 7. ajouter éventuellement un test navigateur du rollback IndexedDB / catalogue personnel seulement si cela reste simple, propre et utile.
 
+Les étapes 1 à 4 sont désormais réalisées localement. La suite E2E couvre notamment navigation, création de bobines, références nouvelles/existantes, stock nominal/mesuré, création en série, modification de référence, changement de filament, sauvegarde/restauration et isolation des contextes.
+
 Les viewports mobile, tablette, PC et ultra-wide sont principalement des **simulations de taille d’écran**. Ils ne constituent pas une preuve que le comportement est identique sur les appareils physiques réels.
 
 Graphify, s’il est essayé, ne devient ni une source de vérité ni une preuve. Ses conclusions importantes doivent être vérifiées dans le code et GitHub, et l’outil n’est conservé que si son gain pratique est réel.
@@ -107,6 +110,23 @@ Le routage par défaut reste **Codex normal**. Codex Security ne doit pas être 
 
 L’éventuelle modification de CI doit être examinée au moment où elle est réellement préparée, notamment pour les permissions GitHub Actions, les secrets et les accès réseau nécessaires. Ces permissions ou accès ne doivent pas être augmentés sans besoin concret.
 
+## Garde-fou permanent — tests d’interface interactifs
+
+Cette règle s’applique à tous les futurs Batches et à toute session locale/manuelle de tests d’interface de Filora, avec Playwright ou un outil équivalent. Elle ne bloque pas les exécutions automatiques de CI déjà autorisées.
+
+Avant de lancer une session locale/manuelle de tests d’interface, le coordinateur doit demander explicitement à Mickaël quel mode il souhaite pour cette session :
+
+- **VISIBLE** : navigateur visible, fenêtre maximisée lorsque possible, sans petit viewport artificiel sauf si le test porte précisément sur un viewport, et ralentissement léger uniquement si nécessaire pour rendre les actions observables ;
+- **ARRIÈRE-PLAN** : exécution headless rapide, sans fenêtre visible.
+
+Le choix doit être redemandé pour chaque nouvelle session pertinente ; il ne doit pas être déduit silencieusement du choix précédent.
+
+Au même moment, le coordinateur doit fournir à Mickaël, lorsqu’elle existe et peut être vérifiée, une **adresse HTTPS de Preview** correspondant à l’état réellement testé afin qu’il puisse ouvrir Filora et effectuer sa propre vérification s’il le souhaite. La correspondance de la Preview avec la branche ou le commit pertinent doit être vérifiée avant de présenter le lien comme valide.
+
+Si aucune Preview HTTPS vérifiable n’est disponible, le coordinateur doit le dire explicitement. Il ne doit jamais inventer une URL ni présenter une adresse locale `http://127.0.0.1`, `http://192.168.x.x` ou équivalente comme si elle constituait la Preview HTTPS attendue. Une adresse locale peut être proposée séparément comme solution de repli lorsque cela est utile, avec sa nature locale clairement indiquée.
+
+Ce garde-fou organise le choix d’exécution et l’accès manuel à la Preview ; il ne crée pas à lui seul une exigence de validation humaine pour chaque test et ne remplace aucune preuve technique requise.
+
 ## Conditions de transition
 
 Le Batch 6 satisfaisait les conditions nécessaires au Batch suivant : clôture réelle, revue indépendante passée, validation humaine acquise, `next_batch_allowed: true`, PR #64 fusionnée et intégration vérifiée depuis GitHub.
@@ -129,6 +149,7 @@ Les fichiers `BATCH<n>.md` sont des dossiers de Batch et ne remplacent pas les d
 - GitHub est la source de vérité pour l’état réel, les branches, commits, PR, checks et Issues.
 - Ne pas transformer une déclaration d’agent en preuve.
 - Avant une PR de validation ou d’intégration, effectuer le préflight en lecture seule des contrôles applicables.
+- Pour toute session locale/manuelle de tests d’interface, appliquer le garde-fou permanent ci-dessus : demander le mode VISIBLE ou ARRIÈRE-PLAN avant exécution et fournir une Preview HTTPS vérifiée lorsqu’elle est disponible.
 - Pour les missions Codex locales sous Windows, utiliser en priorité le dépôt Filora local déjà disponible lorsque cela respecte l’indépendance de la mission.
 - Réserver Codex Security aux propriétés qui justifient réellement une revue de sécurité renforcée.
 - Éviter les boucles de revue sans réduction de risque réelle.
