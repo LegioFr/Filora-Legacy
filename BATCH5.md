@@ -1,6 +1,6 @@
 # BATCH5.md — Sauvegarde et restauration du stock local
 
-**Statut : préparé — non implémenté**  
+**Statut : en validation**  
 **Date de préparation : 2026-08-30**
 
 ## Intention
