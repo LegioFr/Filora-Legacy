@@ -1,9 +1,7 @@
 /* Ajustements de présentation Batch 6.
    Le modèle métier et les données ne dépendent pas de ces règles visuelles. */
 
-.sidebar-note {
-  display: none;
-}
+.sidebar-note { display: none; }
 
 .intro-card {
   grid-template-columns: minmax(0, 1fr);
@@ -11,52 +9,164 @@
   padding: 24px 28px;
 }
 
-.intro-card h2 {
-  max-width: none;
-  font-size: clamp(1.45rem, 2.35vw, 2rem);
+.intro-card h2 { max-width: none; font-size: clamp(1.45rem, 2.35vw, 2rem); }
+.intro-card p { max-width: 900px; }
+.intro-facts { display: none; }
+
+.catalog-select {
+  position: relative;
+  width: 100%;
+  min-width: 0;
 }
 
-.intro-card p {
-  max-width: 900px;
+.catalog-select > summary {
+  list-style: none;
+  min-height: 46px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #0c131e;
+  color: var(--text);
+  padding: 0 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
 }
 
-/* Les trois libellés étaient surtout des termes d'implémentation et
-   alourdissaient fortement l'écran de création. */
-.intro-facts {
-  display: none;
+.catalog-select > summary::-webkit-details-marker { display: none; }
+.catalog-select[open] > summary { border-color: var(--accent-strong); box-shadow: 0 0 0 3px #0ea5e91f; }
+.catalog-select.is-disabled > summary { opacity: .55; cursor: not-allowed; }
+.catalog-placeholder { color: #53637a; }
+.catalog-chevron { color: var(--muted); font-size: .9rem; }
+
+.catalog-popover {
+  position: absolute;
+  z-index: 80;
+  inset: calc(100% + 6px) 0 auto 0;
+  border: 1px solid #31435b;
+  border-radius: 13px;
+  background: #111824;
+  box-shadow: 0 22px 55px rgba(0, 0, 0, .46);
+  padding: 9px;
+  min-width: min(420px, 90vw);
 }
+
+.catalog-search { margin-bottom: 7px; }
+.catalog-options { max-height: 260px; overflow: auto; display: grid; gap: 2px; }
+.catalog-options button {
+  border: 0;
+  background: transparent;
+  color: #c2cedd;
+  text-align: left;
+  min-height: 38px;
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+.catalog-options button:hover,
+.catalog-options button.selected { background: #143047; color: #dff6ff; }
+.catalog-empty { color: var(--muted); padding: 11px; font-size: .75rem; }
+
+.catalog-custom {
+  border-top: 1px solid var(--border-soft);
+  margin-top: 8px;
+  padding-top: 8px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px;
+}
+.catalog-custom button,
+.secondary-button,
+.quantity-stepper button {
+  border: 1px solid var(--border);
+  background: #101a27;
+  color: #c7d5e5;
+  border-radius: 10px;
+  min-height: 42px;
+  padding: 0 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.catalog-custom button:disabled { opacity: .45; cursor: default; }
+
+.filament-shortcuts {
+  border: 1px solid #1d3b4f;
+  background: linear-gradient(135deg, rgba(14,165,233,.08), rgba(14,165,233,.025));
+  border-radius: 13px;
+  padding: 11px;
+  margin-bottom: 15px;
+  display: grid;
+  gap: 8px;
+}
+.shortcut-label { color: #83daf3; font-size: .7rem; font-weight: 850; }
+.shortcut-list { display: flex; flex-wrap: wrap; gap: 7px; }
+.shortcut-list button {
+  border: 1px solid #284258;
+  background: #0a1520;
+  color: #d6e2ef;
+  border-radius: 10px;
+  min-height: 42px;
+  padding: 7px 10px;
+  display: grid;
+  text-align: left;
+  cursor: pointer;
+}
+.shortcut-list button:hover { border-color: var(--accent); background: #102335; }
+.shortcut-list strong { font-size: .72rem; }
+.shortcut-list small { color: var(--muted); font-size: .62rem; margin-top: 2px; }
+
+.color-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 7px;
+}
+.color-preset-grid button {
+  height: 29px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  cursor: pointer;
+}
+.color-preset-grid button.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(14,165,233,.18); }
+
+.clear-location-field { align-content: end; }
+.secondary-button { width: 100%; }
+.tare-source-note {
+  border: 1px solid rgba(251,191,36,.23);
+  background: rgba(251,191,36,.055);
+  border-radius: 11px;
+  padding: 10px 12px;
+  margin: 11px 0 13px;
+  display: grid;
+  gap: 3px;
+}
+.tare-source-note strong { color: #f1d477; font-size: .74rem; }
+.tare-source-note span { color: #a79b78; font-size: .68rem; }
+
+.quantity-stepper {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 6px;
+}
+.quantity-stepper input { text-align: center; }
+.quantity-stepper button { padding: 0; font-size: 1rem; }
 
 @media (max-width: 1400px) {
-  .creation-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
+  .creation-layout { grid-template-columns: minmax(0, 1fr); }
   .summary-card {
     position: static;
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0 22px;
   }
-
-  .summary-head,
-  .spool-visual,
-  .summary-rule,
-  .summary-series {
-    grid-column: 1 / -1;
-  }
-
-  .summary-metric {
-    border-right: 1px solid var(--border-soft);
-    padding-right: 22px;
-  }
-
-  .summary-grid {
-    padding-left: 0;
-  }
+  .summary-head, .spool-visual, .summary-rule, .summary-series { grid-column: 1 / -1; }
+  .summary-metric { border-right: 1px solid var(--border-soft); padding-right: 22px; }
+  .summary-grid { padding-left: 0; }
 }
 
-/* Une tablette doit privilégier la saisie : la navigation devient une barre
-   horizontale plutôt que de réserver près d'un quart de l'écran. */
 @media (max-width: 1320px) {
   .sidebar {
     position: static;
@@ -69,94 +179,34 @@
     border-right: 0;
     border-bottom: 1px solid var(--border-soft);
   }
-
-  .brand {
-    padding: 0 18px 0 0;
-    border-bottom: 0;
-    border-right: 1px solid var(--border-soft);
-  }
-
-  .brand small,
-  .sidebar-stats {
-    display: none;
-  }
-
-  .side-nav {
-    padding: 0;
-    display: flex;
-    flex: 1;
-  }
-
-  .side-nav a {
-    min-height: 40px;
-    padding: 0 12px;
-    font-size: .78rem;
-  }
-
-  .workspace {
-    margin-left: 0;
-    padding: 24px clamp(18px, 3vw, 34px) 60px;
-    max-width: none;
-  }
-
-  .topbar {
-    margin-bottom: 18px;
-  }
-
-  .intro-card {
-    margin-bottom: 18px;
-  }
-
-  .field-grid-3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .stock-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  .brand { padding: 0 18px 0 0; border-bottom: 0; border-right: 1px solid var(--border-soft); }
+  .brand small, .sidebar-stats { display: none; }
+  .side-nav { padding: 0; display: flex; flex: 1; }
+  .side-nav a { min-height: 40px; padding: 0 12px; font-size: .78rem; }
+  .workspace { margin-left: 0; padding: 24px clamp(18px, 3vw, 34px) 60px; max-width: none; }
+  .topbar { margin-bottom: 18px; }
+  .intro-card { margin-bottom: 18px; }
+  .field-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stock-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 900px) {
-  .sidebar {
-    overflow-x: auto;
-    gap: 10px;
-  }
-
-  .brand {
-    flex: 0 0 auto;
-  }
-
-  .side-nav {
-    min-width: max-content;
-  }
-
-  .workspace {
-    padding: 20px 14px 48px;
-  }
-
-  .intro-card {
-    padding: 18px;
-  }
-
-  .field-grid-3 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  .sidebar { overflow-x: auto; gap: 10px; }
+  .brand { flex: 0 0 auto; }
+  .side-nav { min-width: max-content; }
+  .workspace { padding: 20px 14px 48px; }
+  .intro-card { padding: 18px; }
+  .field-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .catalog-popover { min-width: 100%; width: min(520px, 88vw); }
+  .color-preset-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
 }
 
 @media (max-width: 700px) {
-  .summary-card {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .summary-head,
-  .spool-visual,
-  .summary-rule,
-  .summary-series {
-    grid-column: auto;
-  }
-
-  .summary-metric {
-    border-right: 0;
-    padding-right: 0;
-  }
+  .summary-card { grid-template-columns: minmax(0, 1fr); }
+  .summary-head, .spool-visual, .summary-rule, .summary-series { grid-column: auto; }
+  .summary-metric { border-right: 0; padding-right: 0; }
+  .catalog-popover { position: fixed; inset: auto 10px 12px 10px; width: auto; max-height: min(72vh, 620px); }
+  .catalog-options { max-height: 38vh; }
+  .color-preset-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .shortcut-list { display: grid; grid-template-columns: 1fr; }
 }
