@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "build": "npm run test:model && npm run test:spool-batch && npm run test:reference-actions && npm run test:inventory-v2 && npm run test:backup-v2 && npm run test:persistence && npm run test:catalog && tsc --noEmit && vite build",
     "check:architecture": "python3 tools/check_architecture.py src",
@@ -21,6 +22,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "typescript": "7.0.2",
