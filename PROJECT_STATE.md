@@ -9,7 +9,7 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - stage: Batch 6 — création complète d’une bobine
 - status: ouvert
 - git: lire le HEAD de `batch6/spool-creation`, sa base `test-preview`, les workflows, Issues, PR et findings directement depuis GitHub avant toute décision de clôture ou d’intégration
-- next_action: implémenter d’abord le contrat de données et la migration non destructive Batch 5 → Batch 6, puis seulement brancher l’interface de création complète sur ce modèle
+- next_action: vérifier la CI du candidat corrigeant la compatibilité des IDs historiques Batch 5 et le rollback backup/catalogue, puis obtenir une nouvelle revue indépendante sur ce SHA exact ; si elle ne remonte aucun finding bloquant non décidé, préparer la clôture du Batch 6 sans démarrer Batch 7 prématurément
 
 ## État courant
 
@@ -20,7 +20,7 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - **Batch 3 :** clôturé, validé et intégré à `test-preview`, non encore promu vers `main`.
 - **Batch 4 :** clôturé, validé et intégré à `test-preview`.
 - **Batch 5 :** clôturé, validé et réellement intégré à `test-preview` par la PR #62.
-- **Batch 6 :** démarré sur une branche dédiée depuis le HEAD vérifié de `test-preview` après intégration du Batch 5.
+- **Batch 6 :** démarré sur une branche dédiée depuis le HEAD vérifié de `test-preview` après intégration du Batch 5 ; validation humaine fonctionnelle et visuelle acquise le 2026-08-30, mais clôture encore bloquée jusqu’à CI et nouvelle revue indépendante du candidat corrigeant les findings finaux de migration/recovery.
 - **Issues GitHub ouvertes au contrôle de démarrage :** aucune.
 - **PR GitHub ouverte au contrôle de démarrage :** aucune.
 - **Branche officielle :** `main`.
@@ -78,14 +78,9 @@ Voir `BATCH6.md` pour le contrat détaillé, les findings décidés, les limites
 
 ### À traiter dans Batch 6
 
-- migration non destructive des bobines Batch 5 ;
-- modèle référence filament ↔ bobine ;
-- support/tare nécessaire au stock ;
-- emplacement structuré minimal ;
-- création complète et création en série ;
-- édition explicite d’une référence partagée et réaffectation individuelle ;
-- backup/recovery du nouveau modèle ;
-- qualité visuelle réelle de l’écran de création.
+- finaliser la preuve de compatibilité des IDs Batch 5 distincts uniquement par la casse lors de la migration IndexedDB et de l’import backup v1 ;
+- finaliser la preuve de rollback si la restauration IndexedDB réussit mais que l’écriture du catalogue personnel échoue ;
+- obtenir une nouvelle revue indépendante du candidat exact après ces corrections.
 
 ### Reportés
 
@@ -101,11 +96,12 @@ Voir `BATCH6.md` pour le contrat détaillé, les findings décidés, les limites
 
 - IndexedDB direct sans Dexie tant qu’aucun besoin concret ne justifie cette dépendance ;
 - références filament inutilisées autorisées ;
-- référence filament `null` pour les bobines héritées dont le produit est réellement inconnu.
+- référence filament `null` pour les bobines héritées dont le produit est réellement inconnu ;
+- compatibilité historique des IDs Batch 5 sensible à la casse : des bobines anciennes `A` et `a` restent distinctes et ne sont ni renommées ni fusionnées. Pour toute nouvelle bobine, l’unicité reste insensible à la casse. Une résolution interne d’ID utilise d’abord la correspondance exacte, puis un fallback insensible à la casse seulement s’il est unique ; une ambiguïté historique échoue explicitement. Aucun écran de désambiguïsation n’est ajouté tant qu’aucune recherche libre ou fonction de scan QR/code-barres par ID n’existe ; ce comportement devra être redécidé si une telle fonctionnalité est ajoutée plus tard.
 
 ## Conditions de transition
 
-Le Batch 6 est classé **Sensible**. La clôture exigera donc une revue indépendante sur le candidat exact ainsi qu’une validation humaine réelle du fonctionnement et du rendu. `next_batch_allowed` doit rester `false` tant que le Batch est ouvert.
+Le Batch 6 est classé **Sensible**. La clôture exigera donc une revue indépendante sur le candidat exact ainsi qu’une validation humaine réelle du fonctionnement et du rendu. La validation humaine est acquise, mais la revue indépendante doit encore être obtenue sur le candidat final. `next_batch_allowed` doit rester `false` tant que le Batch est ouvert.
 
 Aucun Batch 7 ne doit être préparé simplement parce que le développement semble terminé : vérifier d’abord les conditions complètes de clôture de `BATCH6.md`, la CI, la validation humaine, la revue indépendante, les Issues/findings et l’intégration réelle à `test-preview`.
 

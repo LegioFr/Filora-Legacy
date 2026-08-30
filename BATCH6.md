@@ -45,7 +45,8 @@ Le Batch doit se terminer avec une création de bobine complète et réellement 
 
 - une référence filament peut subsister avec zéro bobine associée ; ce n’est pas une relation orpheline puisqu’aucune bobine ne la référence ; aucun nettoyage automatique n’est ajouté dans ce Batch ;
 - IndexedDB direct reste utilisé : Dexie n’est pas introduit sans nécessité démontrée ;
-- les anciennes bobines peuvent avoir `filamentReferenceId: null` après migration tant qu’aucune donnée produit n’est inventée et que l’interface les identifie comme référence à compléter.
+- les anciennes bobines peuvent avoir `filamentReferenceId: null` après migration tant qu’aucune donnée produit n’est inventée et que l’interface les identifie comme référence à compléter ;
+- la compatibilité historique des IDs Batch 5 est préservée : deux anciennes bobines `A` et `a` peuvent rester deux identités distinctes si elles existaient réellement avant Batch 6. Pour les nouvelles créations, les IDs restent uniques sans tenir compte de la casse afin d’éviter les doublons accidentels. Toute résolution interne d’un ID privilégie une correspondance exacte ; le fallback insensible à la casse n’est accepté que s’il est unique et échoue explicitement s’il est ambigu. Aucun écran de désambiguïsation n’est ajouté tant qu’aucune recherche libre ou fonction de scan QR/code-barres par ID n’existe.
 
 ## Contrat de données retenu
 
@@ -119,7 +120,7 @@ La migration doit être additive et non destructive.
 
 Pour chaque bobine héritée :
 
-- conserver exactement son `id` ;
+- conserver exactement son `id`, y compris sa casse historique ;
 - conserver exactement `grossMeasuredWeightGrams` ;
 - conserver exactement `tareWeightGrams` ;
 - conserver exactement `tareSource` ;
@@ -127,6 +128,8 @@ Pour chaque bobine héritée :
 - ajouter `filamentReferenceId: null` ou son équivalent explicite sans fabriquer de marque, matière, couleur ou référence générique ;
 - ne pas inventer un type de support absent des données existantes ;
 - rendre la bobine lisible et utilisable après migration avec une indication claire « référence filament à compléter ».
+
+Deux IDs Batch 5 qui ne diffèrent que par la casse restent deux identités historiques distinctes et ne doivent être ni fusionnés, ni renommés, ni rejetés par la migration ou l’import d’un backup v1 valide.
 
 Si la migration ne peut pas préserver sûrement les données existantes, elle doit échouer explicitement plutôt que poursuivre avec un état partiel.
 
@@ -156,6 +159,7 @@ Toute correction manuelle arbitraire ou recalage sans nouvelle pesée reste hors
 - les IDs automatiques utilisent `SP-####` ;
 - tous les IDs du lot sont déterminés et vérifiés avant la première écriture ;
 - aucun ID existant ne peut être écrasé ;
+- une nouvelle bobine ne peut pas réutiliser un ID existant en changeant seulement sa casse ;
 - l’opération doit réussir comme un ensemble cohérent ou échouer sans présenter une création partielle comme un succès.
 
 ## Correction d’une référence et changement de produit
@@ -192,11 +196,12 @@ Toute nouvelle donnée persistante du Batch 6 doit être incluse dans le format 
 
 Le Batch doit :
 
-- introduire une nouvelle version du backup capable de reconstruire références filament, bobines, emplacements et relations persistantes applicables ;
-- conserver la capacité de lire un backup Batch 5 version 1 et de le migrer sans invention de données ;
+- introduire une nouvelle version du backup capable de reconstruire références filament, bobines, emplacements, catalogue personnel et relations persistantes applicables ;
+- conserver la capacité de lire un backup Batch 5 version 1 et de le migrer sans invention de données, y compris lorsque des IDs historiques ne diffèrent que par la casse ;
 - valider entièrement un fichier avant mutation ;
-- restaurer l’ensemble des nouvelles données de manière cohérente et atomique ;
-- démontrer à nouveau `export → effacement → réimport → comparaison` sur une bobine riche et ses relations.
+- restaurer l’ensemble des nouvelles données de manière cohérente et atomique ou, pour les stockages techniques distincts, restaurer explicitement l’état précédent si une étape échoue ;
+- démontrer à nouveau `export → effacement → réimport → comparaison` sur une bobine riche et ses relations ;
+- tester une panne injectée entre la restauration IndexedDB et la restauration du catalogue personnel afin de prouver le rollback de l’état précédent.
 
 ## Hors périmètre
 
@@ -224,9 +229,11 @@ Aucun critère Critique n’est prévu : la migration est conçue comme additive
 
 Une revue indépendante adaptée au niveau Sensible sera requise avant clôture.
 
-### Jalon humain requis — EN ATTENTE
+### Jalon humain requis — VALIDÉE
 
-La clôture exige une validation humaine réelle du flux complet de création et du rendu visuel. Elle devra au minimum vérifier :
+La validation humaine réelle du flux de création et du rendu visuel a été effectuée le 2026-08-30. Les parcours fonctionnels ont été testés principalement sur tablette, puis le rendu et les interactions essentielles ont été contrôlés sur PC classique, écran ultra-wide et mobile. Le catalogue personnel et sa persistance visible ont également été validés après correction.
+
+Les vérifications humaines du Batch ont couvert notamment :
 
 - création d’une bobine complète ;
 - création en série ;
@@ -237,7 +244,9 @@ La clôture exige une validation humaine réelle du flux complet de création et
 - persistance après rechargement ;
 - migration/lecture des bobines Batch 5 ;
 - sauvegarde et restauration du nouveau modèle ;
-- interface visuellement propre et exploitable sur tablette et PC, avec comportement mobile acceptable.
+- interface visuellement propre et exploitable sur tablette, PC classique, ultra-wide et mobile.
+
+Cette validation humaine ne remplace pas la revue indépendante ni les preuves automatisées de migration/recovery exigées avant clôture.
 
 ## Conditions de clôture
 

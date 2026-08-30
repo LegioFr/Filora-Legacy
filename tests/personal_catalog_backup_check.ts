@@ -40,6 +40,18 @@ class MemoryCatalogStorage implements PersonalCatalogStorage {
   removeItem(key: string): void { this.values.delete(key); }
 }
 
+class FailingCatalogStorage extends MemoryCatalogStorage {
+  failNextSet = false;
+
+  override setItem(key: string, value: string): void {
+    if (this.failNextSet) {
+      this.failNextSet = false;
+      throw new Error('Injected personal catalog write failure');
+    }
+    super.setItem(key, value);
+  }
+}
+
 class MemoryInventoryStore implements InventoryStore {
   constructor(private snapshot: InventorySnapshot) {}
   async getSnapshot() { return clone(this.snapshot); }
@@ -100,6 +112,22 @@ const parsedPreviousV2 = parseInventoryBackupJson(JSON.stringify(previousV2));
 assert(Object.keys(parsedPreviousV2.personalCatalog.customOptions).length === 0, 'previous v2 backup without personal catalog must remain readable');
 assert(Object.keys(parsedPreviousV2.personalCatalog.colorHexes).length === 0, 'missing personal catalog must normalize to empty');
 
+// Régression Batch 5 : A et a étaient deux clés IndexedDB distinctes et un backup v1
+// valide doit conserver les deux sans fusion, renommage ni rejet pendant la migration.
+const legacyCaseBackup = {
+  format: 'filora-backup',
+  version: 1,
+  spools: [
+    { id: 'A', grossMeasuredWeightGrams: 800, tareWeightGrams: 200, tareSource: 'manufacturer' },
+    { id: 'a', grossMeasuredWeightGrams: 900, tareWeightGrams: 210, tareSource: 'measured_empty_support' },
+  ],
+};
+const parsedLegacyCaseBackup = parseInventoryBackupJson(JSON.stringify(legacyCaseBackup));
+assert(parsedLegacyCaseBackup.sourceVersion === 1, 'case-distinct Batch 5 backup must remain a valid v1 source');
+assert(parsedLegacyCaseBackup.snapshot.spools.length === 2, 'case-distinct Batch 5 backup must keep both physical spools');
+assert(parsedLegacyCaseBackup.snapshot.spools.some((spool) => spool.id === 'A'), 'uppercase historical id must survive backup migration');
+assert(parsedLegacyCaseBackup.snapshot.spools.some((spool) => spool.id === 'a'), 'lowercase historical id must survive backup migration');
+
 replacePersonalCatalogStorage(emptyPersonalCatalogSnapshot(), catalogStorage);
 assert(Object.keys(readPersonalCatalogStorage(catalogStorage).customOptions).length === 0, 'personal catalog must be erasable before recovery proof');
 
@@ -122,5 +150,48 @@ try {
   invalidCatalogRejected = error instanceof Error && error.message.includes('catalogue personnel');
 }
 assert(invalidCatalogRejected, 'invalid personal catalog must be rejected before restore');
+
+// Injection d'une panne entre le remplacement IndexedDB et l'écriture du catalogue
+// personnel : l'état inventaire + catalogue précédent doit être restauré complètement.
+const previousPhysicalSpool: PersistedSpoolV2 = {
+  recordVersion: 2,
+  id: 'ROLLBACK-KEEP',
+  filamentReferenceId: null,
+  purchaseDate: null,
+  openDate: null,
+  supplier: null,
+  locationId: null,
+  purchasePriceEuros: null,
+  lastDriedDate: null,
+  purchaseUrl: null,
+  supportKind: null,
+  tareWeightGrams: 200,
+  tareSource: 'manufacturer',
+  grossMeasuredWeightGrams: 800,
+  stockBasis: 'measured',
+  notes: 'état précédent',
+};
+const rollbackStore = new MemoryInventoryStore({
+  filamentReferences: [],
+  locations: [],
+  spools: [previousPhysicalSpool],
+});
+const failingStorage = new FailingCatalogStorage();
+failingStorage.setItem(`${PERSONAL_CATALOG_CUSTOM_PREFIX}brand`, JSON.stringify(['Ancienne Marque']));
+failingStorage.failNextSet = true;
+
+let injectedFailureRejected = false;
+try {
+  await restoreInventoryBackup(rollbackStore, JSON.parse(json) as unknown, failingStorage);
+} catch (error) {
+  injectedFailureRejected = error instanceof Error && error.message.includes('Injected personal catalog write failure');
+}
+assert(injectedFailureRejected, 'injected catalog write failure must reject the restore');
+const rolledBackInventory = await rollbackStore.getSnapshot();
+assert(rolledBackInventory.spools.length === 1, 'failed cross-storage restore must recover previous inventory cardinality');
+assert(rolledBackInventory.spools[0]?.id === 'ROLLBACK-KEEP', 'failed cross-storage restore must recover previous physical spool');
+const rolledBackCatalog = readPersonalCatalogStorage(failingStorage);
+assert(rolledBackCatalog.customOptions.brand?.[0] === 'Ancienne Marque', 'failed cross-storage restore must recover previous personal catalog');
+assert(!Object.values(rolledBackCatalog.customOptions).flat().includes('Ma Marque'), 'failed cross-storage restore must not leave target catalog values behind');
 
 console.log('Batch 6 personal catalog backup/recovery checks passed');

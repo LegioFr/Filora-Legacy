@@ -157,6 +157,68 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
+function legacySpool(id: string): LegacyPersistedSpoolIdentity {
+  return {
+    id,
+    grossMeasuredWeightGrams: 842.6,
+    tareWeightGrams: 210.1,
+    tareSource: 'measured_empty_support',
+  };
+}
+
+// Régression : Batch 5 utilisait une clé IndexedDB sensible à la casse. Ces quatre
+// enregistrements sont donc historiquement distincts et doivent tous rester lisibles.
+const historicalFactory = new FakeFactory();
+for (const legacy of [legacySpool('A'), legacySpool('a'), legacySpool('LegacyCase'), legacySpool('LEGACYCASE')]) {
+  historicalFactory.database.stores.get(SPOOL_IDENTITIES_STORE)!.set(
+    legacy.id,
+    structuredClone(legacy) as unknown as StoredRecord,
+  );
+}
+const historicalStore = new IndexedDbInventoryStore(
+  historicalFactory as unknown as IDBFactory,
+  'filora-v2-historical-case-test',
+);
+const historicalSnapshot = await historicalStore.getSnapshot();
+assert(historicalSnapshot.spools.length === 4, 'case-distinct Batch 5 spool ids must all survive migration');
+assert((await historicalStore.getSpool('A'))?.id === 'A', 'exact historical uppercase id must resolve exactly');
+assert((await historicalStore.getSpool('a'))?.id === 'a', 'exact historical lowercase id must resolve exactly');
+
+let ambiguousCaseLookupRejected = false;
+try {
+  await historicalStore.getSpool('legacycase');
+} catch (error) {
+  ambiguousCaseLookupRejected = error instanceof Error && error.message.includes('ID ambigu');
+}
+assert(ambiguousCaseLookupRejected, 'case-insensitive fallback must reject an ambiguous historical id');
+
+const measuredCandidate: PersistedSpoolV2 = {
+  recordVersion: 2,
+  id: 'legacycase',
+  filamentReferenceId: null,
+  purchaseDate: null,
+  openDate: null,
+  supplier: null,
+  locationId: null,
+  purchasePriceEuros: null,
+  lastDriedDate: null,
+  purchaseUrl: null,
+  supportKind: null,
+  tareWeightGrams: 210.1,
+  tareSource: 'measured_empty_support',
+  grossMeasuredWeightGrams: 842.6,
+  stockBasis: 'measured',
+  notes: null,
+};
+let newCaseCollisionRejected = false;
+try {
+  await historicalStore.createSpools([measuredCandidate]);
+} catch (error) {
+  newCaseCollisionRejected = error instanceof Error && error.message.includes('existe déjà');
+}
+assert(newCaseCollisionRejected, 'new spool ids must still reject case-insensitive collisions with historical ids');
+assert((await historicalStore.getSnapshot()).spools.length === 4, 'rejected case collision must not change historical stock');
+
 const factory = new FakeFactory();
 const legacy: LegacyPersistedSpoolIdentity = {
   id: 'batch5-recovery-001',
