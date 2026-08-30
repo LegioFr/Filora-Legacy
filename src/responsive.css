@@ -13,6 +13,26 @@
 .intro-card p { max-width: 900px; }
 .intro-facts { display: none; }
 
+/* Les différentes catégories du formulaire doivent se lire comme des blocs,
+   pas comme une longue succession de champs. */
+.form-card-head,
+.form-section-heading {
+  padding: 12px 14px;
+  border: 1px solid #25374b;
+  border-radius: 13px;
+  background: linear-gradient(90deg, rgba(14, 165, 233, .075), rgba(14, 165, 233, .018));
+  box-shadow: inset 3px 0 0 rgba(54, 197, 240, .34);
+}
+
+.form-card-head { margin-bottom: 20px; }
+.form-section-heading { margin-bottom: 18px; }
+.form-divider {
+  height: 0;
+  margin: 34px 0 18px;
+  border-top: 1px solid #29384b;
+  background: transparent;
+}
+
 .catalog-select {
   position: relative;
   width: 100%;
@@ -46,12 +66,14 @@
   position: absolute;
   z-index: 80;
   inset: calc(100% + 6px) 0 auto 0;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
   border: 1px solid #31435b;
   border-radius: 13px;
   background: #111824;
   box-shadow: 0 22px 55px rgba(0, 0, 0, .46);
   padding: 9px;
-  min-width: min(420px, 90vw);
 }
 
 .catalog-search { margin-bottom: 7px; }
@@ -197,7 +219,7 @@
   .workspace { padding: 20px 14px 48px; }
   .intro-card { padding: 18px; }
   .field-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .catalog-popover { min-width: 100%; width: min(520px, 88vw); }
+  .catalog-popover { width: 100%; min-width: 100%; max-width: 100%; }
   .color-preset-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
 }
 
@@ -205,8 +227,11 @@
   .summary-card { grid-template-columns: minmax(0, 1fr); }
   .summary-head, .spool-visual, .summary-rule, .summary-series { grid-column: auto; }
   .summary-metric { border-right: 0; padding-right: 0; }
-  .catalog-popover { position: fixed; inset: auto 10px 12px 10px; width: auto; max-height: min(72vh, 620px); }
+  .catalog-popover { position: fixed; inset: auto 10px 12px 10px; width: auto; min-width: 0; max-width: none; max-height: min(72vh, 620px); }
   .catalog-options { max-height: 38vh; }
   .color-preset-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .shortcut-list { display: grid; grid-template-columns: 1fr; }
+  .form-card-head,
+  .form-section-heading { padding: 11px 12px; }
+  .form-divider { margin-top: 28px; }
 }
