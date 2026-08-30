@@ -2,8 +2,8 @@
   "schema_version": 2,
   "current_batch": 7,
   "batch_status": "open",
-  "risk": "sensitive",
+  "risk": "critical",
   "independent_review": "pending",
-  "owner_approval": "not_required",
+  "owner_approval": "passed",
   "next_batch_allowed": false
 }
