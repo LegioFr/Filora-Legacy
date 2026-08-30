@@ -51,8 +51,8 @@ export interface PersistedSpoolV2 {
   lastDriedDate: string | null;
   purchaseUrl: string | null;
   supportKind: SupportKind;
-  tareWeightGrams: number;
-  tareSource: TareSource;
+  tareWeightGrams: number | null;
+  tareSource: TareSource | null;
   grossMeasuredWeightGrams: number | null;
   stockBasis: StockBasis;
   notes: string | null;
@@ -189,12 +189,8 @@ export function validateStorageLocation(location: StorageLocation): StorageLocat
 
 export function validatePersistedSpoolV2(spool: PersistedSpoolV2): PersistedSpoolV2 {
   const id = requireNonEmptyText(spool.id, 'ID de bobine');
-  const tareWeightGrams = requireNonNegativeFinite(spool.tareWeightGrams, 'Tare');
   const filamentReferenceId = normalizeOptionalText(spool.filamentReferenceId);
 
-  if (spool.tareSource !== 'measured_empty_support' && spool.tareSource !== 'manufacturer') {
-    throw new Error('Origine de tare invalide.');
-  }
   if (spool.supportKind !== null && spool.supportKind !== 'original' && spool.supportKind !== 'reusable') {
     throw new Error('Type de support invalide.');
   }
@@ -202,10 +198,24 @@ export function validatePersistedSpoolV2(spool: PersistedSpoolV2): PersistedSpoo
     throw new Error('Qualité de stock invalide.');
   }
 
+  const tareWeightGrams = spool.tareWeightGrams === null
+    ? null
+    : requireNonNegativeFinite(spool.tareWeightGrams, 'Tare');
+  const tareSource = spool.tareSource;
+  if (tareSource !== null && tareSource !== 'measured_empty_support' && tareSource !== 'manufacturer') {
+    throw new Error('Origine de tare invalide.');
+  }
+  if ((tareWeightGrams === null) !== (tareSource === null)) {
+    throw new Error('La tare et son origine doivent être renseignées ensemble.');
+  }
+
   let grossMeasuredWeightGrams: number | null = null;
   if (spool.stockBasis === 'measured') {
     if (spool.grossMeasuredWeightGrams === null) {
       throw new Error('Une bobine mesurée doit conserver son poids brut réellement mesuré.');
+    }
+    if (tareWeightGrams === null || tareSource === null) {
+      throw new Error('Une bobine mesurée doit conserver la tare utilisée pour le calcul.');
     }
     grossMeasuredWeightGrams = requirePositiveFinite(spool.grossMeasuredWeightGrams, 'Poids brut mesuré');
     if (tareWeightGrams > grossMeasuredWeightGrams) {
@@ -237,6 +247,7 @@ export function validatePersistedSpoolV2(spool: PersistedSpoolV2): PersistedSpoo
     lastDriedDate: normalizeOptionalText(spool.lastDriedDate),
     purchaseUrl: normalizeOptionalText(spool.purchaseUrl),
     tareWeightGrams,
+    tareSource,
     grossMeasuredWeightGrams,
     notes: normalizeOptionalText(spool.notes),
   };
@@ -279,7 +290,7 @@ export function calculateFilamentRemainingGrams(
 ): number {
   const validated = validatePersistedSpoolV2(spool);
   if (validated.stockBasis === 'measured') {
-    return Math.max(0, validated.grossMeasuredWeightGrams! - validated.tareWeightGrams);
+    return Math.max(0, validated.grossMeasuredWeightGrams! - validated.tareWeightGrams!);
   }
 
   if (reference === null || reference.id !== validated.filamentReferenceId) {
