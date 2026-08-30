@@ -43,6 +43,19 @@ function assertExactKeys(value: Record<string, unknown>, expectedKeys: readonly 
   }
 }
 
+function assertRequiredAndAllowedKeys(
+  value: Record<string, unknown>,
+  requiredKeys: readonly string[],
+  optionalKeys: readonly string[],
+  context: string,
+): void {
+  const actual = Object.keys(value);
+  const allowed = new Set([...requiredKeys, ...optionalKeys]);
+  if (requiredKeys.some((key) => !Object.prototype.hasOwnProperty.call(value, key)) || actual.some((key) => !allowed.has(key))) {
+    throw new Error(`${context} contient des champs manquants ou inconnus.`);
+  }
+}
+
 function optionalString(value: unknown, context: string): string | null {
   if (value === null) return null;
   if (typeof value !== 'string') throw new Error(`${context} doit être un texte ou null.`);
@@ -53,6 +66,11 @@ function optionalNumber(value: unknown, context: string): number | null {
   if (value === null) return null;
   if (typeof value !== 'number') throw new Error(`${context} doit être un nombre ou null.`);
   return value;
+}
+
+function optionalNumberOrMissing(value: Record<string, unknown>, key: string, context: string): number | null {
+  if (!Object.prototype.hasOwnProperty.call(value, key)) return null;
+  return optionalNumber(value[key], `${context}.${key}`);
 }
 
 function temperatureRange(value: unknown, context: string): TemperatureRangeC | null {
@@ -153,31 +171,34 @@ function validateBackupLocation(value: unknown, index: number): StorageLocation 
   return validateStorageLocation({ id: value.id, name: value.name });
 }
 
+const SPOOL_V2_REQUIRED_KEYS = [
+  'recordVersion',
+  'id',
+  'filamentReferenceId',
+  'purchaseDate',
+  'openDate',
+  'supplier',
+  'locationId',
+  'purchasePriceEuros',
+  'lastDriedDate',
+  'purchaseUrl',
+  'supportKind',
+  'tareWeightGrams',
+  'tareSource',
+  'grossMeasuredWeightGrams',
+  'stockBasis',
+  'notes',
+] as const;
+
+const SPOOL_V2_OPTIONAL_KEYS = [
+  'preferredNozzleTemperatureC',
+  'preferredBedTemperatureC',
+] as const;
+
 function validateBackupSpoolV2(value: unknown, index: number): PersistedSpoolV2 {
   const context = `Bobine ${index + 1}`;
   if (!isRecord(value)) throw new Error(`${context} : structure invalide.`);
-  assertExactKeys(
-    value,
-    [
-      'recordVersion',
-      'id',
-      'filamentReferenceId',
-      'purchaseDate',
-      'openDate',
-      'supplier',
-      'locationId',
-      'purchasePriceEuros',
-      'lastDriedDate',
-      'purchaseUrl',
-      'supportKind',
-      'tareWeightGrams',
-      'tareSource',
-      'grossMeasuredWeightGrams',
-      'stockBasis',
-      'notes',
-    ],
-    context,
-  );
+  assertRequiredAndAllowedKeys(value, SPOOL_V2_REQUIRED_KEYS, SPOOL_V2_OPTIONAL_KEYS, context);
   if (value.recordVersion !== 2 || typeof value.id !== 'string') {
     throw new Error(`${context} : version ou ID invalide.`);
   }
@@ -211,6 +232,8 @@ function validateBackupSpoolV2(value: unknown, index: number): PersistedSpoolV2 
     tareSource: optionalString(value.tareSource, `${context}.tareSource`) as PersistedSpoolV2['tareSource'],
     grossMeasuredWeightGrams: value.grossMeasuredWeightGrams,
     stockBasis: value.stockBasis as PersistedSpoolV2['stockBasis'],
+    preferredNozzleTemperatureC: optionalNumberOrMissing(value, 'preferredNozzleTemperatureC', context),
+    preferredBedTemperatureC: optionalNumberOrMissing(value, 'preferredBedTemperatureC', context),
     notes: optionalString(value.notes, `${context}.notes`),
   });
 }
