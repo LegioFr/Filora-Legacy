@@ -94,23 +94,36 @@ const spool: PersistedSpoolV2 = {
   stockBasis: 'measured',
   notes: 'Bobine de test',
 };
+const nominalWithoutTare: PersistedSpoolV2 = {
+  ...spool,
+  id: 'SP-0069',
+  tareWeightGrams: null,
+  tareSource: null,
+  grossMeasuredWeightGrams: null,
+  stockBasis: 'nominal',
+  notes: 'Bobine neuve non pesée',
+};
 
 const store = new MemoryInventoryStore({
   filamentReferences: [reference],
   locations: [location],
-  spools: [spool],
+  spools: [spool, nominalWithoutTare],
 });
 const backup = await createInventoryBackup(store);
 assert(backup.version === 2, 'new inventory backup must use version 2');
 assert(backup.filamentReferences.length === 1, 'v2 backup must include filament references');
 assert(backup.locations.length === 1, 'v2 backup must include locations');
-assert(backup.spools.length === 1, 'v2 backup must include spools');
+assert(backup.spools.length === 2, 'v2 backup must include all spools');
 assert(!('filamentRemainingGrams' in backup.spools[0]!), 'derived remaining filament must not become persisted backup authority');
+assert(backup.spools[1]?.tareWeightGrams === null, 'unknown nominal tare must remain null in backup');
+assert(backup.spools[1]?.tareSource === null, 'unknown nominal tare source must remain null in backup');
 
 const json = await createInventoryBackupJson(store);
 const parsedV2 = parseInventoryBackupJson(json);
 assert(parsedV2.sourceVersion === 2, 'v2 backup must be recognized as v2');
 assert(parsedV2.snapshot.spools[0]?.filamentReferenceId === reference.id, 'v2 relation must survive JSON round trip');
+assert(parsedV2.snapshot.spools[1]?.stockBasis === 'nominal', 'nominal stock basis must survive JSON round trip');
+assert(parsedV2.snapshot.spools[1]?.tareWeightGrams === null, 'unknown tare must survive JSON round trip');
 
 const legacyJson = JSON.stringify({
   format: 'filora-backup',
@@ -153,6 +166,7 @@ const restored = await restoreInventoryBackup(replacementStore, backup);
 assert(restored.sourceVersion === 2, 'restore must report validated source version');
 const restoredSnapshot = await replacementStore.getSnapshot();
 assert(restoredSnapshot.spools[0]?.id === 'SP-0068', 'restore must replace with validated spool data');
+assert(restoredSnapshot.spools[1]?.tareWeightGrams === null, 'restore must preserve unknown nominal tare');
 assert(restoredSnapshot.filamentReferences[0]?.brand === 'Polymaker', 'restore must include reference data');
 assert(restoredSnapshot.locations[0]?.name === 'Atelier', 'restore must include location data');
 
