@@ -13,6 +13,27 @@
   pointer-events: none;
 }
 
+.pwa-install-button {
+  position: fixed;
+  top: max(48px, calc(env(safe-area-inset-top) + 48px));
+  right: 10px;
+  z-index: 1200;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #d5d5cf;
+  border-radius: 10px;
+  background: #fff;
+  color: #1a1a1a;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+  font: 700 13px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.pwa-install-button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
 .pwa-update-prompt {
   position: fixed;
   right: 16px;
@@ -58,6 +79,10 @@
 }
 
 @media (max-width: 560px) {
+  .pwa-install-button {
+    top: max(46px, calc(env(safe-area-inset-top) + 46px));
+  }
+
   .pwa-update-prompt {
     left: 12px;
     right: 12px;

@@ -15,15 +15,17 @@ function manifestSource(): string {
   const test = channel === 'test'
   const prefix = test ? 'filora-test' : 'filora'
   return JSON.stringify({
-    id: '/',
+    id: test ? '/filora-test' : '/filora',
     name: test ? 'Filora Test' : 'Filora',
     short_name: test ? 'Filora Test' : 'Filora',
     description: test
       ? 'Version de validation de Filora.'
       : 'Gestion locale du stock de filament.',
+    lang: 'fr-FR',
     start_url: '/',
     scope: '/',
     display: 'standalone',
+    prefer_related_applications: false,
     background_color: test ? '#14181f' : '#f5f5f0',
     theme_color: test ? '#14181f' : '#f5f5f0',
     icons: [
@@ -31,13 +33,13 @@ function manifestSource(): string {
         src: `/icons/${prefix}-192.png`,
         sizes: '192x192',
         type: 'image/png',
-        purpose: 'any maskable',
+        purpose: 'any',
       },
       {
         src: `/icons/${prefix}-512.png`,
         sizes: '512x512',
         type: 'image/png',
-        purpose: 'any maskable',
+        purpose: 'any',
       },
     ],
   }, null, 2)

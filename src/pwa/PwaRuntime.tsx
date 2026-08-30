@@ -1,10 +1,38 @@
 import { useEffect, useState } from 'react'
-import { FILORA_BUILD_ID, FILORA_CHANNEL } from './channel'
+import { FILORA_APP_NAME, FILORA_BUILD_ID, FILORA_CHANNEL } from './channel'
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
+
 export function PwaRuntime() {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null)
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [installed, setInstalled] = useState(() => window.matchMedia('(display-mode: standalone)').matches)
+  const [installing, setInstalling] = useState(false)
+
+  useEffect(() => {
+    const onBeforeInstallPrompt = (event: Event) => {
+      const promptEvent = event as BeforeInstallPromptEvent
+      promptEvent.preventDefault()
+      setInstallPrompt(promptEvent)
+    }
+    const onAppInstalled = () => {
+      setInstalled(true)
+      setInstallPrompt(null)
+    }
+
+    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+    window.addEventListener('appinstalled', onAppInstalled)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', onAppInstalled)
+    }
+  }, [])
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return undefined
@@ -68,6 +96,18 @@ export function PwaRuntime() {
     }
   }, [])
 
+  async function requestInstall() {
+    if (!installPrompt || installing) return
+    setInstalling(true)
+    try {
+      await installPrompt.prompt()
+      await installPrompt.userChoice
+      setInstallPrompt(null)
+    } finally {
+      setInstalling(false)
+    }
+  }
+
   function applyUpdate() {
     if (!waitingWorker) return
 
@@ -86,6 +126,16 @@ export function PwaRuntime() {
     <>
       {FILORA_CHANNEL === 'test' ? (
         <div className="pwa-channel-badge" aria-label="Version de test">TEST</div>
+      ) : null}
+      {installPrompt && !installed ? (
+        <button
+          className="pwa-install-button"
+          type="button"
+          onClick={() => { void requestInstall() }}
+          disabled={installing}
+        >
+          {installing ? 'Installation…' : `Installer ${FILORA_APP_NAME}`}
+        </button>
       ) : null}
       {waitingWorker ? (
         <aside className="pwa-update-prompt" role="status" aria-live="polite">
