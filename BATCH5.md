@@ -168,33 +168,30 @@ Les tests doivent couvrir au minimum :
 15. échec volontaire pendant la transaction de restauration, avec preuve qu'aucun état partiellement restauré n'est accepté comme succès ;
 16. non-régression du calcul du filament disponible à partir des faits restaurés.
 
-## Validation humaine réelle attendue
+## Validation humaine réelle acquise
 
-### Jalon humain requis — EN ATTENTE
+### Jalon humain requis — VALIDÉ
 
-La validation humaine doit porter sur les appareils réellement utilisés pour Filora :
+Validation humaine effectuée le 2026-08-30 sur les trois appareils réellement utilisés pour Filora :
 
-- tablette ;
-- PC ;
-- mobile.
+- **tablette : validée** ;
+- **PC : validé** ;
+- **mobile : validé**.
 
-Sur chacun, vérifier réellement dans le navigateur ciblé :
+La validation couvre le téléchargement réel du fichier `.json`, son accès depuis le sélecteur de fichier du navigateur/système, sa lecture et sa validation, la confirmation explicite du remplacement, la restauration et la vérification de l'état restauré dans le scénario applicable.
 
-1. création ou présence d'un petit stock de test identifiable ;
-2. téléchargement du fichier `.json` ;
-3. accès au fichier téléchargé depuis le sélecteur de fichier du navigateur/système ;
-4. lecture et validation de la sauvegarde ;
-5. affichage du nombre de bobines avant confirmation ;
-6. confirmation explicite du remplacement ;
-7. restauration réussie ;
-8. rechargement complet de l'application ;
-9. présence des mêmes identités et valeurs persistées.
+La tablette a également servi à la démonstration canonique complète de récupération. La sauvegarde de référence contenait deux bobines identifiables :
 
-Au moins une démonstration complète de récupération doit respecter explicitement le contrat canonique :
+- `batch5-recovery-001` : poids brut `842,6 g`, tare `210,1 g`, origine `measured_empty_support`, disponible recalculé `632,5 g` ;
+- `batch5-recovery-002` : poids brut `850,96 g`, tare `150,47 g`, origine `measured_empty_support`, disponible recalculé `700,49 g`.
 
-`export → effacement volontaire des données locales Filora → réimport → comparaison de l'état restauré`.
+La séquence démontrée a été :
 
-L'effacement utilisé pour cette preuve peut être réalisé par les contrôles du navigateur/appareil ; il n'est pas nécessaire d'ajouter un bouton destructif permanent à l'application uniquement pour le test.
+`export → effacement volontaire des données locales Filora → constat d'un stock à 0 bobine → sélection et validation du fichier sans mutation → confirmation explicite → réimport → comparaison de l'état restauré`.
+
+Après sélection du bon fichier, Filora a annoncé une sauvegarde valide de 2 bobines alors que le stock restait vide avant confirmation. Après confirmation, les deux identités et leurs valeurs persistées ont été restaurées et les quantités disponibles recalculées correspondaient aux valeurs attendues.
+
+Cette preuve couvre le périmètre persistant du Batch 5. Elle ne vaut pas automatiquement pour de futurs types de données persistantes, qui devront à leur tour être intégrés aux garanties de sauvegarde/restauration.
 
 ## Hors périmètre
 

@@ -11,7 +11,7 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 - stage: Batch 5 — sauvegarde et restauration du stock local
 - status: en validation
 - git: lire les HEAD, PR, workflows, artefacts, rulesets et Issues courants directement depuis GitHub ; ne pas mémoriser ici les SHA ou PR volatiles
-- next_action: obtenir les contrôles CI applicables, puis les validations réelles tablette, PC et mobile, la preuve complète de recovery et la revue indépendante avant toute intégration du Batch 5
+- next_action: obtenir la revue indépendante sur le candidat exact après vérification de sa CI, traiter tout finding éventuel, puis seulement proposer l’intégration du Batch 5 à `test-preview`
 
 ## État courant
 
@@ -22,7 +22,7 @@ Il ne remplace pas les documents canoniques ni l’état réel de GitHub. En cas
 - **Batch 2 :** clôturé, validé et promu vers `main`.
 - **Batch 3 :** clôturé, validé et intégré à `test-preview` ; il n’est pas encore promu vers `main`.
 - **Batch 4 :** clôturé, validé et intégré à `test-preview`.
-- **Batch 5 :** en validation ; jalon humain en attente, revue indépendante en attente, intégration interdite tant que les preuves requises ne sont pas acquises.
+- **Batch 5 :** en validation ; jalon humain validé, preuve complète de recovery acquise, revue indépendante en attente, intégration interdite tant que les preuves restantes ne sont pas acquises.
 - **Issues/findings GitHub ouverts pertinents :** aucun au dernier contrôle ; revérifier GitHub avant toute clôture ou intégration.
 - **Protection externe GitHub :** un ruleset actif protège `main` et `test-preview`, exige une PR et le check `sentinel`, interdit les suppressions et force-push, et réserve le bypass administrateur au chemin PR explicite.
 - **Garde-fous permanents de revue IA :** actifs dans `DEVELOPMENT.md` et leurs contrôles associés.
@@ -61,33 +61,38 @@ Le candidat du Batch 5 ajoute, sans migration IndexedDB ni nouvelle dépendance 
 - une interface de téléchargement, sélection, validation, confirmation et restauration ;
 - des tests automatisés couvrant les principaux chemins nominaux et d’échec, y compris l’atomicité simulée.
 
-Ces éléments sont **implémentés mais pas encore validés comme Batch clôturé**. Les contrôles CI complets, les essais réels multi-appareil, la preuve canonique de recovery et la revue indépendante restent à acquérir.
+Ces éléments sont **implémentés mais pas encore validés comme Batch clôturé**. La CI complète du candidat précédent à la présente synchronisation était verte. Les validations humaines réelles sur tablette, PC et mobile sont acquises, ainsi que la démonstration canonique complète de recovery sur tablette. La présente synchronisation documentaire change le SHA candidat et doit donc repasser la CI avant la revue indépendante. La revue indépendante et l’intégration restent à acquérir.
 
-## Preuves encore requises pour le Batch 5
+## Preuves acquises et encore requises pour le Batch 5
 
-Avant toute intégration à `test-preview`, il reste notamment à obtenir :
+Acquis :
 
-1. CI applicable verte, incluant guard, architecture, tests, typecheck et build ;
-2. validation réelle du téléchargement, du sélecteur de fichier, de la restauration et de la persistance après rechargement sur tablette, PC et mobile ;
-3. au moins une démonstration complète `export → effacement volontaire des données locales Filora → réimport → comparaison de l’état restauré` ;
-4. revue indépendante adaptée au niveau Sensible sur le candidat exact ;
-5. absence de finding bloquant non traité.
+1. CI complète verte sur le candidat fonctionnel avant la présente synchronisation documentaire, incluant guard, architecture, tests, typecheck et build ;
+2. validation réelle sur tablette, PC et mobile ;
+3. démonstration complète sur tablette `export → effacement volontaire des données locales Filora → réimport → comparaison de l’état restauré` ;
+4. fichier de sauvegarde versionné réel vérifié avec deux bobines et conservation des valeurs décimales.
+
+Encore requis avant intégration à `test-preview` :
+
+1. CI applicable verte sur le nouveau SHA exact après la présente synchronisation documentaire ;
+2. revue indépendante adaptée au niveau Sensible sur ce candidat exact ;
+3. absence de finding bloquant non traité au moment de la décision d’intégration.
 
 ## Findings / Issues pertinents
 
 - Issue #21 — fermée.
 - Issue #46 — fermée.
 - Issue #8 — fermée `not_planned`.
-- **Tests IndexedDB simulés : accepté avec preuve complémentaire.** Les tests automatisés doivent être complétés par une validation réelle navigateur/appareil.
+- **Tests IndexedDB simulés : accepté avec preuve complémentaire acquise.** Les tests automatisés sont complétés par la validation réelle navigateur/appareil du Batch 5.
 - **Encodage implicite du guard sous Windows : reporté hors Batch 5.** Défaut préexistant sans lien avec l’intention métier du Batch.
 - **Ancien décalage de `PROJECT_STATE.md` après les règles Codex : traité par la présente synchronisation.** Les règles Codex locale et de préflight sont désormais canoniques dans `DEVELOPMENT.md`.
 - **Issues/findings GitHub ouverts pertinents au dernier contrôle : aucun.**
 
 ## Réserves / limites connues
 
-- Filora ne possède pas encore la preuve complète de recovery exigée par `DATA.md` ; il ne doit donc pas encore être considéré comme source principale de données réelles.
+- La preuve complète de recovery est acquise pour le périmètre persistant actuellement couvert par le Batch 5 ; elle ne vaut pas automatiquement pour de futurs types de données persistantes.
 - Les consommations, corrections, pesées successives, recalages et historiques ne sont pas encore implémentés.
-- La validation Preview du Batch 5 n’est pas encore acquise.
+- La validation Preview du Batch 5 est acquise sur tablette, PC et mobile ; la revue indépendante reste en attente.
 - Les Batch 3 et 4 ne sont pas encore promus vers `main` ; aucune promotion n’est implicite.
 - Le Batch 5 ne prévoit ni migration de schéma, ni cloud, ni synchronisation, ni historique de sauvegardes.
 
@@ -133,12 +138,11 @@ Les consommations, l’historique des mouvements, les recalages successifs, l’
 
 ## Prochaine action
 
-1. laisser la PR du Batch 5 exécuter les contrôles CI sur le candidat mis en cohérence ;
-2. traiter en une fois tout éventuel blocage déterministe restant avant nouvelle mise à jour de PR ;
-3. après CI verte, effectuer les validations réelles sur tablette, PC et mobile ;
-4. réaliser la démonstration complète de recovery ;
-5. obtenir la revue indépendante du candidat exact ;
-6. ne proposer l’intégration à `test-preview` qu’après acquisition de toutes les preuves applicables.
+1. laisser le nouveau SHA documentaire du Batch 5 repasser les contrôles CI ;
+2. une fois la CI verte, obtenir la revue indépendante du candidat exact ;
+3. traiter explicitement tout finding éventuel sans élargir le périmètre inutilement ;
+4. revérifier les Issues/findings ouverts ;
+5. ne proposer l’intégration à `test-preview` qu’après revue conforme sans bloquant non traité.
 
 ## Règles opérationnelles Codex sous Windows
 
