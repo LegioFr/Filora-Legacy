@@ -24,6 +24,7 @@ import {
 } from './catalogPresentation';
 
 const NOMINAL_WEIGHT_OPTIONS = ['250', '500', '750', '1000', '2000', '3000', '5000'] as const;
+const PERSONAL_COLOR_HEX_PREFIX = 'filora.catalog.color-hex.v1:';
 
 export interface ReferenceDraft {
   brand: string;
@@ -142,6 +143,40 @@ function normalizeHex(value: string): string | null {
   return trimmed.toUpperCase();
 }
 
+function catalogScope(...values: string[]): string {
+  return values
+    .map((value) => encodeURIComponent(value.trim().toLocaleLowerCase('fr-FR')))
+    .join('|');
+}
+
+function personalColorHexKey(brand: string, material: string, manufacturerType: string, manufacturerColor: string): string {
+  return `${PERSONAL_COLOR_HEX_PREFIX}${catalogScope(brand, material, manufacturerType, manufacturerColor)}`;
+}
+
+function readPersonalColorHex(brand: string, material: string, manufacturerType: string, manufacturerColor: string): string | null {
+  if (!brand || !material || !manufacturerType || !manufacturerColor) return null;
+  try {
+    const value = globalThis.localStorage?.getItem(personalColorHexKey(brand, material, manufacturerType, manufacturerColor)) ?? '';
+    return /^#[0-9a-f]{6}$/i.test(value) ? value.toUpperCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistPersonalColorHex(brand: string, material: string, manufacturerType: string, manufacturerColor: string, colorHex: string): void {
+  if (!brand || !material || !manufacturerType || !manufacturerColor) return;
+  try {
+    const key = personalColorHexKey(brand, material, manufacturerType, manufacturerColor);
+    if (/^#[0-9a-f]{6}$/i.test(colorHex.trim())) {
+      globalThis.localStorage?.setItem(key, colorHex.trim().toUpperCase());
+    } else if (!colorHex.trim()) {
+      globalThis.localStorage?.removeItem(key);
+    }
+  } catch {
+    // Le catalogue personnel est une aide locale : une indisponibilité du storage ne bloque pas le formulaire.
+  }
+}
+
 export function buildReference(draft: ReferenceDraft, id: string): FilamentReference {
   const printSettings: PrintSettings = {
     chamberTemperatureC: optionalDecimal(draft.chamberTemperatureC, 'Température chambre'),
@@ -244,6 +279,11 @@ export function ReferenceFields({
     ? getManufacturerColors(draft.brand, draft.manufacturerType, existingReferences, draft.material)
     : [];
   const colorValue = /^#[0-9a-f]{6}$/i.test(draft.colorHex) ? draft.colorHex : '#38BDF8';
+  const materialPersistenceKey = draft.brand ? `material:${catalogScope(draft.brand)}` : undefined;
+  const typePersistenceKey = draft.brand && draft.material ? `type:${catalogScope(draft.brand, draft.material)}` : undefined;
+  const colorPersistenceKey = draft.brand && draft.material && draft.manufacturerType
+    ? `color:${catalogScope(draft.brand, draft.material, draft.manufacturerType)}`
+    : undefined;
 
   function chooseBrand(brand: string) {
     const supportedMaterials = getMaterialOptions(existingReferences, brand);
@@ -280,6 +320,12 @@ export function ReferenceFields({
   }
 
   function chooseColor(manufacturerColor: string) {
+    const personalHex = readPersonalColorHex(
+      draft.brand,
+      draft.material,
+      draft.manufacturerType,
+      manufacturerColor,
+    );
     const catalogHex = getVerifiedManufacturerColorHex(
       draft.brand,
       draft.manufacturerType,
@@ -290,8 +336,19 @@ export function ReferenceFields({
     onChange({
       ...draft,
       manufacturerColor,
-      colorHex: catalogHex ?? '',
+      colorHex: personalHex ?? catalogHex ?? '',
     });
+  }
+
+  function chooseColorHex(colorHex: string) {
+    persistPersonalColorHex(
+      draft.brand,
+      draft.material,
+      draft.manufacturerType,
+      draft.manufacturerColor,
+      colorHex,
+    );
+    onChange({ ...draft, colorHex });
   }
 
   return (
@@ -299,15 +356,15 @@ export function ReferenceFields({
       <div className="field-grid field-grid-3">
         <label className="field">
           <span>Marque <b>obligatoire</b></span>
-          <CatalogSelect value={draft.brand} options={brandOptions} placeholder="Sélectionner une marque…" onChange={chooseBrand} customPlaceholder="Ajouter une marque…" ariaLabel="Marque" />
+          <CatalogSelect value={draft.brand} options={brandOptions} placeholder="Sélectionner une marque…" onChange={chooseBrand} customPlaceholder="Ajouter une marque…" ariaLabel="Marque" persistenceKey="brand" />
         </label>
         <label className="field">
           <span>Matière <b>obligatoire</b></span>
-          <CatalogSelect value={draft.material} options={materialOptions} placeholder="Sélectionner une matière…" onChange={chooseMaterial} customPlaceholder="Ajouter une matière…" ariaLabel="Matière" />
+          <CatalogSelect value={draft.material} options={materialOptions} placeholder="Sélectionner une matière…" onChange={chooseMaterial} customPlaceholder="Ajouter une matière…" ariaLabel="Matière" persistenceKey={materialPersistenceKey} />
         </label>
         <label className="field">
           <span>Diamètre <b>mm</b></span>
-          <CatalogSelect value={draft.diameterMm} options={diameterOptions} placeholder="Sélectionner…" onChange={(diameterMm) => onChange({ ...draft, diameterMm })} customPlaceholder="Autre diamètre…" ariaLabel="Diamètre" />
+          <CatalogSelect value={draft.diameterMm} options={diameterOptions} placeholder="Sélectionner…" onChange={(diameterMm) => onChange({ ...draft, diameterMm })} customPlaceholder="Autre diamètre…" ariaLabel="Diamètre" persistenceKey="diameter" />
         </label>
       </div>
 
@@ -324,11 +381,12 @@ export function ReferenceFields({
             customPlaceholder="Ajouter une gamme / un type…"
             disabled={!draft.brand || !draft.material}
             ariaLabel="Gamme ou type de filament fabricant"
+            persistenceKey={typePersistenceKey}
           />
         </label>
         <label className="field">
           <span>Couleur fabricant</span>
-          <CatalogSelect value={draft.manufacturerColor} options={colorOptions} placeholder={draft.brand && draft.material && draft.manufacturerType ? 'Sélectionner une couleur…' : 'Sélectionner d’abord une gamme…'} onChange={chooseColor} customPlaceholder="Ajouter une couleur…" disabled={!draft.brand || !draft.material || !draft.manufacturerType} ariaLabel="Couleur fabricant" />
+          <CatalogSelect value={draft.manufacturerColor} options={colorOptions} placeholder={draft.brand && draft.material && draft.manufacturerType ? 'Sélectionner une couleur…' : 'Sélectionner d’abord une gamme…'} onChange={chooseColor} customPlaceholder="Ajouter une couleur…" disabled={!draft.brand || !draft.material || !draft.manufacturerType} ariaLabel="Couleur fabricant" persistenceKey={colorPersistenceKey} />
         </label>
       </div>
 
@@ -336,19 +394,19 @@ export function ReferenceFields({
         <label className="field color-picker-field">
           <span>Aperçu couleur</span>
           <div className="color-control">
-            <input className="color-picker" type="color" value={colorValue} onChange={set('colorHex')} />
-            <input className="color-code" value={draft.colorHex} onChange={set('colorHex')} placeholder="#38BDF8" />
+            <input className="color-picker" type="color" value={colorValue} onChange={(event) => chooseColorHex(event.target.value)} />
+            <input className="color-code" value={draft.colorHex} onChange={(event) => chooseColorHex(event.target.value)} placeholder="#38BDF8" />
           </div>
         </label>
         <label className="field">
           <span>Poids nominal <b>g</b></span>
-          <CatalogSelect value={draft.nominalWeightGrams} options={nominalWeightOptions} placeholder="Sélectionner un poids…" onChange={(nominalWeightGrams) => onChange({ ...draft, nominalWeightGrams })} customPlaceholder="Autre poids en grammes…" ariaLabel="Poids nominal" />
+          <CatalogSelect value={draft.nominalWeightGrams} options={nominalWeightOptions} placeholder="Sélectionner un poids…" onChange={(nominalWeightGrams) => onChange({ ...draft, nominalWeightGrams })} customPlaceholder="Autre poids en grammes…" ariaLabel="Poids nominal" persistenceKey="nominal-weight" />
         </label>
       </div>
 
       <div className="color-preset-grid" aria-label="Palette de couleurs rapides">
         {COLOR_PRESETS.map((hex) => (
-          <button key={hex} className={hex.toUpperCase() === draft.colorHex.toUpperCase() ? 'selected' : ''} type="button" aria-label={`Utiliser la couleur ${hex}`} title={hex} style={{ background: hex }} onClick={() => onChange({ ...draft, colorHex: hex })} />
+          <button key={hex} className={hex.toUpperCase() === draft.colorHex.toUpperCase() ? 'selected' : ''} type="button" aria-label={`Utiliser la couleur ${hex}`} title={hex} style={{ background: hex }} onClick={() => chooseColorHex(hex)} />
         ))}
       </div>
 
