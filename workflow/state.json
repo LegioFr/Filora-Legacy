@@ -4,6 +4,6 @@
   "batch_status": "open",
   "risk": "critical",
   "independent_review": "pending",
-  "owner_approval": "passed",
+  "owner_approval": "obtained",
   "next_batch_allowed": false
 }
