@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
-    "build": "npm run test:persistence && tsc --noEmit && vite build",
+    "build": "npm run test:model && npm run test:persistence && tsc --noEmit && vite build",
     "check:architecture": "python3 tools/check_architecture.py src",
+    "test:model": "rm -rf .tmp-model-tests && tsc --ignoreConfig --outDir .tmp-model-tests --noEmit false --target ES2022 --module NodeNext --moduleResolution NodeNext --lib ES2022,DOM --skipLibCheck true tests/spool_model_check.ts src/domains/spools/model.ts && node .tmp-model-tests/tests/spool_model_check.js && rm -rf .tmp-model-tests",
     "test:persistence": "rm -rf .tmp-persistence-tests && tsc --ignoreConfig --outDir .tmp-persistence-tests --noEmit false --target ES2022 --module NodeNext --moduleResolution NodeNext --lib ES2022,DOM --skipLibCheck true tests/persistence_check.ts src/domains/spools/persistence/SpoolIdentityStore.ts src/domains/spools/persistence/IndexedDbSpoolIdentityStore.ts && node .tmp-persistence-tests/tests/persistence_check.js && rm -rf .tmp-persistence-tests"
   },
   "dependencies": {
@@ -17,7 +18,6 @@
   "devDependencies": {
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
-    "@vitejs/plugin-react": "6.1.0",
     "typescript": "7.0.2",
     "vite": "8.2.2"
   }
