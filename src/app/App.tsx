@@ -22,6 +22,17 @@ import {
   reassignSpoolReference,
   updateSharedFilamentReference,
 } from '../domains/spools/referenceActions';
+import { CatalogSelect } from './CatalogSelect';
+import {
+  MATERIAL_PRINT_DEFAULTS,
+  buildShortcutPresets,
+  emptySpoolPresetLabel,
+  getEmptySpoolPresets,
+  getLocationOptions,
+  getSupplierOptions,
+  getTemperatureDefaults,
+  type ShortcutPreset,
+} from './filamentCatalog';
 import {
   buildReference,
   emptyReferenceDraft,
@@ -52,6 +63,7 @@ interface SpoolDraft {
   supportKind: FormSupportKind;
   tareSource: TareSource;
   tareWeightGrams: string;
+  tarePresetLabel: string;
   stockBasis: StockBasis;
   grossMeasuredWeightGrams: string;
   quantity: string;
@@ -72,6 +84,7 @@ interface ReassignDialog {
 }
 
 const EMPTY_SNAPSHOT: InventorySnapshot = { filamentReferences: [], locations: [], spools: [] };
+const MANUAL_TARE_LABEL = 'Tare personnalisée / bobine vide pesée manuellement';
 
 function emptySpoolDraft(): SpoolDraft {
   return {
@@ -87,6 +100,7 @@ function emptySpoolDraft(): SpoolDraft {
     supportKind: 'original',
     tareSource: 'measured_empty_support',
     tareWeightGrams: '',
+    tarePresetLabel: MANUAL_TARE_LABEL,
     stockBasis: 'nominal',
     grossMeasuredWeightGrams: '',
     quantity: '1',
@@ -145,7 +159,7 @@ function optionalUrl(value: string): string | null {
     const url = new URL(trimmed);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error();
   } catch {
-    throw new Error("Le lien de rachat doit être une URL http(s) valide.");
+    throw new Error('Le lien de rachat doit être une URL http(s) valide.');
   }
   return trimmed;
 }
@@ -178,13 +192,17 @@ function supportLabel(kind: SupportKind): string {
 }
 
 function backupFileName(): string {
-  return `filora-backup-v2-${new Date().toISOString().slice(0, 10)}.json`;
+  return `filora-backup-${new Date().toISOString().slice(0, 10)}.json`;
 }
 
 function referenceLabel(reference: FilamentReference): string {
   return [reference.brand, reference.manufacturerType, reference.manufacturerColor]
     .filter(Boolean)
     .join(' · ');
+}
+
+function sameText(left: string, right: string): boolean {
+  return left.trim().localeCompare(right.trim(), 'fr', { sensitivity: 'base' }) === 0;
 }
 
 export function App() {
@@ -225,6 +243,21 @@ export function App() {
     [snapshot.filamentReferences, selectedReferenceId],
   );
 
+  const shortcuts = useMemo(
+    () => buildShortcutPresets(snapshot.filamentReferences, snapshot.spools, 4).filter((item) => item.count >= 2),
+    [snapshot.filamentReferences, snapshot.spools],
+  );
+  const supplierOptions = useMemo(() => getSupplierOptions(snapshot.spools), [snapshot.spools]);
+  const locationOptions = useMemo(() => getLocationOptions(snapshot.locations), [snapshot.locations]);
+  const tarePresets = useMemo(
+    () => getEmptySpoolPresets(referenceMode === 'existing' ? selectedReference?.brand ?? '' : referenceDraft.brand),
+    [referenceDraft.brand, referenceMode, selectedReference?.brand],
+  );
+  const tarePresetOptions = useMemo(
+    () => [MANUAL_TARE_LABEL, ...tarePresets.map(emptySpoolPresetLabel)],
+    [tarePresets],
+  );
+
   const measuredCount = snapshot.spools.filter((spool) => spool.stockBasis === 'measured').length;
   const legacyCount = snapshot.spools.filter((spool) => spool.filamentReferenceId === null).length;
 
@@ -258,8 +291,71 @@ export function App() {
     ? selectedReference ? referenceLabel(selectedReference) : 'Choisir une référence'
     : [referenceDraft.brand || 'Nouvelle référence', referenceDraft.manufacturerColor].filter(Boolean).join(' · ');
 
+  const selectedLocationName = spoolDraft.locationMode === 'existing'
+    ? snapshot.locations.find((location) => location.id === spoolDraft.existingLocationId)?.name ?? ''
+    : spoolDraft.locationMode === 'new' ? spoolDraft.newLocationName : '';
+
   function patchSpool<K extends keyof SpoolDraft>(key: K, value: SpoolDraft[K]) {
     setSpoolDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function applyShortcut(shortcut: ShortcutPreset) {
+    const temps = getTemperatureDefaults(shortcut.brand, shortcut.manufacturerType, shortcut.material);
+    const print = MATERIAL_PRINT_DEFAULTS[shortcut.material] ?? {};
+    setReferenceMode('new');
+    setSelectedReferenceId('');
+    setReferenceDraft((current) => ({
+      ...current,
+      brand: shortcut.brand,
+      material: shortcut.material,
+      diameterMm: String(shortcut.diameterMm),
+      manufacturerType: shortcut.manufacturerType,
+      manufacturerColor: '',
+      colorHex: '#38BDF8',
+      nozzleMin: temps ? String(temps.nozzle[0]) : current.nozzleMin,
+      nozzleMax: temps ? String(temps.nozzle[1]) : current.nozzleMax,
+      bedMin: temps ? String(temps.bed[0]) : current.bedMin,
+      bedMax: temps ? String(temps.bed[1]) : current.bedMax,
+      printSpeedMmPerSecond: current.printSpeedMmPerSecond || print.printSpeedMmPerSecond || '',
+      flowPercent: current.flowPercent || print.flowPercent || '',
+      flowRatio: current.flowRatio || print.flowRatio || '',
+      fanPercent: current.fanPercent || print.fanPercent || '',
+      retractionMm: current.retractionMm || print.retractionMm || '',
+      retractionSpeedMmPerSecond: current.retractionSpeedMmPerSecond || print.retractionSpeedMmPerSecond || '',
+    }));
+  }
+
+  function chooseLocation(name: string) {
+    if (!name.trim()) {
+      setSpoolDraft((current) => ({ ...current, locationMode: 'none', existingLocationId: '', newLocationName: '' }));
+      return;
+    }
+    const existing = snapshot.locations.find((location) => sameText(location.name, name));
+    if (existing) {
+      setSpoolDraft((current) => ({ ...current, locationMode: 'existing', existingLocationId: existing.id, newLocationName: '' }));
+    } else {
+      setSpoolDraft((current) => ({ ...current, locationMode: 'new', existingLocationId: '', newLocationName: name }));
+    }
+  }
+
+  function chooseTarePreset(label: string) {
+    if (label === MANUAL_TARE_LABEL) {
+      setSpoolDraft((current) => ({
+        ...current,
+        tarePresetLabel: label,
+        tareSource: 'measured_empty_support',
+        tareWeightGrams: '',
+      }));
+      return;
+    }
+    const preset = tarePresets.find((item) => emptySpoolPresetLabel(item) === label);
+    if (!preset) return;
+    setSpoolDraft((current) => ({
+      ...current,
+      tarePresetLabel: label,
+      tareSource: preset.tareGrams === null ? 'measured_empty_support' : 'manufacturer',
+      tareWeightGrams: preset.tareGrams === null ? '' : String(preset.tareGrams),
+    }));
   }
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
@@ -273,16 +369,14 @@ export function App() {
       const reference = referenceMode === 'new'
         ? { kind: 'new' as const, reference: buildReference(referenceDraft, newReferenceId) }
         : { kind: 'existing' as const, id: selectedReferenceId };
+      if (reference.kind === 'existing' && !reference.id) throw new Error('Choisis une référence filament existante.');
 
       const newLocationId = entityId('LOC');
       const location = spoolDraft.locationMode === 'none'
         ? { kind: 'none' as const }
         : spoolDraft.locationMode === 'existing'
           ? { kind: 'existing' as const, id: spoolDraft.existingLocationId }
-          : {
-              kind: 'new' as const,
-              location: { id: newLocationId, name: spoolDraft.newLocationName },
-            };
+          : { kind: 'new' as const, location: { id: newLocationId, name: spoolDraft.newLocationName } };
 
       const tareWeightGrams = nonNegativeDecimal(spoolDraft.tareWeightGrams, 'Tare');
       const grossMeasuredWeightGrams = spoolDraft.stockBasis === 'measured'
@@ -372,10 +466,7 @@ export function App() {
     try {
       if (reassignDialog.mode === 'existing') {
         if (!reassignDialog.existingReferenceId) throw new Error('Choisis une référence filament.');
-        await reassignSpoolReference(store, reassignDialog.spoolId, {
-          kind: 'existing',
-          id: reassignDialog.existingReferenceId,
-        });
+        await reassignSpoolReference(store, reassignDialog.spoolId, { kind: 'existing', id: reassignDialog.existingReferenceId });
       } else {
         const reference = buildReference(reassignDialog.draft, entityId('REF'));
         await reassignSpoolReference(store, reassignDialog.spoolId, { kind: 'new', reference });
@@ -403,7 +494,7 @@ export function App() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      setBackupStatus(`Sauvegarde v2 créée : ${snapshot.spools.length} bobine${snapshot.spools.length > 1 ? 's' : ''}, ${snapshot.filamentReferences.length} référence${snapshot.filamentReferences.length > 1 ? 's' : ''}.`);
+      setBackupStatus(`Sauvegarde créée : ${snapshot.spools.length} bobine${snapshot.spools.length > 1 ? 's' : ''}, ${snapshot.filamentReferences.length} référence${snapshot.filamentReferences.length > 1 ? 's' : ''}.`);
     } catch (error) {
       setBackupStatus(error instanceof Error ? error.message : 'Impossible de créer la sauvegarde.');
     } finally {
@@ -423,9 +514,7 @@ export function App() {
       const validated = parseInventoryBackupJson(text);
       const raw = JSON.parse(text) as unknown;
       setPendingBackup({ validated, raw });
-      setBackupStatus(
-        `Sauvegarde valide (v${validated.sourceVersion}) : ${validated.snapshot.spools.length} bobine${validated.snapshot.spools.length > 1 ? 's' : ''}. Aucune donnée n'a encore été modifiée.`,
-      );
+      setBackupStatus(`Sauvegarde valide : ${validated.snapshot.spools.length} bobine${validated.snapshot.spools.length > 1 ? 's' : ''}. Aucune donnée n'a encore été modifiée.`);
     } catch (error) {
       setBackupStatus(error instanceof Error ? error.message : 'Impossible de lire cette sauvegarde.');
     } finally {
@@ -442,10 +531,10 @@ export function App() {
     setBackupBusy(true);
     setBackupStatus('');
     try {
-      const restored = await restoreInventoryBackup(store, pendingBackup.raw);
+      await restoreInventoryBackup(store, pendingBackup.raw);
       await refresh();
       setPendingBackup(null);
-      setBackupStatus(`Restauration terminée depuis une sauvegarde v${restored.sourceVersion}.`);
+      setBackupStatus('Restauration terminée.');
     } catch (error) {
       setBackupStatus(error instanceof Error ? error.message : 'La restauration a échoué.');
     } finally {
@@ -461,8 +550,7 @@ export function App() {
           <span><strong>Filora</strong><small>Filament inventory</small></span>
         </a>
         <nav className="side-nav" aria-label="Navigation principale">
-          <a className="active" href="#create"><span>＋</span> Ajouter une bobine</a>
-          <a href="#stock"><span>◎</span> Stock</a>
+          <a className="active" href="#top"><span>◎</span> Stock</a>
           <a href="#safety"><span>↗</span> Sauvegarde</a>
         </nav>
         <div className="sidebar-stats">
@@ -470,37 +558,21 @@ export function App() {
           <div><span>Mesurées</span><strong>{measuredCount}</strong></div>
           <div><span>Références</span><strong>{snapshot.filamentReferences.length}</strong></div>
         </div>
-        <p className="sidebar-note">Batch 6 · données locales IndexedDB v2</p>
       </aside>
 
       <main className="workspace" id="top">
         <header className="topbar">
-          <div>
-            <p className="eyebrow">Gestion du filament</p>
-            <h1>Stock de bobines</h1>
-          </div>
+          <div><p className="eyebrow">Gestion du filament</p><h1>Stock de bobines</h1></div>
           <a className="primary-link" href="#create">＋ Nouvelle bobine</a>
         </header>
 
         {loadError ? <div className="global-alert error" role="alert">{loadError}</div> : null}
         {legacyCount > 0 ? (
-          <div className="global-alert warning">
-            <strong>{legacyCount} bobine{legacyCount > 1 ? 's' : ''} héritée{legacyCount > 1 ? 's' : ''}</strong>
-            <span>Référence filament à compléter, sans donnée produit inventée.</span>
-          </div>
+          <div className="global-alert warning"><strong>{legacyCount} bobine{legacyCount > 1 ? 's' : ''} héritée{legacyCount > 1 ? 's' : ''}</strong><span>Référence filament à compléter, sans donnée produit inventée.</span></div>
         ) : null}
 
         <section className="intro-card">
-          <div>
-            <span className="section-kicker">Création complète</span>
-            <h2>Une référence produit, une ou plusieurs bobines physiques.</h2>
-            <p>Renseigne le filament une fois, choisis si le stock est nominal ou réellement pesé, puis Filora crée chaque exemplaire avec son propre ID.</p>
-          </div>
-          <div className="intro-facts">
-            <span><b>01</b> Produit partagé</span>
-            <span><b>02</b> Stock traçable</span>
-            <span><b>03</b> Écriture atomique</span>
-          </div>
+          <div><span className="section-kicker">Création complète</span><h2>Ajouter une bobine sans ressaisir ce que Filora connaît déjà.</h2><p>Choisis le fabricant puis sa gamme : Filora propose les couleurs correspondantes, les réglages connus et tes valeurs déjà enregistrées.</p></div>
         </section>
 
         <section className="creation-layout" id="create">
@@ -510,30 +582,31 @@ export function App() {
               <span className="required-legend">Champs essentiels indiqués</span>
             </div>
 
+            {shortcuts.length ? (
+              <div className="filament-shortcuts">
+                <span className="shortcut-label">⚡ Raccourcis selon ton stock</span>
+                <div className="shortcut-list">
+                  {shortcuts.map((shortcut) => (
+                    <button type="button" key={`${shortcut.brand}-${shortcut.material}-${shortcut.diameterMm}-${shortcut.manufacturerType}`} onClick={() => applyShortcut(shortcut)}>
+                      <strong>{shortcut.brand} · {shortcut.manufacturerType}</strong>
+                      <small>{shortcut.material} · {shortcut.diameterMm} mm · {shortcut.count} bobines</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             <div className="segmented" role="group" aria-label="Mode de référence filament">
               <button type="button" className={referenceMode === 'new' ? 'selected' : ''} onClick={() => setReferenceMode('new')}>Nouvelle référence</button>
               <button type="button" className={referenceMode === 'existing' ? 'selected' : ''} onClick={() => setReferenceMode('existing')}>Référence existante</button>
             </div>
 
             {referenceMode === 'new' ? (
-              <ReferenceFields draft={referenceDraft} onChange={setReferenceDraft} idPrefix="create" />
+              <ReferenceFields draft={referenceDraft} onChange={setReferenceDraft} idPrefix="create" existingReferences={snapshot.filamentReferences} />
             ) : (
               <div className="existing-reference-panel">
-                <label className="field">
-                  <span>Référence filament <b>obligatoire</b></span>
-                  <select value={selectedReferenceId} onChange={(event) => setSelectedReferenceId(event.target.value)}>
-                    <option value="">Sélectionner une référence…</option>
-                    {snapshot.filamentReferences.map((reference) => (
-                      <option key={reference.id} value={reference.id}>{referenceLabel(reference)} · {reference.material}</option>
-                    ))}
-                  </select>
-                </label>
-                {selectedReference ? (
-                  <div className="reference-preview">
-                    <span className="large-swatch" style={{ background: selectedReference.colorHex ?? '#334155' }} />
-                    <div><strong>{referenceLabel(selectedReference)}</strong><span>{selectedReference.material} · {selectedReference.diameterMm} mm · {formatGrams(selectedReference.nominalWeightGrams)}</span></div>
-                  </div>
-                ) : <p className="helper-text">Les données communes seront reprises sans créer de copie indépendante.</p>}
+                <label className="field"><span>Référence filament <b>obligatoire</b></span><select value={selectedReferenceId} onChange={(event) => setSelectedReferenceId(event.target.value)}><option value="">Sélectionner une référence…</option>{snapshot.filamentReferences.map((reference) => <option key={reference.id} value={reference.id}>{referenceLabel(reference)} · {reference.material}</option>)}</select></label>
+                {selectedReference ? <div className="reference-preview"><span className="large-swatch" style={{ background: selectedReference.colorHex ?? '#334155' }} /><div><strong>{referenceLabel(selectedReference)}</strong><span>{selectedReference.material} · {selectedReference.diameterMm} mm · {formatGrams(selectedReference.nominalWeightGrams)}</span></div></div> : <p className="helper-text">Les données communes seront reprises sans créer de copie indépendante.</p>}
               </div>
             )}
 
@@ -544,23 +617,13 @@ export function App() {
               <label className="field"><span>Date d’ouverture</span><input type="date" value={spoolDraft.openDate} onChange={(e) => patchSpool('openDate', e.target.value)} /></label>
             </div>
             <div className="field-grid">
-              <label className="field"><span>Fournisseur / boutique</span><input list="supplier-list" value={spoolDraft.supplier} onChange={(e) => patchSpool('supplier', e.target.value)} placeholder="Amazon, Atome3D…" /><datalist id="supplier-list"><option value="Bambu Lab" /><option value="Prusa Research" /><option value="3DJake" /><option value="Atome3D" /><option value="Polyfab3D" /><option value="Amazon" /><option value="AliExpress" /></datalist></label>
+              <label className="field"><span>Fournisseur / boutique</span><CatalogSelect value={spoolDraft.supplier} options={supplierOptions} placeholder="Sélectionner un fournisseur…" onChange={(supplier) => patchSpool('supplier', supplier)} customPlaceholder="Ajouter un fournisseur…" /></label>
               <label className="field"><span>Prix d’achat <b>€</b></span><input value={spoolDraft.purchasePriceEuros} onChange={(e) => patchSpool('purchasePriceEuros', e.target.value)} inputMode="decimal" placeholder="24,90" /></label>
             </div>
-
-            <div className="location-box">
-              <div className="location-tabs">
-                <button type="button" className={spoolDraft.locationMode === 'none' ? 'selected' : ''} onClick={() => patchSpool('locationMode', 'none')}>Sans emplacement</button>
-                <button type="button" className={spoolDraft.locationMode === 'existing' ? 'selected' : ''} onClick={() => patchSpool('locationMode', 'existing')}>Existant</button>
-                <button type="button" className={spoolDraft.locationMode === 'new' ? 'selected' : ''} onClick={() => patchSpool('locationMode', 'new')}>Nouveau</button>
-              </div>
-              {spoolDraft.locationMode === 'existing' ? (
-                <label className="field"><span>Emplacement</span><select value={spoolDraft.existingLocationId} onChange={(e) => patchSpool('existingLocationId', e.target.value)}><option value="">Sélectionner…</option>{snapshot.locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></label>
-              ) : spoolDraft.locationMode === 'new' ? (
-                <label className="field"><span>Nom du nouvel emplacement</span><input value={spoolDraft.newLocationName} onChange={(e) => patchSpool('newLocationName', e.target.value)} placeholder="Étagère 2, Drybox…" /></label>
-              ) : <p className="helper-text">La bobine restera sans emplacement courant renseigné.</p>}
+            <div className="field-grid">
+              <label className="field"><span>Emplacement de stockage</span><CatalogSelect value={selectedLocationName} options={locationOptions} placeholder="Sans emplacement" onChange={chooseLocation} customPlaceholder="Ajouter un emplacement…" /></label>
+              <div className="field clear-location-field"><span>Emplacement facultatif</span><button type="button" className="secondary-button" onClick={() => chooseLocation('')}>Laisser sans emplacement</button></div>
             </div>
-
             <div className="field-grid">
               <label className="field"><span>Dernier séchage</span><input type="date" value={spoolDraft.lastDriedDate} onChange={(e) => patchSpool('lastDriedDate', e.target.value)} /></label>
               <label className="field"><span>Lien de rachat exact</span><input type="url" value={spoolDraft.purchaseUrl} onChange={(e) => patchSpool('purchaseUrl', e.target.value)} placeholder="https://…" /></label>
@@ -574,54 +637,41 @@ export function App() {
             </div>
             <div className="field-grid">
               <label className="field"><span>Type de support <b>obligatoire</b></span><select value={spoolDraft.supportKind} onChange={(e) => patchSpool('supportKind', e.target.value as FormSupportKind)}><option value="original">Bobine d’origine</option><option value="reusable">Support réutilisable / refill</option></select></label>
-              <label className="field"><span>Bobine vide / origine de tare <b>obligatoire</b></span><select value={spoolDraft.tareSource} onChange={(e) => patchSpool('tareSource', e.target.value as TareSource)}><option value="measured_empty_support">Support vide pesé</option><option value="manufacturer">Valeur fabricant</option></select></label>
+              <label className="field"><span>Bobine vide / tare de référence</span><CatalogSelect value={spoolDraft.tarePresetLabel} options={tarePresetOptions} placeholder="Sélectionner une bobine vide…" onChange={chooseTarePreset} allowCustom={false} /></label>
             </div>
+            {spoolDraft.tarePresetLabel !== MANUAL_TARE_LABEL ? (() => {
+              const preset = tarePresets.find((item) => emptySpoolPresetLabel(item) === spoolDraft.tarePresetLabel);
+              return preset ? <div className="tare-source-note"><strong>{preset.tareGrams === null ? 'Tare à mesurer' : `${preset.tareGrams} g`}</strong><span>{preset.source}</span></div> : null;
+            })() : null}
             <div className="field-grid">
               <label className="field"><span>Tare bobine vide <b>g · obligatoire</b></span><input value={spoolDraft.tareWeightGrams} onChange={(e) => patchSpool('tareWeightGrams', e.target.value)} inputMode="decimal" placeholder="210,1" /></label>
-              {spoolDraft.stockBasis === 'measured' ? (
-                <label className="field measured-field"><span>Poids brut réellement mesuré <b>g · obligatoire</b></span><input value={spoolDraft.grossMeasuredWeightGrams} onChange={(e) => patchSpool('grossMeasuredWeightGrams', e.target.value)} inputMode="decimal" placeholder="842,6" /></label>
-              ) : (
-                <div className="nominal-note"><strong>Aucune fausse pesée.</strong><span>Le stock initial utilisera le poids nominal de la référence et restera marqué « non vérifié ».</span></div>
-              )}
+              {spoolDraft.stockBasis === 'measured' ? <label className="field measured-field"><span>Poids brut réellement mesuré <b>g · obligatoire</b></span><input value={spoolDraft.grossMeasuredWeightGrams} onChange={(e) => patchSpool('grossMeasuredWeightGrams', e.target.value)} inputMode="decimal" placeholder="842,6" /></label> : <div className="nominal-note"><strong>Aucune fausse pesée.</strong><span>Le stock initial utilisera le poids nominal de la référence et restera marqué « non vérifié ».</span></div>}
             </div>
 
             <div className="form-divider" />
             <div className="form-section-heading"><span className="step-number">4</span><div><p>Création en série</p><h3>Exemplaires physiques</h3></div></div>
             <div className="field-grid">
-              <label className="field"><span>Nombre de bobines <b>1 à 20</b></span><input type="number" min="1" max="20" value={spoolDraft.quantity} onChange={(e) => patchSpool('quantity', e.target.value)} /></label>
+              <label className="field"><span>Nombre de bobines <b>1 à 20</b></span><div className="quantity-stepper"><button type="button" onClick={() => patchSpool('quantity', String(Math.max(1, Number(spoolDraft.quantity || 1) - 1)))}>−</button><input type="number" min="1" max="20" value={spoolDraft.quantity} onChange={(e) => patchSpool('quantity', e.target.value)} /><button type="button" onClick={() => patchSpool('quantity', String(Math.min(20, Number(spoolDraft.quantity || 1) + 1)))}>＋</button></div></label>
               <label className="field"><span>Premier ID personnalisé</span><input value={spoolDraft.requestedFirstId} onChange={(e) => patchSpool('requestedFirstId', e.target.value)} placeholder="Optionnel · sinon SP-####" /></label>
             </div>
             <div className="id-preview"><span>IDs prévus</span><strong>{previewIds.length ? previewIds.join(' · ') : '—'}</strong></div>
-
             <label className="field notes-field"><span>Notes</span><textarea rows={4} value={spoolDraft.notes} onChange={(e) => patchSpool('notes', e.target.value)} placeholder="Informations propres à cette bobine ou à ce lot…" /></label>
-
             {status ? <div className={`form-status ${statusKind}`} role="status">{status}</div> : null}
-            <div className="submit-row">
-              <div><strong>Enregistrement local sécurisé</strong><span>Le lot est validé avant la première écriture.</span></div>
-              <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Enregistrement…' : `Enregistrer ${spoolDraft.quantity || '1'} bobine${Number(spoolDraft.quantity) > 1 ? 's' : ''}`}</button>
-            </div>
+            <div className="submit-row"><div><strong>Enregistrement local sécurisé</strong><span>Le lot est validé avant la première écriture.</span></div><button className="primary-button" type="submit" disabled={saving}>{saving ? 'Enregistrement…' : `Enregistrer ${spoolDraft.quantity || '1'} bobine${Number(spoolDraft.quantity) > 1 ? 's' : ''}`}</button></div>
           </form>
 
           <aside className="summary-card" aria-label="Résumé avant enregistrement">
             <div className="summary-head"><span>Résumé</span><span className={`quality-badge ${spoolDraft.stockBasis}`}>{qualityLabel(spoolDraft.stockBasis)}</span></div>
-            <div className="spool-visual">
-              <div className="spool-ring"><span style={{ background: /^#[0-9a-f]{6}$/i.test(summaryColor ?? '') ? summaryColor ?? '#334155' : '#334155' }} /></div>
-              <div><h3>{summaryTitle}</h3><p>{referenceMode === 'existing' ? selectedReference?.material ?? '—' : referenceDraft.material || '—'} · {referenceMode === 'existing' ? selectedReference?.diameterMm ?? '—' : referenceDraft.diameterMm || '—'} mm</p></div>
-            </div>
+            <div className="spool-visual"><div className="spool-ring"><span style={{ background: /^#[0-9a-f]{6}$/i.test(summaryColor ?? '') ? summaryColor ?? '#334155' : '#334155' }} /></div><div><h3>{summaryTitle}</h3><p>{referenceMode === 'existing' ? selectedReference?.material ?? '—' : referenceDraft.material || '—'} · {referenceMode === 'existing' ? selectedReference?.diameterMm ?? '—' : referenceDraft.diameterMm || '—'} mm</p></div></div>
             <div className="summary-metric"><span>Filament disponible</span><strong>{summaryRemaining === null ? '—' : formatGrams(summaryRemaining)}</strong>{summaryPercent !== null ? <small>{summaryPercent.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} % du nominal</small> : null}</div>
-            <div className="summary-grid">
-              <div><span>Poids nominal</span><strong>{summaryNominal === null ? '—' : formatGrams(summaryNominal)}</strong></div>
-              <div><span>Tare</span><strong>{summaryTare === null ? '—' : formatGrams(summaryTare)}</strong></div>
-              <div><span>Support</span><strong>{supportLabel(spoolDraft.supportKind)}</strong></div>
-              <div><span>Origine tare</span><strong>{tareSourceLabel(spoolDraft.tareSource)}</strong></div>
-            </div>
+            <div className="summary-grid"><div><span>Poids nominal</span><strong>{summaryNominal === null ? '—' : formatGrams(summaryNominal)}</strong></div><div><span>Tare</span><strong>{summaryTare === null ? '—' : formatGrams(summaryTare)}</strong></div><div><span>Support</span><strong>{supportLabel(spoolDraft.supportKind)}</strong></div><div><span>Origine tare</span><strong>{tareSourceLabel(spoolDraft.tareSource)}</strong></div></div>
             <div className="summary-rule"><span className={spoolDraft.stockBasis === 'measured' ? 'dot green' : 'dot amber'} />{spoolDraft.stockBasis === 'measured' ? 'Poids brut conservé comme mesure physique.' : 'Aucune mesure physique ne sera inventée.'}</div>
             <div className="summary-series"><span>Lot</span><strong>{previewIds.length || 0} exemplaire{previewIds.length > 1 ? 's' : ''}</strong><small>{previewIds.slice(0, 3).join(' · ')}{previewIds.length > 3 ? ` · +${previewIds.length - 3}` : ''}</small></div>
           </aside>
         </section>
 
         <section className="stock-section" id="stock">
-          <div className="section-title-row"><div><p className="eyebrow">Inventaire courant</p><h2>Bobines enregistrées</h2><span>{loading ? 'Chargement…' : `${snapshot.spools.length} bobine${snapshot.spools.length > 1 ? 's' : ''}`}</span></div></div>
+          <div className="section-title-row"><div><p className="eyebrow">Aperçu local</p><h2>Bobines enregistrées</h2><span>{loading ? 'Chargement…' : `${snapshot.spools.length} bobine${snapshot.spools.length > 1 ? 's' : ''}`}</span></div></div>
           {!loading && snapshot.spools.length === 0 ? <div className="empty-state"><strong>Aucune bobine enregistrée</strong><span>Le premier lot créé apparaîtra ici.</span></div> : null}
           <div className="stock-grid">
             {snapshot.spools.slice().sort((a, b) => a.id.localeCompare(b.id)).map((spool) => {
@@ -630,72 +680,21 @@ export function App() {
               let remaining: number | null = null;
               try { remaining = calculateFilamentRemainingGrams(spool, reference); } catch { remaining = null; }
               const percent = remaining !== null && reference ? (remaining / reference.nominalWeightGrams) * 100 : null;
-              return (
-                <article className="stock-card" key={spool.id}>
-                  <div className="stock-card-top">
-                    <span className="stock-swatch" style={{ background: reference?.colorHex ?? '#475569' }} />
-                    <div className="stock-card-title"><strong>{reference ? referenceLabel(reference) : 'Référence filament à compléter'}</strong><span>{reference ? `${reference.material} · ${reference.diameterMm} mm` : 'Donnée héritée préservée sans produit inventé'}</span></div>
-                    <span className={`quality-badge ${spool.stockBasis}`}>{qualityLabel(spool.stockBasis)}</span>
-                  </div>
-                  <div className="stock-amount"><strong>{remaining === null ? '—' : formatGrams(remaining)}</strong><span>disponible</span></div>
-                  {percent !== null ? <div className="progress-track"><span style={{ width: `${Math.max(0, Math.min(percent, 100))}%` }} /></div> : null}
-                  <dl className="stock-meta">
-                    <div><dt>ID</dt><dd>{spool.id}</dd></div>
-                    <div><dt>Emplacement</dt><dd>{location?.name ?? '—'}</dd></div>
-                    <div><dt>Fournisseur</dt><dd>{spool.supplier ?? '—'}</dd></div>
-                    <div><dt>Prix</dt><dd>{formatMoney(spool.purchasePriceEuros)}</dd></div>
-                  </dl>
-                  <div className="stock-card-actions">
-                    {reference ? <button type="button" onClick={() => openReferenceEditor(reference)}>Modifier la référence</button> : null}
-                    <button type="button" className="accent-action" onClick={() => openReassign(spool)}>{reference ? 'Changer le filament' : 'Compléter la référence'}</button>
-                  </div>
-                </article>
-              );
+              return <article className="stock-card" key={spool.id}><div className="stock-card-top"><span className="stock-swatch" style={{ background: reference?.colorHex ?? '#475569' }} /><div className="stock-card-title"><strong>{reference ? referenceLabel(reference) : 'Référence filament à compléter'}</strong><span>{reference ? `${reference.material} · ${reference.diameterMm} mm` : 'Donnée héritée préservée sans produit inventé'}</span></div><span className={`quality-badge ${spool.stockBasis}`}>{qualityLabel(spool.stockBasis)}</span></div><div className="stock-amount"><strong>{remaining === null ? '—' : formatGrams(remaining)}</strong><span>disponible</span></div>{percent !== null ? <div className="progress-track"><span style={{ width: `${Math.max(0, Math.min(percent, 100))}%` }} /></div> : null}<dl className="stock-meta"><div><dt>ID</dt><dd>{spool.id}</dd></div><div><dt>Emplacement</dt><dd>{location?.name ?? '—'}</dd></div><div><dt>Fournisseur</dt><dd>{spool.supplier ?? '—'}</dd></div><div><dt>Prix</dt><dd>{formatMoney(spool.purchasePriceEuros)}</dd></div></dl><div className="stock-card-actions">{reference ? <button type="button" onClick={() => openReferenceEditor(reference)}>Modifier la référence</button> : null}<button type="button" className="accent-action" onClick={() => openReassign(spool)}>{reference ? 'Changer le filament' : 'Compléter la référence'}</button></div></article>;
             })}
           </div>
         </section>
 
         <section className="safety-section" id="safety">
-          <div className="safety-copy"><p className="eyebrow">Sécurité des données</p><h2>Sauvegarde & restauration v2</h2><p>La sauvegarde contient les références, les emplacements, les bobines et leurs relations. Un fichier v1 Batch 5 reste accepté et migré sans inventer de données.</p></div>
-          <div className="safety-actions">
-            <button className="primary-button" type="button" onClick={handleBackupDownload} disabled={backupBusy}>Télécharger la sauvegarde</button>
-            <label className="file-button">Choisir une sauvegarde<input type="file" accept="application/json,.json" onChange={handleBackupFile} disabled={backupBusy} /></label>
-            {pendingBackup ? <button className="danger-button" type="button" onClick={handleRestore} disabled={backupBusy}>Restaurer et remplacer le stock</button> : null}
-          </div>
+          <div className="safety-copy"><p className="eyebrow">Sécurité des données</p><h2>Sauvegarde & restauration</h2><p>La sauvegarde contient les références, les emplacements, les bobines et leurs relations. Les sauvegardes du Batch 5 restent acceptées.</p></div>
+          <div className="safety-actions"><button className="primary-button" type="button" onClick={handleBackupDownload} disabled={backupBusy}>Télécharger la sauvegarde</button><label className="file-button">Choisir une sauvegarde<input type="file" accept="application/json,.json" onChange={handleBackupFile} disabled={backupBusy} /></label>{pendingBackup ? <button className="danger-button" type="button" onClick={handleRestore} disabled={backupBusy}>Restaurer et remplacer le stock</button> : null}</div>
           {backupStatus ? <div className="backup-status" role="status">{backupStatus}</div> : null}
         </section>
       </main>
 
-      {editReference ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditReference(null); }}>
-          <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-reference-title">
-            <div className="modal-head"><div><p className="eyebrow">Correction partagée</p><h2 id="edit-reference-title">Modifier la référence filament</h2></div><button className="icon-button" type="button" onClick={() => setEditReference(null)}>×</button></div>
-            <div className="shared-warning"><strong>Impact partagé</strong><span>Cette référence est liée à {inspectSharedReference(snapshot, editReference.referenceId).affectedSpoolCount} bobine{inspectSharedReference(snapshot, editReference.referenceId).affectedSpoolCount > 1 ? 's' : ''}. La correction sera visible sur toutes.</span></div>
-            <form onSubmit={handleReferenceUpdate}>
-              <ReferenceFields draft={editReference.draft} onChange={(draft) => setEditReference({ ...editReference, draft })} idPrefix="edit" />
-              {modalStatus ? <div className="form-status error">{modalStatus}</div> : null}
-              <div className="modal-actions"><button type="button" onClick={() => setEditReference(null)}>Annuler</button><button className="primary-button" type="submit">Enregistrer la correction</button></div>
-            </form>
-          </div>
-        </div>
-      ) : null}
+      {editReference ? <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditReference(null); }}><div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-reference-title"><div className="modal-head"><div><p className="eyebrow">Correction partagée</p><h2 id="edit-reference-title">Modifier la référence filament</h2></div><button className="icon-button" type="button" onClick={() => setEditReference(null)}>×</button></div><div className="shared-warning"><strong>Impact partagé</strong><span>Cette référence est liée à {inspectSharedReference(snapshot, editReference.referenceId).affectedSpoolCount} bobine{inspectSharedReference(snapshot, editReference.referenceId).affectedSpoolCount > 1 ? 's' : ''}. La correction sera visible sur toutes.</span></div><form onSubmit={handleReferenceUpdate}><ReferenceFields draft={editReference.draft} onChange={(draft) => setEditReference({ ...editReference, draft })} idPrefix="edit" existingReferences={snapshot.filamentReferences} />{modalStatus ? <div className="form-status error">{modalStatus}</div> : null}<div className="modal-actions"><button type="button" onClick={() => setEditReference(null)}>Annuler</button><button className="primary-button" type="submit">Enregistrer la correction</button></div></form></div></div> : null}
 
-      {reassignDialog ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setReassignDialog(null); }}>
-          <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="reassign-title">
-            <div className="modal-head"><div><p className="eyebrow">Bobine {reassignDialog.spoolId}</p><h2 id="reassign-title">Changer le filament de cette bobine</h2></div><button className="icon-button" type="button" onClick={() => setReassignDialog(null)}>×</button></div>
-            <p className="modal-intro">Seule cette bobine sera réaffectée. Les autres exemplaires liés à l’ancienne référence ne seront pas modifiés.</p>
-            <form onSubmit={handleReassign}>
-              <div className="segmented"><button type="button" className={reassignDialog.mode === 'existing' ? 'selected' : ''} onClick={() => setReassignDialog({ ...reassignDialog, mode: 'existing' })}>Référence existante</button><button type="button" className={reassignDialog.mode === 'new' ? 'selected' : ''} onClick={() => setReassignDialog({ ...reassignDialog, mode: 'new' })}>Nouvelle référence</button></div>
-              {reassignDialog.mode === 'existing' ? (
-                <label className="field modal-single-field"><span>Nouvelle référence</span><select value={reassignDialog.existingReferenceId} onChange={(e) => setReassignDialog({ ...reassignDialog, existingReferenceId: e.target.value })}><option value="">Sélectionner…</option>{snapshot.filamentReferences.filter((reference) => reference.id !== snapshot.spools.find((spool) => spool.id === reassignDialog.spoolId)?.filamentReferenceId).map((reference) => <option value={reference.id} key={reference.id}>{referenceLabel(reference)} · {reference.material}</option>)}</select></label>
-              ) : <ReferenceFields draft={reassignDialog.draft} onChange={(draft) => setReassignDialog({ ...reassignDialog, draft })} idPrefix="reassign" />}
-              {modalStatus ? <div className="form-status error">{modalStatus}</div> : null}
-              <div className="modal-actions"><button type="button" onClick={() => setReassignDialog(null)}>Annuler</button><button className="primary-button" type="submit">Changer cette bobine uniquement</button></div>
-            </form>
-          </div>
-        </div>
-      ) : null}
+      {reassignDialog ? <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setReassignDialog(null); }}><div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="reassign-title"><div className="modal-head"><div><p className="eyebrow">Bobine {reassignDialog.spoolId}</p><h2 id="reassign-title">Changer le filament de cette bobine</h2></div><button className="icon-button" type="button" onClick={() => setReassignDialog(null)}>×</button></div><p className="modal-intro">Seule cette bobine sera réaffectée. Les autres exemplaires liés à l’ancienne référence ne seront pas modifiés.</p><form onSubmit={handleReassign}><div className="segmented"><button type="button" className={reassignDialog.mode === 'existing' ? 'selected' : ''} onClick={() => setReassignDialog({ ...reassignDialog, mode: 'existing' })}>Référence existante</button><button type="button" className={reassignDialog.mode === 'new' ? 'selected' : ''} onClick={() => setReassignDialog({ ...reassignDialog, mode: 'new' })}>Nouvelle référence</button></div>{reassignDialog.mode === 'existing' ? <label className="field modal-single-field"><span>Nouvelle référence</span><select value={reassignDialog.existingReferenceId} onChange={(e) => setReassignDialog({ ...reassignDialog, existingReferenceId: e.target.value })}><option value="">Sélectionner…</option>{snapshot.filamentReferences.filter((reference) => reference.id !== snapshot.spools.find((spool) => spool.id === reassignDialog.spoolId)?.filamentReferenceId).map((reference) => <option value={reference.id} key={reference.id}>{referenceLabel(reference)} · {reference.material}</option>)}</select></label> : <ReferenceFields draft={reassignDialog.draft} onChange={(draft) => setReassignDialog({ ...reassignDialog, draft })} idPrefix="reassign" existingReferences={snapshot.filamentReferences} />}{modalStatus ? <div className="form-status error">{modalStatus}</div> : null}<div className="modal-actions"><button type="button" onClick={() => setReassignDialog(null)}>Annuler</button><button className="primary-button" type="submit">Changer cette bobine uniquement</button></div></form></div></div> : null}
     </div>
   );
 }
