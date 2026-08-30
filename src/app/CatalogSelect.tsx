@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 interface CatalogSelectProps {
   value: string;
@@ -9,6 +9,8 @@ interface CatalogSelectProps {
   customPlaceholder?: string;
   disabled?: boolean;
   ariaLabel?: string;
+  optionLabels?: Readonly<Record<string, string>>;
+  optionGroups?: Readonly<Record<string, string>>;
 }
 
 const CATALOG_OPEN_EVENT = 'filora:catalog-open';
@@ -22,6 +24,8 @@ export function CatalogSelect({
   customPlaceholder = 'Ajouter une valeur…',
   disabled = false,
   ariaLabel,
+  optionLabels = {},
+  optionGroups = {},
 }: CatalogSelectProps) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const selectId = useId();
@@ -31,8 +35,12 @@ export function CatalogSelect({
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('fr-FR');
     if (!normalized) return options;
-    return options.filter((option) => option.toLocaleLowerCase('fr-FR').includes(normalized));
-  }, [options, query]);
+    return options.filter((option) => {
+      const label = optionLabels[option] ?? option;
+      const group = optionGroups[option] ?? '';
+      return `${label} ${option} ${group}`.toLocaleLowerCase('fr-FR').includes(normalized);
+    });
+  }, [optionGroups, optionLabels, options, query]);
 
   useEffect(() => {
     function closeWhenAnotherCatalogOpens(event: Event) {
@@ -82,7 +90,7 @@ export function CatalogSelect({
       onToggle={announceOpen}
     >
       <summary aria-label={ariaLabel} aria-disabled={disabled} onClick={(event) => { if (disabled) event.preventDefault(); }}>
-        <span className={value ? '' : 'catalog-placeholder'}>{value || placeholder}</span>
+        <span className={value ? '' : 'catalog-placeholder'}>{value ? optionLabels[value] ?? value : placeholder}</span>
         <span className="catalog-chevron">⌄</span>
       </summary>
       {!disabled ? (
@@ -95,18 +103,24 @@ export function CatalogSelect({
             autoComplete="off"
           />
           <div className="catalog-options" role="listbox" aria-label={ariaLabel ?? placeholder}>
-            {filtered.length ? filtered.map((option) => (
-              <button
-                type="button"
-                key={option}
-                className={option === value ? 'selected' : ''}
-                onClick={() => choose(option)}
-                role="option"
-                aria-selected={option === value}
-              >
-                {option}
-              </button>
-            )) : <span className="catalog-empty">Aucune proposition</span>}
+            {filtered.length ? filtered.map((option, index) => {
+              const group = optionGroups[option] ?? '';
+              const previousGroup = index > 0 ? optionGroups[filtered[index - 1]!] ?? '' : '';
+              return (
+                <Fragment key={option}>
+                  {group && group !== previousGroup ? <span className="catalog-group-label">{group}</span> : null}
+                  <button
+                    type="button"
+                    className={option === value ? 'selected' : ''}
+                    onClick={() => choose(option)}
+                    role="option"
+                    aria-selected={option === value}
+                  >
+                    {optionLabels[option] ?? option}
+                  </button>
+                </Fragment>
+              );
+            }) : <span className="catalog-empty">Aucune proposition</span>}
           </div>
           {allowCustom ? (
             <div className="catalog-custom">
