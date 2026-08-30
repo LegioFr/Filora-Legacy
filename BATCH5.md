@@ -1,7 +1,8 @@
 # BATCH5.md — Sauvegarde et restauration du stock local
 
-**Statut : en validation**  
-**Date de préparation : 2026-08-30**
+**Statut : clôturé**  
+**Date de préparation : 2026-08-30**  
+**Date de clôture : 2026-08-30**
 
 ## Intention
 
@@ -229,7 +230,13 @@ Justification : le Batch introduit un export de sauvegarde, une restauration et 
 
 Le Batch n'est pas classé Critique dans son périmètre prévu : aucune migration destructive, aucun affaiblissement de garde-fou, aucun changement de l'autorité métier centrale et aucune modification simultanée d'un objet protégé et de son mécanisme de contrôle ne sont prévus.
 
-Tout changement réel qui ferait apparaître un critère Critique devra être signalé et reclassé avant poursuite.
+Aucun critère Critique n'est apparu dans le diff final du Batch.
+
+### F4.4
+
+**Aucune approbation propriétaire supplémentaire requise à la clôture.**
+
+Justification : le comportement produit du Batch — sauvegarder l'état persistant, valider avant mutation, confirmer puis remplacer entièrement le stock lors d'une restauration — faisait partie du périmètre préparé et validé avant la clôture, puis a été exercé lors de la validation humaine. La clôture n'introduit aucun nouveau compromis produit, invariant, comportement visible ou choix structurel à arbitrer. L'état machine reste donc `owner_approval: not_required`.
 
 ## Preuves requises avant clôture
 
@@ -260,4 +267,36 @@ Le Batch 5 ne pourra être déclaré clôturé que lorsque :
 - la revue indépendante requise est conforme sans bloquant non traité ;
 - les findings éventuels découverts pendant le Batch ont reçu une décision explicite.
 
-La clôture de ce Batch démontrera la récupération du périmètre persistant réellement couvert à ce stade. Elle ne constituera pas une preuve automatique pour de futurs types de données persistantes : toute extension persistante devra étendre les garanties de sauvegarde/restauration applicables.
+La clôture de ce Batch démontre la récupération du périmètre persistant réellement couvert à ce stade. Elle ne constitue pas une preuve automatique pour de futurs types de données persistantes : toute extension persistante devra étendre les garanties de sauvegarde/restauration applicables.
+
+## Preuves acquises à la clôture
+
+- candidat fonctionnel exact revu : `4c647d227cd866b2cb3b1d809a5ddd01bbd324c4` ;
+- diff du dernier correctif limité à `tests/persistence_check.ts`, avec ajout des scénarios automatisés manquants signalés lors de la première revue ;
+- CI GitHub du candidat exact verte : guard et sentinel réussis ; le job guard a également validé les contrôles de gouvernance, architecture, tests, installation, typecheck et build ;
+- les seize scénarios automatisés minimaux définis par ce Batch sont couverts, notamment l'export vide, les rejets sur le chemin restauration et le recalcul du disponible après restauration ;
+- validation humaine réelle acquise sur tablette, PC et mobile ;
+- démonstration réelle de récupération complète acquise sur tablette : `export → effacement volontaire → réimport → comparaison` ;
+- revue indépendante Codex normal, en lecture seule et sur le SHA fonctionnel exact : **CONFORME AVEC RÉSERVES**, aucun bloquant, tous les anciens bloquants corrigés, candidat jugé techniquement prêt sous réserve des preuves GitHub ;
+- les propriétés GitHub réservées par la revue locale ont été vérifiées séparément par le coordinateur sur le même SHA : PR #62 ouverte et mergeable, base `test-preview`, guard et sentinel verts, aucune Issue ouverte et aucun commentaire/review de PR présent au contrôle ;
+- les tests IndexedDB simulés restent acceptés avec la validation réelle navigateur/appareil comme preuve complémentaire ;
+- aucun critère Critique n'a été identifié et aucune approbation propriétaire supplémentaire n'est requise pour cette transition de clôture.
+
+La présente transition de clôture ne modifie pas le code fonctionnel revu. Elle synchronise uniquement `BATCH5.md`, `PROJECT_STATE.md` et `workflow/state.json`. Son propre SHA doit repasser les contrôles mécaniques applicables avant toute intégration dans `test-preview`.
+
+## Décisions sur les findings de revue
+
+- `localeCompare()` sans locale explicite pour l'ordre d'export : **reporté hors Batch 5**, finding non bloquant ne compromettant ni la complétude ni la restauration ;
+- compteur du message de téléchargement basé sur l'état UI : **reporté hors Batch 5**, finding non bloquant n'affectant pas le contenu réellement exporté ;
+- formulation périmée de `PROJECT_STATE.md` indiquant encore la revue indépendante comme future : **traitée par la présente synchronisation de clôture** ;
+- preuves humaines non rejouables directement par le reviewer local : **réserve acceptée**, car elles sont consignées comme validation humaine et ne sont pas présentées comme une preuve technique rejouée par Codex ;
+- comportement IndexedDB navigateur non exercé par le simulateur automatisé : **réserve acceptée avec preuve complémentaire réelle**, conformément à la décision prise au démarrage du Batch ;
+- encodage implicite du guard sous Windows : **reporté hors Batch 5**, finding préexistant sans lien avec la sauvegarde/restauration.
+
+Aucun finding bloquant non décidé ne subsiste à la clôture.
+
+## Clôture
+
+Le Batch 5 est clôturé sur sa branche candidate : le périmètre persistant actuel peut être sauvegardé et restauré avec validation préalable, remplacement complet, atomicité attendue et recalcul des valeurs dérivées ; la récupération réelle a été démontrée ; les validations humaines sont acquises ; la revue indépendante est conforme avec réserves mais sans bloquant ; et les findings ont reçu une décision explicite.
+
+Cette clôture n'intègre pas encore la PR #62 dans `test-preview` et ne démarre pas le Batch 6. L'intégration reste conditionnée aux contrôles mécaniques verts sur le SHA de clôture et à une dernière vérification de l'état GitHub au moment de la décision d'intégration.
