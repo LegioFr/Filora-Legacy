@@ -19,10 +19,9 @@ export function calculateAvailableFilamentGrams(
   return Math.max(0, spool.grossMeasuredWeightGrams - spool.tareWeightGrams);
 }
 
-export async function registerMeasuredSpool(
-  store: SpoolIdentityStore,
+export function validateMeasuredSpoolInput(
   input: RegisterMeasuredSpoolInput,
-): Promise<PersistedSpoolIdentity> {
+): PersistedSpoolIdentity {
   const id = input.id.trim();
   if (id.length === 0) {
     throw new Error('Spool id is required');
@@ -44,13 +43,19 @@ export async function registerMeasuredSpool(
     throw new Error('Tare source is invalid');
   }
 
-  const spool: PersistedSpoolIdentity = {
+  return {
     id,
     grossMeasuredWeightGrams: input.grossMeasuredWeightGrams,
     tareWeightGrams: input.tareWeightGrams,
     tareSource: input.tareSource,
   };
+}
 
+export async function registerMeasuredSpool(
+  store: SpoolIdentityStore,
+  input: RegisterMeasuredSpoolInput,
+): Promise<PersistedSpoolIdentity> {
+  const spool = validateMeasuredSpoolInput(input);
   await store.create(spool);
   return spool;
 }

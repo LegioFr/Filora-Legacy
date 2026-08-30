@@ -3,6 +3,14 @@ import {
   FILORA_DATABASE_VERSION,
   SPOOL_IDENTITIES_STORE,
 } from '../src/domains/spools/persistence/IndexedDbSpoolIdentityStore.js';
+import {
+  createFiloraBackup,
+  createFiloraBackupJson,
+  FILORA_BACKUP_FORMAT,
+  FILORA_BACKUP_VERSION,
+  parseFiloraBackupJson,
+  restoreFiloraBackup,
+} from '../src/domains/spools/backupMeasuredSpools.js';
 import { listMeasuredSpools } from '../src/domains/spools/listMeasuredSpools.js';
 import {
   calculateAvailableFilamentGrams,
@@ -26,66 +34,95 @@ class FakeRequest<T> {
   onupgradeneeded: EventHandler = null;
 }
 
+function cloneRecords(records: Map<string, StoredSpool>): Map<string, StoredSpool> {
+  return new Map(Array.from(records, ([id, record]) => [id, { ...record }]));
+}
+
 class FakeTransaction {
   error: DOMException | null = null;
   oncomplete: EventHandler = null;
   onerror: EventHandler = null;
   onabort: EventHandler = null;
 
-  constructor(private readonly records: Map<string, StoredSpool>) {}
+  private readonly workingRecords: Map<string, StoredSpool>;
+  private pendingRequests = 0;
+  private failed = false;
+
+  constructor(
+    private readonly records: Map<string, StoredSpool>,
+    private readonly mode: IDBTransactionMode,
+    private readonly failOnAddId?: string,
+  ) {
+    this.workingRecords = cloneRecords(records);
+  }
+
+  private schedule<T>(operation: () => T): IDBRequest<T> {
+    const request = new FakeRequest<T>();
+    this.pendingRequests += 1;
+
+    setTimeout(() => {
+      if (this.failed) {
+        return;
+      }
+
+      try {
+        request.result = operation();
+        request.onsuccess?.(new Event('success'));
+        this.pendingRequests -= 1;
+        if (this.pendingRequests === 0) {
+          if (this.mode === 'readwrite') {
+            this.records.clear();
+            for (const [id, record] of this.workingRecords) {
+              this.records.set(id, { ...record });
+            }
+          }
+          this.oncomplete?.(new Event('complete'));
+        }
+      } catch (error) {
+        const domError = error instanceof DOMException ? error : new DOMException(String(error), 'AbortError');
+        request.error = domError;
+        this.error = domError;
+        this.failed = true;
+        request.onerror?.(new Event('error'));
+        this.onerror?.(new Event('error'));
+        this.onabort?.(new Event('abort'));
+      }
+    }, 0);
+
+    return request as unknown as IDBRequest<T>;
+  }
 
   objectStore(name: string): IDBObjectStore {
     if (name !== SPOOL_IDENTITIES_STORE) {
       throw new Error(`Unexpected object store: ${name}`);
     }
 
-    const completeImmediately = () => {
-      this.oncomplete?.(new Event('complete'));
-    };
-
     return {
-      add: (value: StoredSpool) => {
-        const request = new FakeRequest<IDBValidKey>();
-        setTimeout(() => {
-          if (this.records.has(value.id)) {
-            const error = new DOMException('Key already exists', 'ConstraintError');
-            request.error = error;
-            this.error = error;
-            request.onerror?.(new Event('error'));
-            this.onabort?.(new Event('abort'));
-            return;
-          }
-
-          this.records.set(value.id, { ...value });
-          request.result = value.id;
-          request.onsuccess?.(new Event('success'));
-          completeImmediately();
-        }, 0);
-        return request as unknown as IDBRequest<IDBValidKey>;
-      },
-      get: (id: string) => {
-        const request = new FakeRequest<StoredSpool | undefined>();
-        completeImmediately();
-        setTimeout(() => {
-          request.result = this.records.get(id);
-          request.onsuccess?.(new Event('success'));
-        }, 0);
-        return request as unknown as IDBRequest<unknown>;
-      },
-      getAll: () => {
-        const request = new FakeRequest<StoredSpool[]>();
-        setTimeout(() => {
-          request.result = Array.from(this.records.values(), (record) => ({ ...record }));
-          request.onsuccess?.(new Event('success'));
-          completeImmediately();
-        }, 0);
-        return request as unknown as IDBRequest<unknown>;
-      },
-      delete: (id: string) => {
-        this.records.delete(id);
-        completeImmediately();
-        return {} as IDBRequest<undefined>;
-      },
+      add: (value: StoredSpool) => this.schedule<IDBValidKey>(() => {
+        if (this.failOnAddId === value.id) {
+          throw new DOMException('Forced restore failure', 'AbortError');
+        }
+        if (this.workingRecords.has(value.id)) {
+          throw new DOMException('Key already exists', 'ConstraintError');
+        }
+        this.workingRecords.set(value.id, { ...value });
+        return value.id;
+      }),
+      get: (id: string) => this.schedule<StoredSpool | undefined>(() => {
+        const record = this.workingRecords.get(id);
+        return record ? { ...record } : undefined;
+      }) as unknown as IDBRequest<unknown>,
+      getAll: () => this.schedule<StoredSpool[]>(() =>
+        Array.from(this.workingRecords.values(), (record) => ({ ...record })),
+      ) as unknown as IDBRequest<unknown>,
+      clear: () => this.schedule<undefined>(() => {
+        this.workingRecords.clear();
+        return undefined;
+      }),
+      delete: (id: string) => this.schedule<undefined>(() => {
+        this.workingRecords.delete(id);
+        return undefined;
+      }),
     } as unknown as IDBObjectStore;
   }
 }
@@ -96,7 +133,10 @@ class FakeDatabase {
     contains: (name: string) => name === SPOOL_IDENTITIES_STORE && this.storeCreated,
   } as DOMStringList;
 
+  readwriteTransactionCount = 0;
   private storeCreated = false;
+
+  constructor(private readonly failOnAddId?: string) {}
 
   createObjectStore(name: string, options?: IDBObjectStoreParameters): IDBObjectStore {
     if (name !== SPOOL_IDENTITIES_STORE || options?.keyPath !== 'id') {
@@ -106,19 +146,26 @@ class FakeDatabase {
     return {} as IDBObjectStore;
   }
 
-  transaction(name: string, _mode?: IDBTransactionMode): IDBTransaction {
+  transaction(name: string, mode: IDBTransactionMode = 'readonly'): IDBTransaction {
     if (!this.storeCreated || name !== SPOOL_IDENTITIES_STORE) {
       throw new Error('Store is not available');
     }
-    return new FakeTransaction(this.records) as unknown as IDBTransaction;
+    if (mode === 'readwrite') {
+      this.readwriteTransactionCount += 1;
+    }
+    return new FakeTransaction(this.records, mode, this.failOnAddId) as unknown as IDBTransaction;
   }
 
   close(): void {}
 }
 
 class FakeFactory {
-  readonly database = new FakeDatabase();
+  readonly database: FakeDatabase;
   requestedVersion: number | undefined;
+
+  constructor(failOnAddId?: string) {
+    this.database = new FakeDatabase(failOnAddId);
+  }
 
   open(_name: string, version?: number): IDBOpenDBRequest {
     this.requestedVersion = version;
@@ -126,7 +173,9 @@ class FakeFactory {
     request.result = this.database as unknown as IDBDatabase;
 
     setTimeout(() => {
-      request.onupgradeneeded?.(new Event('upgradeneeded'));
+      if (!this.database.objectStoreNames.contains(SPOOL_IDENTITIES_STORE)) {
+        request.onupgradeneeded?.(new Event('upgradeneeded'));
+      }
       request.onsuccess?.(new Event('success'));
     }, 0);
 
@@ -138,6 +187,10 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
   }
+}
+
+function comparableStock(spools: StoredSpool[]): string {
+  return JSON.stringify([...spools].sort((left, right) => left.id.localeCompare(right.id)));
 }
 
 const factory = new FakeFactory();
@@ -302,4 +355,193 @@ try {
 }
 assert(listFailureObserved, 'stock listing failures must propagate instead of becoming an empty stock');
 
-console.log('PASS: measured spool write/read/list/available/validation/duplicate/remove/error/transaction timing checks');
+const emptyBackupFactory = new FakeFactory();
+const emptyBackupStore = new IndexedDbSpoolIdentityStore(
+  emptyBackupFactory as unknown as IDBFactory,
+  'filora-empty-backup-test',
+);
+const emptyBackupJson = await createFiloraBackupJson(emptyBackupStore);
+const parsedEmptyBackup = parseFiloraBackupJson(emptyBackupJson);
+assert(parsedEmptyBackup.spools.length === 0, 'export of an empty stock must produce an empty spool list');
+
+const backupSourceFactory = new FakeFactory();
+const backupSourceStore = new IndexedDbSpoolIdentityStore(
+  backupSourceFactory as unknown as IDBFactory,
+  'filora-backup-source-test',
+);
+await registerMeasuredSpool(backupSourceStore, {
+  id: 'backup-002',
+  grossMeasuredWeightGrams: 950.25,
+  tareWeightGrams: 250.25,
+  tareSource: 'manufacturer',
+});
+await registerMeasuredSpool(backupSourceStore, {
+  id: 'backup-001',
+  grossMeasuredWeightGrams: 800,
+  tareWeightGrams: 200,
+  tareSource: 'measured_empty_support',
+});
+
+const backup = await createFiloraBackup(backupSourceStore);
+assert(backup.format === FILORA_BACKUP_FORMAT, 'backup format marker must be explicit');
+assert(backup.version === FILORA_BACKUP_VERSION, 'backup format version must be explicit');
+assert(backup.spools.length === 2, 'backup must contain every persisted spool');
+assert(backup.spools[0]?.id === 'backup-001', 'backup spool order must be deterministic');
+assert(
+  !('availableFilamentGrams' in (backup.spools[0] as unknown as Record<string, unknown>)),
+  'derived available filament must not be persisted in backup',
+);
+
+const backupJson = await createFiloraBackupJson(backupSourceStore);
+const parsedBackup = parseFiloraBackupJson(backupJson);
+assert(comparableStock(parsedBackup.spools) === comparableStock(backup.spools), 'serialized backup must round-trip without data loss');
+
+let invalidJsonRejected = false;
+try {
+  parseFiloraBackupJson('{not-json');
+} catch (error) {
+  invalidJsonRejected = error instanceof Error && error.message.includes('JSON valide');
+}
+assert(invalidJsonRejected, 'invalid JSON must be rejected before any restore');
+
+const restoreTargetFactory = new FakeFactory();
+const restoreTargetStore = new IndexedDbSpoolIdentityStore(
+  restoreTargetFactory as unknown as IDBFactory,
+  'filora-restore-target-test',
+);
+await registerMeasuredSpool(restoreTargetStore, {
+  id: 'old-stock',
+  grossMeasuredWeightGrams: 500,
+  tareWeightGrams: 100,
+  tareSource: 'manufacturer',
+});
+
+const targetBeforeInvalid = comparableStock(await listMeasuredSpools(restoreTargetStore));
+const writesBeforeInvalid = restoreTargetFactory.database.readwriteTransactionCount;
+const invalidBackups: unknown[] = [
+  { format: 'not-filora-backup', version: FILORA_BACKUP_VERSION, spools: [] },
+  { format: FILORA_BACKUP_FORMAT, version: 999, spools: [] },
+  {
+    format: FILORA_BACKUP_FORMAT,
+    version: FILORA_BACKUP_VERSION,
+    spools: [
+      { id: '', grossMeasuredWeightGrams: 500, tareWeightGrams: 100, tareSource: 'manufacturer' },
+    ],
+  },
+  {
+    format: FILORA_BACKUP_FORMAT,
+    version: FILORA_BACKUP_VERSION,
+    spools: [
+      { id: 'bad-gross', grossMeasuredWeightGrams: 0, tareWeightGrams: 0, tareSource: 'manufacturer' },
+    ],
+  },
+  {
+    format: FILORA_BACKUP_FORMAT,
+    version: FILORA_BACKUP_VERSION,
+    spools: [
+      { id: 'negative-tare', grossMeasuredWeightGrams: 500, tareWeightGrams: -1, tareSource: 'manufacturer' },
+    ],
+  },
+  {
+    format: FILORA_BACKUP_FORMAT,
+    version: FILORA_BACKUP_VERSION,
+    spools: [
+      { id: 'unknown-source', grossMeasuredWeightGrams: 500, tareWeightGrams: 100, tareSource: 'unknown' },
+    ],
+  },
+  {
+    format: FILORA_BACKUP_FORMAT,
+    version: FILORA_BACKUP_VERSION,
+    spools: [
+      { id: 'duplicate', grossMeasuredWeightGrams: 500, tareWeightGrams: 100, tareSource: 'manufacturer' },
+      { id: 'duplicate', grossMeasuredWeightGrams: 600, tareWeightGrams: 100, tareSource: 'manufacturer' },
+    ],
+  },
+  {
+    format: FILORA_BACKUP_FORMAT,
+    version: FILORA_BACKUP_VERSION,
+    spools: [
+      { id: 'bad-tare', grossMeasuredWeightGrams: 100, tareWeightGrams: 200, tareSource: 'manufacturer' },
+    ],
+  },
+  {
+    format: FILORA_BACKUP_FORMAT,
+    version: FILORA_BACKUP_VERSION,
+    spools: [
+      { id: ' padded ', grossMeasuredWeightGrams: 500, tareWeightGrams: 100, tareSource: 'manufacturer' },
+    ],
+  },
+  {
+    format: FILORA_BACKUP_FORMAT,
+    version: FILORA_BACKUP_VERSION,
+    spools: [],
+    unexpected: true,
+  },
+];
+
+for (const invalidBackup of invalidBackups) {
+  let rejected = false;
+  try {
+    await restoreFiloraBackup(restoreTargetStore, invalidBackup);
+  } catch {
+    rejected = true;
+  }
+  assert(rejected, 'invalid backup must be rejected');
+  assert(
+    comparableStock(await listMeasuredSpools(restoreTargetStore)) === targetBeforeInvalid,
+    'invalid backup must leave existing stock unchanged',
+  );
+}
+assert(
+  restoreTargetFactory.database.readwriteTransactionCount === writesBeforeInvalid,
+  'validation failures must happen before any restore write transaction starts',
+);
+
+const writesBeforeRestore = restoreTargetFactory.database.readwriteTransactionCount;
+await restoreFiloraBackup(restoreTargetStore, parsedBackup);
+const restoredStock = await listMeasuredSpools(restoreTargetStore);
+assert(comparableStock(restoredStock) === comparableStock(backup.spools), 'restore must reproduce the complete saved stock');
+assert(await restoreTargetStore.get('old-stock') === undefined, 'restore must replace rather than merge the previous stock');
+const restoredBackup001 = restoredStock.find((spool) => spool.id === 'backup-001');
+const restoredBackup002 = restoredStock.find((spool) => spool.id === 'backup-002');
+assert(restoredBackup001 !== undefined, 'restored stock must contain backup-001');
+assert(restoredBackup002 !== undefined, 'restored stock must contain backup-002');
+assert(
+  Math.abs(calculateAvailableFilamentGrams(restoredBackup001) - 600) < 1e-9,
+  'available filament must be recalculated from restored gross weight and tare for backup-001',
+);
+assert(
+  Math.abs(calculateAvailableFilamentGrams(restoredBackup002) - 700) < 1e-9,
+  'available filament must be recalculated from restored gross weight and tare for backup-002',
+);
+assert(
+  restoreTargetFactory.database.readwriteTransactionCount === writesBeforeRestore + 1,
+  'complete restore must use one readwrite transaction',
+);
+
+const atomicFailureFactory = new FakeFactory('backup-002');
+const atomicFailureStore = new IndexedDbSpoolIdentityStore(
+  atomicFailureFactory as unknown as IDBFactory,
+  'filora-atomic-restore-test',
+);
+await registerMeasuredSpool(atomicFailureStore, {
+  id: 'preexisting-stock',
+  grossMeasuredWeightGrams: 700,
+  tareWeightGrams: 200,
+  tareSource: 'manufacturer',
+});
+const beforeAtomicFailure = comparableStock(await listMeasuredSpools(atomicFailureStore));
+
+let atomicFailureObserved = false;
+try {
+  await restoreFiloraBackup(atomicFailureStore, parsedBackup);
+} catch (error) {
+  atomicFailureObserved = error instanceof Error || error instanceof DOMException;
+}
+assert(atomicFailureObserved, 'failure during restore transaction must be observable');
+assert(
+  comparableStock(await listMeasuredSpools(atomicFailureStore)) === beforeAtomicFailure,
+  'failed restore transaction must preserve the complete previous stock',
+);
+
+console.log('PASS: measured spool persistence plus versioned backup validation/replacement/atomic-failure checks');

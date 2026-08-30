@@ -11,5 +11,6 @@ export interface SpoolIdentityStore {
   create(identity: PersistedSpoolIdentity): Promise<void>;
   get(id: string): Promise<PersistedSpoolIdentity | undefined>;
   list(): Promise<PersistedSpoolIdentity[]>;
+  replaceAll(identities: PersistedSpoolIdentity[]): Promise<void>;
   remove(id: string): Promise<void>;
 }
