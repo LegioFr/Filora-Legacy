@@ -11,7 +11,6 @@ import {
   MATERIAL_PRINT_DEFAULTS,
   getBrandOptions,
   getDiameterOptions,
-  getManufacturerColorHex,
   getManufacturerColors,
   getManufacturerTypes,
   getMaterialOptions,
@@ -19,6 +18,10 @@ import {
   inferMaterial,
   type CatalogReferenceLike,
 } from './filamentCatalog';
+import {
+  getManufacturerTypePresentation,
+  getVerifiedManufacturerColorHex,
+} from './catalogPresentation';
 
 const NOMINAL_WEIGHT_OPTIONS = ['250', '500', '750', '1000', '2000', '3000', '5000'] as const;
 
@@ -217,7 +220,8 @@ export function ReferenceFields({
     ...NOMINAL_WEIGHT_OPTIONS,
     ...existingReferences.map((reference) => String(reference.nominalWeightGrams)),
   ]));
-  const typeOptions = draft.brand ? getManufacturerTypes(draft.brand, existingReferences) : [];
+  const rawTypeOptions = draft.brand ? getManufacturerTypes(draft.brand, existingReferences) : [];
+  const typePresentation = getManufacturerTypePresentation(draft.brand, rawTypeOptions);
   const colorOptions = draft.brand && draft.manufacturerType
     ? getManufacturerColors(draft.brand, draft.manufacturerType, existingReferences)
     : [];
@@ -237,6 +241,7 @@ export function ReferenceFields({
     const temps = getTemperatureDefaults(draft.brand, manufacturerType, material);
     onChange({
       ...next,
+      colorHex: '#38BDF8',
       nozzleMin: temps ? String(temps.nozzle[0]) : next.nozzleMin,
       nozzleMax: temps ? String(temps.nozzle[1]) : next.nozzleMax,
       bedMin: temps ? String(temps.bed[0]) : next.bedMin,
@@ -245,7 +250,7 @@ export function ReferenceFields({
   }
 
   function chooseColor(manufacturerColor: string) {
-    const catalogHex = getManufacturerColorHex(
+    const catalogHex = getVerifiedManufacturerColorHex(
       draft.brand,
       draft.manufacturerType,
       manufacturerColor,
@@ -254,7 +259,7 @@ export function ReferenceFields({
     onChange({
       ...draft,
       manufacturerColor,
-      colorHex: catalogHex ?? draft.colorHex,
+      colorHex: catalogHex ?? '#38BDF8',
     });
   }
 
@@ -277,12 +282,22 @@ export function ReferenceFields({
 
       <div className="field-grid">
         <label className="field">
-          <span>Type de filament fabricant</span>
-          <CatalogSelect value={draft.manufacturerType} options={typeOptions} placeholder={draft.brand ? 'Sélectionner un type…' : 'Sélectionner d’abord une marque…'} onChange={chooseType} customPlaceholder="Ajouter un type / une gamme…" disabled={!draft.brand} ariaLabel="Type de filament fabricant" />
+          <span>Gamme / type fabricant</span>
+          <CatalogSelect
+            value={draft.manufacturerType}
+            options={typePresentation.options}
+            optionLabels={typePresentation.labels}
+            optionGroups={typePresentation.groups}
+            placeholder={draft.brand ? 'Sélectionner une gamme…' : 'Sélectionner d’abord une marque…'}
+            onChange={chooseType}
+            customPlaceholder="Ajouter une gamme / un type…"
+            disabled={!draft.brand}
+            ariaLabel="Gamme ou type de filament fabricant"
+          />
         </label>
         <label className="field">
           <span>Couleur fabricant</span>
-          <CatalogSelect value={draft.manufacturerColor} options={colorOptions} placeholder={draft.brand && draft.manufacturerType ? 'Sélectionner une couleur…' : 'Sélectionner d’abord un type…'} onChange={chooseColor} customPlaceholder="Ajouter une couleur…" disabled={!draft.brand || !draft.manufacturerType} ariaLabel="Couleur fabricant" />
+          <CatalogSelect value={draft.manufacturerColor} options={colorOptions} placeholder={draft.brand && draft.manufacturerType ? 'Sélectionner une couleur…' : 'Sélectionner d’abord une gamme…'} onChange={chooseColor} customPlaceholder="Ajouter une couleur…" disabled={!draft.brand || !draft.manufacturerType} ariaLabel="Couleur fabricant" />
         </label>
       </div>
 
@@ -306,38 +321,39 @@ export function ReferenceFields({
         ))}
       </div>
 
-      <div className="field-grid">
-        <div className="range-field">
-          <span className="field-label">Température buse <b>°C</b></span>
-          <div className="range-inputs">
-            <input value={draft.nozzleMin} onChange={set('nozzleMin')} inputMode="decimal" placeholder="min" aria-label="Température buse minimale" />
-            <span>à</span>
-            <input value={draft.nozzleMax} onChange={set('nozzleMax')} inputMode="decimal" placeholder="max" aria-label="Température buse maximale" />
+      <details className="advanced-panel print-settings-panel">
+        <summary><span>Réglages d’impression</span><small>Températures et paramètres avancés</small></summary>
+        <div className="advanced-content print-settings-content">
+          <div className="field-grid print-temperature-grid">
+            <div className="range-field">
+              <span className="field-label">Température buse <b>°C</b></span>
+              <div className="range-inputs">
+                <input value={draft.nozzleMin} onChange={set('nozzleMin')} inputMode="decimal" placeholder="min" aria-label="Température buse minimale" />
+                <span>à</span>
+                <input value={draft.nozzleMax} onChange={set('nozzleMax')} inputMode="decimal" placeholder="max" aria-label="Température buse maximale" />
+              </div>
+            </div>
+            <div className="range-field">
+              <span className="field-label">Température plateau <b>°C</b></span>
+              <div className="range-inputs">
+                <input value={draft.bedMin} onChange={set('bedMin')} inputMode="decimal" placeholder="min" aria-label="Température plateau minimale" />
+                <span>à</span>
+                <input value={draft.bedMax} onChange={set('bedMax')} inputMode="decimal" placeholder="max" aria-label="Température plateau maximale" />
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="range-field">
-          <span className="field-label">Température plateau <b>°C</b></span>
-          <div className="range-inputs">
-            <input value={draft.bedMin} onChange={set('bedMin')} inputMode="decimal" placeholder="min" aria-label="Température plateau minimale" />
-            <span>à</span>
-            <input value={draft.bedMax} onChange={set('bedMax')} inputMode="decimal" placeholder="max" aria-label="Température plateau maximale" />
+          <div className="field-grid field-grid-3 advanced-print-grid">
+            <label className="field"><span>Chambre <b>°C</b></span><input value={draft.chamberTemperatureC} onChange={set('chamberTemperatureC')} inputMode="decimal" /></label>
+            <label className="field"><span>Première couche <b>°C</b></span><input value={draft.firstLayerTemperatureC} onChange={set('firstLayerTemperatureC')} inputMode="decimal" /></label>
+            <label className="field"><span>Vitesse <b>mm/s</b></span><input value={draft.printSpeedMmPerSecond} onChange={set('printSpeedMmPerSecond')} inputMode="decimal" /></label>
+            <label className="field"><span>Débit <b>%</b></span><input value={draft.flowPercent} onChange={set('flowPercent')} inputMode="decimal" /></label>
+            <label className="field"><span>Rapport de flux</span><input value={draft.flowRatio} onChange={set('flowRatio')} inputMode="decimal" /></label>
+            <label className="field"><span>Pressure Advance / K</span><input value={draft.pressureAdvance} onChange={set('pressureAdvance')} inputMode="decimal" /></label>
+            <label className="field"><span>Vitesse volumétrique <b>mm³/s</b></span><input value={draft.maxVolumetricSpeedMm3PerSecond} onChange={set('maxVolumetricSpeedMm3PerSecond')} inputMode="decimal" /></label>
+            <label className="field"><span>Ventilation <b>%</b></span><input value={draft.fanPercent} onChange={set('fanPercent')} inputMode="decimal" /></label>
+            <label className="field"><span>Rétraction <b>mm</b></span><input value={draft.retractionMm} onChange={set('retractionMm')} inputMode="decimal" /></label>
+            <label className="field"><span>Vitesse rétraction <b>mm/s</b></span><input value={draft.retractionSpeedMmPerSecond} onChange={set('retractionSpeedMmPerSecond')} inputMode="decimal" /></label>
           </div>
-        </div>
-      </div>
-
-      <details className="advanced-panel">
-        <summary><span>Paramètres d’impression avancés</span><small>Facultatifs</small></summary>
-        <div className="advanced-content field-grid field-grid-3">
-          <label className="field"><span>Chambre <b>°C</b></span><input value={draft.chamberTemperatureC} onChange={set('chamberTemperatureC')} inputMode="decimal" /></label>
-          <label className="field"><span>Première couche <b>°C</b></span><input value={draft.firstLayerTemperatureC} onChange={set('firstLayerTemperatureC')} inputMode="decimal" /></label>
-          <label className="field"><span>Vitesse <b>mm/s</b></span><input value={draft.printSpeedMmPerSecond} onChange={set('printSpeedMmPerSecond')} inputMode="decimal" /></label>
-          <label className="field"><span>Débit <b>%</b></span><input value={draft.flowPercent} onChange={set('flowPercent')} inputMode="decimal" /></label>
-          <label className="field"><span>Rapport de flux</span><input value={draft.flowRatio} onChange={set('flowRatio')} inputMode="decimal" /></label>
-          <label className="field"><span>Pressure Advance / K</span><input value={draft.pressureAdvance} onChange={set('pressureAdvance')} inputMode="decimal" /></label>
-          <label className="field"><span>Vitesse volumétrique <b>mm³/s</b></span><input value={draft.maxVolumetricSpeedMm3PerSecond} onChange={set('maxVolumetricSpeedMm3PerSecond')} inputMode="decimal" /></label>
-          <label className="field"><span>Ventilation <b>%</b></span><input value={draft.fanPercent} onChange={set('fanPercent')} inputMode="decimal" /></label>
-          <label className="field"><span>Rétraction <b>mm</b></span><input value={draft.retractionMm} onChange={set('retractionMm')} inputMode="decimal" /></label>
-          <label className="field"><span>Vitesse rétraction <b>mm/s</b></span><input value={draft.retractionSpeedMmPerSecond} onChange={set('retractionSpeedMmPerSecond')} inputMode="decimal" /></label>
         </div>
       </details>
     </div>
