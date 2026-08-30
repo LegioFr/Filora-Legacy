@@ -55,6 +55,8 @@ export interface PersistedSpoolV2 {
   tareSource: TareSource | null;
   grossMeasuredWeightGrams: number | null;
   stockBasis: StockBasis;
+  preferredNozzleTemperatureC?: number | null;
+  preferredBedTemperatureC?: number | null;
   notes: string | null;
 }
 
@@ -233,6 +235,12 @@ export function validatePersistedSpoolV2(spool: PersistedSpoolV2): PersistedSpoo
   const purchasePriceEuros = spool.purchasePriceEuros === null
     ? null
     : requireNonNegativeFinite(spool.purchasePriceEuros, "Prix d'achat");
+  const preferredNozzleTemperatureC = spool.preferredNozzleTemperatureC == null
+    ? null
+    : requireNonNegativeFinite(spool.preferredNozzleTemperatureC, 'Température buse préférée');
+  const preferredBedTemperatureC = spool.preferredBedTemperatureC == null
+    ? null
+    : requireNonNegativeFinite(spool.preferredBedTemperatureC, 'Température plateau préférée');
 
   return {
     ...spool,
@@ -249,6 +257,8 @@ export function validatePersistedSpoolV2(spool: PersistedSpoolV2): PersistedSpoo
     tareWeightGrams,
     tareSource,
     grossMeasuredWeightGrams,
+    preferredNozzleTemperatureC,
+    preferredBedTemperatureC,
     notes: normalizeOptionalText(spool.notes),
   };
 }
@@ -270,6 +280,8 @@ export function migrateLegacySpool(legacy: LegacyPersistedSpoolIdentity): Persis
     tareSource: legacy.tareSource,
     grossMeasuredWeightGrams: legacy.grossMeasuredWeightGrams,
     stockBasis: 'measured',
+    preferredNozzleTemperatureC: null,
+    preferredBedTemperatureC: null,
     notes: null,
   });
 }
