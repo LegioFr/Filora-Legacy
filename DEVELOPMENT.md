@@ -195,6 +195,28 @@ Le développement ou le push direct sur `main` ne constitue pas le chemin ordina
 
 Les conditions de promotion de `test-preview` vers `main` réutilisent les règles de preuve, de risque et de clôture définies dans ce document ; elles ne créent pas une gouvernance parallèle.
 
+## 5.2 Préflight avant une PR de validation ou d’intégration
+
+Avant d’ouvrir une PR destinée à une validation ou à une intégration, ou avant de publier une mise à jour de cette PR qui doit être soumise à nouveau aux contrôles, le coordinateur doit effectuer un préflight en lecture seule des contrôles applicables qu’il peut raisonnablement exécuter ou vérifier directement sur le candidat concerné.
+
+Ce préflight doit notamment vérifier, lorsqu’ils sont applicables et disponibles :
+
+- la cohérence du fichier `BATCH<n>.md`, de son statut et de son jalon humain ;
+- la cohérence de `workflow/state.json` avec le Batch courant et son état réel ;
+- le niveau de risque objectif attendu par les règles existantes ;
+- les contrôles de garde et d’architecture ;
+- les tests automatisés pertinents ;
+- le typecheck et le build ;
+- les autres prérequis déterministes connus qui seront évalués par la CI.
+
+Lorsqu’un même préflight révèle plusieurs incohérences prévisibles, elles doivent être regroupées et traitées avant d’utiliser la CI distante comme détecteur étape par étape.
+
+Le préflight n’autorise aucune mutation qui ne serait pas déjà autorisée. Lorsqu’une correction requise porte sur un fichier ou une décision nécessitant une autorisation explicite, le coordinateur doit la présenter avant modification plutôt que la réaliser silencieusement.
+
+La CI distante reste la preuve finale des contrôles qu’elle exécute. Un préflight réussi ne remplace jamais la CI et ne permet pas de déclarer un contrôle distant réussi avant son exécution réelle.
+
+Cette règle ne s’applique pas à une PR volontairement destinée à tester, démontrer ou reproduire l’échec d’un garde-fou ou d’un contrôle, à condition que cette intention soit explicite et que l’échec attendu ne soit pas présenté comme une validation réussie.
+
 ---
 
 # 6. F4.1 — Autorité et périmètre de l’IA
