@@ -2,13 +2,13 @@
 
 **Statut : ouvert**  
 **Date de démarrage : 2026-08-30**  
-**Réouverture : 2026-08-30 — configuration et essai réel de Graphify encore à effectuer**
+**Réouverture : 2026-08-30 — essai réel de Graphify effectué ; décision RETIRER acquise, clôture finale à revalider**
 
 ## Intention
 
 Réduire la part de tests d’interface répétitifs réalisés manuellement en introduisant une automatisation Playwright simple, fiable et proportionnée, sans transformer les viewports simulés en fausse preuve de comportement sur appareils physiques et sans ajouter une infrastructure plus complexe que nécessaire.
 
-Le Batch suit l’ordre décidé : faisabilité locale d’abord, suite E2E stable ensuite, viewports représentatifs, intégration CI après stabilité locale, puis configuration/essai réel de Graphify comme aide locale avant la clôture finale.
+Le Batch suit l’ordre décidé : faisabilité locale d’abord, suite E2E stable ensuite, viewports représentatifs, intégration CI après stabilité locale, puis essai réel de Graphify comme aide locale avant la clôture finale.
 
 ## État de départ vérifié
 
@@ -127,26 +127,39 @@ Les artefacts locaux connus responsables du bruit sont désormais ignorés :
 - `*.py[cod]` ;
 - `.vercel/`.
 
-La CI Playwright prouve qu’un checkout GitHub neuf du candidat est propre avant exécution. Aucune nouvelle Preview Vercel du checkout corrigé n’a été créée de manière suffisamment contrôlée pour revendiquer `gitDirty: 0` dans les métadonnées Vercel. Cette absence n’est pas un blocage du travail Graphify ; lorsqu’une prochaine Preview sera nécessaire, son SHA et son `gitDirty` devront être vérifiés directement.
+La CI Playwright prouve qu’un checkout GitHub neuf du candidat est propre avant exécution. Aucune nouvelle Preview Vercel du checkout corrigé n’a été créée de manière suffisamment contrôlée pour revendiquer `gitDirty: 0` dans les métadonnées Vercel. Cette absence n’est pas un blocage ; lorsqu’une prochaine Preview sera nécessaire, son SHA et son `gitDirty` devront être vérifiés directement.
 
-## Graphify — configuration locale et essai réel à effectuer
+## Graphify — essai réel effectué : RETIRER
 
-La décision précédente « aide locale optionnelle » était prématurée : Graphify avait été évalué sur le principe mais **pas installé/configuré ni essayé réellement sur l’environnement local Filora**.
+La décision précédente « aide locale optionnelle » était prématurée. Graphify a donc été réellement installé et essayé sur l’environnement Windows/Codex utilisé pour Filora, puis retiré après l’essai.
 
-Le point est donc rouvert et doit être traité avant la clôture finale du Batch 7.
+Le rapport Codex local — conservé comme **rapport d’agent et non comme preuve mécanique** — indique pour Graphify `0.9.53` :
 
-Objectif de l’essai :
+- génération effective d’un graphe AST Filora en mode `--code-only` ;
+- taille observée : **851 nœuds, 1 966 arêtes, 45 communautés** ;
+- le build par défaut a demandé une clé LLM à cause des documents détectés ;
+- `graphify codex install` a tenté d’écrire dans le dépôt et d’ajouter un hook, comportement incompatible avec le périmètre local demandé ;
+- l’intégration utilisateur a nécessité un contournement ;
+- le sidecar `.graphify_python` attendu n’a pas été créé correctement ;
+- les premières requêtes ont principalement produit du bruit autour des imports et n’ont pas immédiatement reconstruit le chemin métier utile ;
+- l’effort d’installation, de dépannage et d’interrogation a dépassé le gain de compréhension démontré.
 
-- installer/configurer Graphify localement, de préférence via Codex sur le PC de développement ;
-- ne pas l’ajouter comme dépendance obligatoire de Filora ;
-- ne pas l’ajouter à la CI, aux hooks Git ou aux garde-fous ;
-- ne versionner aucun cache, graphe ou rapport généré sauf besoin concret explicitement approuvé ;
-- tester sa capacité à retrouver rapidement les dépendances d’un petit cas transversal réel de Filora ;
-- comparer son résultat directement au code afin de détecter les omissions ou faux liens ;
-- mesurer qualitativement s’il réduit réellement le temps de compréhension pour Codex/les IA ;
-- le conserver uniquement si l’apport est concret et proportionné.
+Le même rapport indique qu’après nettoyage :
 
-Graphify restera dans tous les cas **une aide de compréhension**, jamais une source de vérité ni une preuve de conformité.
+- HEAD local et remote étaient tous deux `adb3b82263cc4e575751b0c6731ed94894029eb0` ;
+- le worktree suivi par Git était propre ;
+- Graphify, sa skill Codex, son cache nommé, `graphify-out/`, le dossier projet `.codex` vide et l’entrée locale `.git/info/exclude` ajoutée pour l’essai ont été supprimés ;
+- aucun hook Graphify ne restait ;
+- `uv 0.12.7` et son Python géré `3.12.14` ont été conservés comme outils utilisateur génériques ;
+- aucun commit, push ou PR n’a été produit par l’essai.
+
+GitHub confirme séparément que la branche distante n’a pas bougé pendant cet essai : son HEAD est resté `adb3b82263cc4e575751b0c6731ed94894029eb0` jusqu’à l’enregistrement documentaire de ce résultat.
+
+**Décision Batch 7 : RETIRER Graphify pour Filora aujourd’hui.**
+
+Cette décision ne signifie pas que Graphify est inutilisable en général. Elle concerne la version `0.9.53` dans cet environnement Windows/Codex/Filora. Un nouvel essai pourra être envisagé dans une version ultérieure si l’intégration devient sensiblement plus simple et si un gain réel de navigation dans le code peut être démontré sans contournements.
+
+Graphify n’est donc pas ajouté au dépôt, à `package.json`, à la CI, aux hooks Git, aux garde-fous ni comme source de vérité ou preuve.
 
 ## Revue indépendante
 
@@ -156,7 +169,7 @@ La mission demandait explicitement d’examiner le diff réel, la dépendance et
 
 Codex GitHub a indiqué : `Codex Review: Didn't find any major issues` et a identifié le commit revu comme `f1c5e8af46`.
 
-Cette revue reste une preuve positive du candidat Playwright/CI examiné. **Elle ne clôt plus le Batch courant**, car le Batch a été rouvert pour l’essai Graphify. Une nouvelle revue indépendante du futur candidat final devra être obtenue après les éventuelles modifications découlant de Graphify.
+Cette revue reste une preuve positive du candidat Playwright/CI examiné. **Elle ne clôt plus le Batch courant**, car le Batch a été rouvert pour l’essai Graphify. Une nouvelle revue indépendante du futur candidat final devra être obtenue après l’enregistrement du verdict Graphify.
 
 ## Findings / décisions
 
@@ -168,11 +181,8 @@ Cette revue reste une preuve positive du candidat Playwright/CI examiné. **Elle
 - quatre viewports représentatifs ;
 - intégration CI Playwright minimale ;
 - artefacts Python/Vercel responsables du checkout sale exclus du suivi Git ;
-- rollback navigateur IndexedDB / catalogue personnel par un vrai test Chromium.
-
-### À traiter avant clôture
-
-- **Graphify : installation/configuration locale et essai réel sur Filora, puis décision conserver/retirer sur preuve d’utilité concrète.**
+- rollback navigateur IndexedDB / catalogue personnel par un vrai test Chromium ;
+- Graphify `0.9.53` réellement essayé sur l’environnement local : **RETIRER**, car l’effort et les contournements ont dépassé le gain démontré.
 
 ### Reportés
 
@@ -188,7 +198,7 @@ Ces points restent hors du périmètre du Batch 7 et ne remettent pas en cause l
 
 ### Rejetés
 
-- aucun finding.
+- Graphify comme outil Filora conservé aujourd’hui : rejeté après l’essai réel `0.9.53` ; réévaluation future autorisée si les conditions changent.
 
 ## Classification F4.2 / F4.3
 
@@ -204,29 +214,27 @@ Aucun garde-fou n’a été modifié ou affaibli pour contourner ce résultat ; 
 
 Mickaël a autorisé le 2026-08-30 la correction du problème `gitDirty` puis le passage à la CI. L’état machine conserve donc `owner_approval: obtained`.
 
-L’essai local Graphify ne doit pas étendre silencieusement cette autorisation à une nouvelle dépendance permanente, un service externe, une CI, un hook ou un changement de gouvernance : une telle évolution nécessiterait une décision explicite séparée.
+L’essai Graphify n’a produit aucune dépendance permanente, aucun hook, aucune CI et aucun changement de gouvernance dans Filora.
 
 ### Jalon humain requis — NON REQUIS à ce stade
 
-Le Batch 7 porte sur l’outillage et l’automatisation des tests et n’introduit pas de modification produit/UX. Une validation humaine applicative n’est donc pas requise pour les propriétés déjà automatisées. L’essai Graphify est un essai d’outillage local.
+Le Batch 7 porte sur l’outillage et l’automatisation des tests et n’introduit pas de modification produit/UX. Une validation humaine applicative n’est donc pas requise pour les propriétés déjà automatisées. L’essai Graphify était un essai d’outillage local.
 
 ## Conditions de clôture
 
-Les conditions Playwright/CI sont acquises. Les conditions **restantes** avant clôture finale sont :
+Les travaux fonctionnels et d’outillage prévus sont maintenant traités. Les conditions **restantes** avant clôture finale sont :
 
-1. installer/configurer Graphify localement sans l’intégrer arbitrairement au projet ;
-2. réaliser un petit test réel sur Filora et vérifier son résultat directement dans le code ;
-3. décider explicitement de le conserver ou de le retirer selon son utilité réelle ;
-4. recontrôler Issues/findings pertinents ;
-5. remettre `BATCH7.md`, `PROJECT_STATE.md` et `workflow/state.json` en état de clôture seulement après ce travail ;
-6. exécuter les contrôles applicables sur le nouveau candidat final ;
-7. obtenir la revue indépendante finale adaptée au risque Critique ;
-8. seulement ensuite préparer l’intégration de la PR #65 vers `test-preview`.
+1. recontrôler Issues/findings pertinents ;
+2. laisser les contrôles applicables vérifier le candidat qui enregistre le verdict Graphify ;
+3. obtenir la revue indépendante finale adaptée au risque Critique sur ce candidat ;
+4. remettre `BATCH7.md`, `PROJECT_STATE.md` et `workflow/state.json` en état de clôture ;
+5. exécuter les contrôles applicables sur le commit de clôture ;
+6. seulement ensuite préparer l’intégration de la PR #65 vers `test-preview`.
 
-Le Batch 7 est donc **ouvert**.
+Le Batch 7 est donc **encore ouvert uniquement pour sa revalidation/clôture finale**.
 
 ## Intégration
 
-La PR #65 reste le véhicule d’intégration vers `test-preview`, mais **elle ne doit pas être fusionnée tant que le Batch 7 est rouvert pour Graphify**.
+La PR #65 reste le véhicule d’intégration vers `test-preview`, mais **elle ne doit pas être fusionnée tant que le Batch 7 n’est pas reclôturé et revalidé**.
 
 Aucun Batch 8 ne doit démarrer avant clôture réelle du Batch 7 puis vérification de son intégration réelle dans `test-preview`.
