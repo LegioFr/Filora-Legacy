@@ -1,13 +1,14 @@
 # BATCH7.md — Automatisation des tests d’interface avec Playwright
 
-**Statut : ouvert**  
-**Date de démarrage : 2026-08-30**
+**Statut : clôturé**  
+**Date de démarrage : 2026-08-30**  
+**Date de clôture : 2026-08-30**
 
 ## Intention
 
 Réduire la part de tests d’interface répétitifs réalisés manuellement en introduisant une automatisation Playwright simple, fiable et proportionnée, sans transformer les viewports simulés en fausse preuve de comportement sur appareils physiques et sans ajouter une infrastructure plus complexe que nécessaire.
 
-Le Batch a suivi l’ordre prévu : faisabilité locale d’abord, suite E2E stable ensuite, puis intégration CI seulement après stabilité locale.
+Le Batch a suivi l’ordre décidé : faisabilité locale d’abord, suite E2E stable ensuite, viewports représentatifs, puis intégration CI seulement après stabilité locale.
 
 ## État de départ vérifié
 
@@ -18,182 +19,212 @@ Le Batch a suivi l’ordre prévu : faisabilité locale d’abord, suite E2E sta
 - aucune Issue ni PR ouverte au contrôle préalable ;
 - Filora guard #239 vert sur la clôture du Batch 6.
 
-## Périmètre décidé
+## Réalisations
 
-### À traiter
+### Playwright minimal et reproductible
 
-1. **Faisabilité Codex → Playwright**
-   - Chromium uniquement ;
-   - scénario minimal Stock → Ajouter une bobine → modale → retour Stock ;
-   - conserver des tests Playwright classiques même si le pilotage interactif Codex devenait indisponible.
+- `@playwright/test` version exacte `1.62.1` ;
+- `package-lock.json` versionné ;
+- Chromium uniquement ;
+- Firefox et WebKit non ajoutés ;
+- configuration Playwright versionnée dans `playwright.config.ts` ;
+- `forbidOnly` activé en CI ;
+- trace et capture conservées uniquement en cas d’échec ;
+- serveur Vite local géré par Playwright pour les tests.
 
-2. **Dépendance reproductible**
-   - version Playwright explicite ;
-   - lockfile versionné et examiné ;
-   - navigateur/binaires minimaux ;
-   - pas de Firefox/WebKit sans besoin démontré.
+La faisabilité Codex → Playwright a d’abord été démontrée avec un smoke test Stock → Ajouter une bobine → modale → retour Stock avant l’extension de la suite.
 
-3. **Suite E2E utile**
-   - navigation, boutons, modales, formulaires, validations, persistance ;
-   - création nominale/mesurée et en série ;
-   - références filament, modification et réaffectation ;
-   - sauvegarde/restauration ;
-   - isolation des contextes de test.
+### Suite E2E fonctionnelle
 
-4. **Viewports simulés**
-   - mobile `390×844` ;
-   - tablette `800×1280` ;
-   - PC `1440×900` ;
-   - ultra-wide `2560×1080`.
+La suite couvre les parcours utilisateur actuellement implémentés et rentables à automatiser, notamment :
 
-Ces profils sont des simulations Chromium de taille d’écran. Ils ne remplacent pas une validation sur appareil physique lorsque la propriété dépend réellement du matériel, du navigateur ou du confort humain.
+- navigation Stock / Réglages ;
+- statistiques latérales ;
+- ouverture/fermeture de la création ;
+- sections repliables et persistance de leur état ;
+- validations empêchant les écritures invalides ;
+- référence filament catalogue et personnalisée ;
+- paramètres d’impression ;
+- achat, fournisseur et rangement ;
+- bobine nominale ;
+- bobine mesurée ;
+- presets de tare ;
+- création en série et atomicité ;
+- modification d’une référence simple ou partagée ;
+- changement de filament d’une seule bobine ;
+- sauvegarde JSON ;
+- validation, annulation et restauration d’une sauvegarde ;
+- refus d’un JSON invalide ;
+- isolation entre contextes de test ;
+- rollback réel entre IndexedDB et catalogue personnel.
 
-5. **CI Playwright**
-   - intégration seulement après stabilité locale ;
-   - Chromium uniquement ;
-   - permissions GitHub Actions minimales ;
-   - aucun secret ;
-   - suite E2E complète ;
-   - preuve d’échec conservée uniquement si nécessaire.
+### Viewports représentatifs
 
-6. **Rollback navigateur IndexedDB / catalogue personnel**
-   - évaluer un vrai test de panne entre les deux restaurations ;
-   - ne l’ajouter que si l’injection de panne et la vérification du rollback restent propres et proportionnées ;
-   - ne pas modifier artificiellement le code produit pour rendre ce test possible ;
-   - sinon maintenir explicitement ce point reporté.
+Un sous-ensemble critique vérifie l’utilisabilité des parcours retenus sur quatre tailles simulées :
 
-### À évaluer séparément
+- mobile `390×844` ;
+- tablette `800×1280` ;
+- PC `1440×900` ;
+- ultra-wide `2560×1080`.
 
-**Graphify** peut être évalué comme aide locale à la compréhension du dépôt et à l’analyse d’impact pour les IA. Il ne devient jamais source de vérité ni preuve ; toute conclusion importante doit être vérifiée dans le code et GitHub. Il n’est conservé que si le gain pratique est réel.
+Ces profils restent des simulations Chromium de taille d’écran. Ils ne constituent pas une preuve que le comportement est identique sur des appareils physiques réels.
 
-## État d’avancement Playwright au 2026-08-30
+### Rollback navigateur inter-stockages
 
-- faisabilité locale Codex → Playwright : démontrée ;
-- `@playwright/test` : version exacte `1.62.1` ;
-- Chromium : installé/utilisé ; Firefox/WebKit : non ajoutés ;
-- smoke initial : PASS local ;
-- suite fonctionnelle initiale : 28 tests ;
-- test navigateur de rollback inter-stockages : 1 test supplémentaire ;
-- viewports représentatifs : 4 tests dédiés ;
-- total actuel : **33 tests Playwright** ;
-- CI Playwright sur `f7dd2775454ede1f4fe5161e901022f0a2f66937` : **33/33 PASS** ;
-- le test de rollback navigateur passe réellement en Chromium après injection d’une panne unique de `localStorage`, puis recharge l’application pour vérifier que l’ancien IndexedDB et l’ancien catalogue personnel sont revenus ;
-- aucun crochet de test ni modification du code métier n’a été nécessaire pour cette injection ;
-- validation locale précédemment rapportée : typecheck, build et architecture verts ;
-- démonstration visible des quatre viewports réalisée ;
-- aucun bug produit découvert lors de ces parcours ;
-- la suite visible n’est qu’un complément : la couverture automatisée applicable complète reste obligatoire en arrière-plan ;
-- `.gitignore` ignore désormais `__pycache__/`, `*.py[cod]` et `.vercel/` afin que les artefacts locaux de Python/Vercel ne salissent plus le checkout utilisé pour les tests et previews ;
-- le workflow `.github/workflows/playwright-e2e.yml` a été ajouté séparément sans modifier `filora-guard.yml` ;
-- CI Playwright : `permissions: contents: read`, aucun secret, Node 22, `npm ci`, Chromium uniquement, suite `npm run test:e2e` complète, traces/captures conservées seulement en cas d’échec ;
-- `playwright.config.ts` utilise `forbidOnly` en CI et conserve trace/capture uniquement en cas d’échec ;
-- PR #65 ouverte en brouillon vers `test-preview` pour obtenir les preuves CI sans déclarer le Batch prêt à fusionner ;
-- Filora guard a correctement refusé la classification initiale `sensitive` car l’ajout d’un workflow GitHub Actions exige objectivement un risque `critical` ;
-- aucun garde-fou n’a été affaibli pour contourner ce résultat ;
-- après alignement de `workflow/state.json` sur `risk: critical` et `owner_approval: obtained`, le guard est redevenu vert ;
-- sur le candidat `f7dd2775454ede1f4fe5161e901022f0a2f66937`, Filora guard #245 est réellement **SUCCESS** et la suite Playwright complète est **SUCCESS** ;
-- Filora guard sentinel reste applicable et n’a pas été modifié.
+Le finding concernant le rollback IndexedDB / catalogue personnel est **traité**.
+
+Le test navigateur :
+
+1. crée un état initial par l’interface avec une bobine et une option personnalisée de catalogue ;
+2. crée dans un second contexte Chromium isolé un état cible différent et télécharge sa sauvegarde par l’interface ;
+3. importe cette sauvegarde dans le premier contexte ;
+4. injecte une panne unique sur `Storage.prototype.setItem` au moment de l’écriture du catalogue personnel ;
+5. laisse le mécanisme métier de restauration déclencher son rollback compensatoire ;
+6. recharge réellement l’application ;
+7. vérifie que l’ancienne bobine est toujours persistée dans IndexedDB et que la bobine cible n’y est pas restée ;
+8. rouvre le catalogue et vérifie que l’ancienne option personnalisée est revenue tandis que l’option cible n’a pas fui.
+
+Aucun crochet de test ni changement du code métier n’a été ajouté pour rendre cette injection possible.
+
+### CI Playwright
+
+Le workflow séparé `.github/workflows/playwright-e2e.yml` :
+
+- s’exécute sur les PR vers `test-preview` et `main` ;
+- checkout le SHA exact de la PR ;
+- exige un checkout Git propre avant test ;
+- utilise Node 22 ;
+- exécute `npm ci --no-audit --no-fund` ;
+- installe Chromium uniquement avec Playwright ;
+- exécute la suite complète `npm run test:e2e` ;
+- utilise `permissions: contents: read` ;
+- n’utilise aucun secret ;
+- conserve `test-results/` uniquement en cas d’échec.
+
+Le workflow Critique existant `filora-guard.yml`, son sentinel, `DEVELOPMENT.md`, `workflow/contract.json` et les scripts de garde n’ont pas été modifiés.
+
+## Preuves de pré-clôture
+
+Sur le SHA `f1c5e8af46eb226d8698e6a9fd6155bcdacd2452`, vérifié comme HEAD exact de la PR #65 avant la clôture :
+
+- `e2e` : SUCCESS ;
+- `guard` : SUCCESS ;
+- `sentinel` : SUCCESS ;
+- Playwright : **33 tests, 33 passés** ;
+- le test `rollback navigateur restaure IndexedDB et le catalogue après une panne inter-stockages` : PASS ;
+- le checkout exact et propre du job Playwright : PASS ;
+- architecture, typecheck, build et tests du guard : PASS dans `Filora guard`.
+
+Le commit de clôture qui met à jour ce document, `PROJECT_STATE.md` et `workflow/state.json` doit lui-même repasser les contrôles applicables. Les preuves de `f1c5e8af...` ne sont pas présentées comme une preuve automatique d’un SHA ultérieur.
+
+## Correction du checkout sale / `gitDirty`
+
+La dernière Preview Vercel vérifiée pendant le Batch correspond à l’ancien SHA `8d63454d1ffb1c0e0c33827f8162ce471744b968` et ses métadonnées portent `gitDirty: 1`.
+
+Les artefacts locaux connus responsables du bruit sont désormais ignorés :
+
+- `__pycache__/` ;
+- `*.py[cod]` ;
+- `.vercel/`.
+
+La CI Playwright prouve qu’un checkout GitHub neuf du candidat est propre avant exécution. Aucune nouvelle Preview Vercel du checkout corrigé n’a été créée de manière suffisamment contrôlée pour revendiquer `gitDirty: 0` dans les métadonnées Vercel. Cette absence de nouvelle Preview n’est pas un blocage de clôture : le Batch n’introduit aucun changement produit/UX nécessitant un jalon humain ou une Preview applicative. Lorsqu’une prochaine Preview sera nécessaire, son SHA et son `gitDirty` devront être vérifiés directement.
 
 ## Décision Graphify
 
 Graphify est **conservé comme aide locale optionnelle**, sans intégration au projet.
 
-Décision proportionnée :
+- il peut aider à visualiser les dépendances du code pour une analyse transversale future ;
+- il n’est ni source de vérité, ni preuve, ni contrôle de conformité ;
+- aucune dépendance Graphify n’est ajoutée à `package.json` ;
+- aucun workflow CI, hook Git ou serveur MCP Graphify n’est ajouté au dépôt ;
+- aucun `graphify-out/`, cache ou rapport n’est versionné ;
+- toute conclusion importante doit être revérifiée dans le code et GitHub ;
+- aucun gain mesuré sur l’environnement Windows local de Mickaël n’est revendiqué pendant ce Batch.
 
-- l’outil open source peut construire localement un graphe du code à partir de l’AST et sait s’intégrer à Codex ;
-- ce graphe peut être utile pour des analyses d’impact transversales lorsque Filora grandira ;
-- Graphify n’est ni une source de vérité, ni une preuve, ni un contrôle de conformité ;
-- aucune dépendance Graphify n’est ajoutée à `package.json` ou aux outils du dépôt ;
-- aucun workflow CI, hook Git ou serveur MCP Graphify n’est ajouté au projet ;
-- `graphify-out/`, caches et rapports Graphify ne sont pas destinés à être versionnés dans Filora ;
-- toute conclusion importante issue du graphe doit être vérifiée dans le code et GitHub ;
-- aucune preuve de gain mesuré sur l’environnement Windows local de Mickaël n’est revendiquée à ce stade. L’outil reste disponible comme accélérateur facultatif si un futur changement transversal justifie réellement son coût de préparation.
+Cette décision ferme le point d’évaluation sans ajouter d’infrastructure permanente inutile.
 
-## Garde-fou d’exécution des tests d’interface
+## Revue indépendante
 
-Le garde-fou permanent détaillé se trouve dans `PROJECT_STATE.md` et s’applique aux futurs Batches :
+Une contre-revue **Codex normal** a été déclenchée directement sur la PR #65 avec le SHA attendu `f1c5e8af46eb226d8698e6a9fd6155bcdacd2452` et la base attendue `cf221569f735e850b7f44bed84bae788612483b9`.
 
-1. avant une session locale/manuelle de tests d’interface, demander à Mickaël **VISIBLE** ou **ARRIÈRE-PLAN** ;
-2. VISIBLE = navigateur visible, maximisé lorsque possible, ralentissement seulement pour les scénarios réellement observés ;
-3. ARRIÈRE-PLAN = headless rapide ;
-4. la suite automatisée applicable complète reste exécutée : le mode visible ne la remplace jamais ;
-5. fournir une Preview HTTPS correspondant au SHA testé lorsqu’elle existe et peut être vérifiée ; ne jamais inventer de lien ;
-6. réutiliser le chemin Playwright déjà fonctionnel plutôt que refaire des préparations sans valeur ;
-7. cette interaction ne s’applique pas aux exécutions automatiques de CI déjà autorisées.
+La mission demandait explicitement d’examiner le diff réel, la dépendance et le lockfile, la configuration Playwright, les 33 tests et viewports, le rollback navigateur, le nouveau workflow CI, les permissions/secrets/réseau, l’absence d’affaiblissement des guards, la cohérence de l’état Critique, F4.2/F4.3, F4.4 et les findings reportés.
+
+Codex GitHub a indiqué : `Codex Review: Didn't find any major issues` et a identifié le commit revu comme `f1c5e8af46`.
+
+L’intégration GitHub de Codex restitue ce verdict dans son format automatique et n’a pas détaillé champ par champ F4.2/F4.3 ou F4.4 malgré une relance de clarification. Le reviewer a néanmoins été mandaté explicitement sur ces propriétés et n’a remonté aucun finding majeur. Cette limitation de granularité du rendu est conservée comme réserve de forme ; elle ne transforme pas le verdict en une attestation plus précise qu’il ne l’est.
+
+Aucun finding bloquant Codex n’a été produit.
 
 ## Findings / décisions
 
-### Traités ou intégrés au Batch 7
+### Traités
 
-- automatisation Playwright des parcours répétitifs ;
 - faisabilité Codex → Playwright ;
-- dépendance et lockfile reproductibles ;
-- 28 parcours fonctionnels initiaux automatisés ;
-- 4 viewports représentatifs ;
+- dépendance et lockfile Playwright reproductibles ;
+- suite E2E fonctionnelle ;
+- quatre viewports représentatifs ;
 - intégration CI Playwright minimale ;
-- correction des artefacts locaux responsables d’un checkout sale lors de la Preview précédente ;
-- rollback navigateur IndexedDB / catalogue personnel : **traité** par un vrai test Chromium de panne inter-stockages, sans modification du code produit ;
-- Graphify : **décision acquise**, conservé uniquement comme aide locale optionnelle non intégrée au dépôt.
+- artefacts Python/Vercel responsables du checkout sale exclus du suivi Git ;
+- rollback navigateur IndexedDB / catalogue personnel par un vrai test Chromium ;
+- Graphify : décision acquise comme aide locale optionnelle non intégrée.
 
 ### Reportés
 
+Ces points restent hors du périmètre du Batch 7 et ne remettent pas en cause les propriétés qu’il devait démontrer :
+
 - encodage implicite du guard sous Windows ;
 - ordre d’export `localeCompare()` sans locale explicite sauf nécessité fonctionnelle ;
-- compteur du téléchargement basé sur l’état UI ;
+- compteur de téléchargement basé sur l’état UI ;
 - consommations, mouvements, nouvelles pesées successives, corrections/recalages et inventaire ;
 - nettoyage et suppression de références filament ;
 - cycle de vie complet des supports réutilisables ;
-- duplication actuelle des préfixes `localStorage` du catalogue personnel entre UI et adaptateur de domaine.
+- duplication des préfixes `localStorage` du catalogue personnel entre UI et adaptateur de domaine.
 
 ### Rejetés
 
-- aucun finding à ce stade.
+- aucun finding.
 
-## Routage des revues
-
-Le routage par défaut reste **Codex normal**. Codex Security n’est pas demandé par réflexe.
-
-L’intégration CI doit être examinée sur ses propriétés concrètes : permissions GitHub Actions, secrets, accès réseau, dépendances, lockfile, navigateur installé et capacité du workflow à exécuter la suite complète. Le workflow actuel utilise uniquement `contents: read`, aucun secret et Chromium. Si une propriété de sécurité précise apparaît et que Codex normal est insuffisant pour l’évaluer, le routage vers Codex Security redevient pertinent conformément à `DEVELOPMENT.md`.
-
-## Classification
+## Classification F4.2 / F4.3
 
 **Critique.**
 
-La classification initiale était Sensible, mais elle est devenue objectivement Critique dès l’ajout de `.github/workflows/playwright-e2e.yml`. Le guard Filora classe tout nouveau chemin sous `.github/workflows/` comme surface structurelle de contrôle et a correctement refusé la sous-classification `sensitive`.
+La classification initiale était Sensible en raison de la nouvelle dépendance. Dès l’ajout du workflow `.github/workflows/playwright-e2e.yml`, le guard Filora a objectivement exigé `critical` car tout nouveau chemin sous `.github/workflows/` constitue une surface structurelle de contrôle.
 
-Cette montée de risque ne signifie pas que le workflow actuel affaiblit la sécurité : elle impose le niveau de validation supérieur prévu pour une modification de mécanisme de contrôle. Le workflow existant `filora-guard.yml`, son sentinel et les scripts de garde n’ont pas été modifiés.
+Le premier essai CI a donc correctement refusé `risk: sensitive`. Aucun garde-fou n’a été modifié ou affaibli pour contourner ce résultat ; `workflow/state.json` a été aligné sur `risk: critical`.
 
-Classification F4.4 : Mickaël a explicitement autorisé le 2026-08-30 la correction du problème `gitDirty` puis le passage à la CI. Cette autorisation couvre l’introduction de la CI Playwright minimale décrite ci-dessus. `workflow/state.json` enregistre donc `owner_approval: obtained`. La revue indépendante reste `pending` tant qu’elle n’a pas été réellement acquise.
+## Classification F4.4
+
+**Décision propriétaire explicitement acquise.**
+
+Mickaël a autorisé le 2026-08-30 la correction du problème `gitDirty` puis le passage à la CI. Cette décision couvre l’introduction de la CI Playwright minimale décrite ci-dessus. L’état machine enregistre donc `owner_approval: obtained`.
+
+Cet accord ne remplace pas les contrôles techniques ; ceux-ci ont été exécutés séparément.
 
 ### Jalon humain requis — NON REQUIS
 
-Le Batch 7 porte sur l’outillage et l’automatisation des tests, sans modification produit/UX dans son périmètre. Une validation humaine applicative n’est donc pas exigée pour sa clôture. L’accord propriétaire requis par le niveau Critique est une décision de gouvernance distincte et est déjà enregistré comme obtenu.
-
-## Hors périmètre
-
-- nouvelles fonctionnalités métier de stock ;
-- consommations/mouvements/inventaire ;
-- refonte visuelle ;
-- cloud ou synchronisation ;
-- comptes utilisateurs ;
-- nettoyage opportuniste des références ;
-- promotion vers `main`.
+Le Batch 7 porte sur l’outillage et l’automatisation des tests et n’introduit pas de modification produit/UX. Une validation humaine applicative n’est donc pas requise pour sa clôture. L’accord propriétaire requis par la classification Critique est une décision de gouvernance distincte et est acquis.
 
 ## Conditions de clôture
 
-Le Batch 7 ne pourra être déclaré clôturé que si :
+Les conditions définies à l’ouverture sont satisfaites :
 
-1. la faisabilité Codex → Playwright est documentée fidèlement ;
-2. Playwright reste minimal et reproductible ;
-3. dépendance, lockfile et navigateur sont examinés ;
-4. la suite E2E utile reste stable ;
-5. les viewports sont présentés pour ce qu’ils prouvent réellement ;
-6. la CI Playwright reste verte avec permissions/accès proportionnés ;
-7. le finding rollback navigateur reçoit une décision explicite ;
-8. Graphify reçoit une décision explicite ;
-9. tests applicables, typecheck, build, architecture et garde-fous sont verts sur le candidat final ;
-10. la revue indépendante requise par le niveau Critique est acquise sans finding bloquant non décidé ;
-11. l’accord propriétaire reste enregistré comme obtenu ;
-12. les Issues/findings apparus pendant le Batch sont tous traités, reportés, acceptés ou rejetés explicitement avant clôture.
+1. faisabilité Codex → Playwright documentée : oui ;
+2. Playwright minimal et reproductible : oui ;
+3. dépendance, lockfile et navigateur examinés : oui ;
+4. suite E2E utile et stable : oui ;
+5. viewports présentés pour leur portée réelle : oui ;
+6. CI Playwright proportionnée et verte sur le candidat pré-clôture : oui ;
+7. rollback navigateur décidé et traité : oui ;
+8. Graphify décidé : oui ;
+9. tests, typecheck, build, architecture et garde-fous verts sur le candidat pré-clôture : oui ;
+10. revue indépendante adaptée au risque acquise sans finding bloquant : oui ;
+11. accord propriétaire Critique : oui ;
+12. Issues/findings du Batch traités, reportés ou rejetés explicitement : oui.
 
-Les conditions 1 à 8 et 11 sont maintenant acquises. Les prochaines étapes sont le préflight final, la revue indépendante Critique, la décision sur tout finding de revue, puis la clôture et ses preuves finales.
+Le Batch 7 est donc **clôturé sur sa branche de travail**, sous réserve normale que le commit de clôture lui-même conserve les checks applicables verts avant intégration.
+
+## Intégration
+
+La PR #65 reste le véhicule d’intégration vers `test-preview`. L’état réel de son intégration doit toujours être lu directement depuis GitHub ; ce document ne doit pas être utilisé pour supposer qu’une fusion a déjà eu lieu.
+
+Aucun Batch 8 ne doit démarrer avant vérification de l’intégration réelle du Batch 7 dans `test-preview`.
