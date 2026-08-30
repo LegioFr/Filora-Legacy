@@ -70,6 +70,8 @@ interface SpoolDraft {
   tarePresetLabel: string;
   stockBasis: StockBasis;
   grossMeasuredWeightGrams: string;
+  preferredNozzleTemperatureC: string;
+  preferredBedTemperatureC: string;
   quantity: string;
   requestedFirstId: string;
   notes: string;
@@ -152,6 +154,8 @@ function emptySpoolDraft(): SpoolDraft {
     tarePresetLabel: '',
     stockBasis: 'nominal',
     grossMeasuredWeightGrams: '',
+    preferredNozzleTemperatureC: '',
+    preferredBedTemperatureC: '',
     quantity: '1',
     requestedFirstId: '',
     notes: '',
@@ -422,16 +426,20 @@ export function App() {
       manufacturerType: shortcut.manufacturerType,
       manufacturerColor: '',
       colorHex: '#38BDF8',
-      nozzleMin: temps ? String(temps.nozzle[0]) : current.nozzleMin,
-      nozzleMax: temps ? String(temps.nozzle[1]) : current.nozzleMax,
-      bedMin: temps ? String(temps.bed[0]) : current.bedMin,
-      bedMax: temps ? String(temps.bed[1]) : current.bedMax,
-      printSpeedMmPerSecond: current.printSpeedMmPerSecond || print.printSpeedMmPerSecond || '',
-      flowPercent: current.flowPercent || print.flowPercent || '',
-      flowRatio: current.flowRatio || print.flowRatio || '',
-      fanPercent: current.fanPercent || print.fanPercent || '',
-      retractionMm: current.retractionMm || print.retractionMm || '',
-      retractionSpeedMmPerSecond: current.retractionSpeedMmPerSecond || print.retractionSpeedMmPerSecond || '',
+      nozzleMin: temps ? String(temps.nozzle[0]) : '',
+      nozzleMax: temps ? String(temps.nozzle[1]) : '',
+      bedMin: temps ? String(temps.bed[0]) : '',
+      bedMax: temps ? String(temps.bed[1]) : '',
+      chamberTemperatureC: '',
+      firstLayerTemperatureC: '',
+      printSpeedMmPerSecond: print.printSpeedMmPerSecond ?? '',
+      flowPercent: print.flowPercent ?? '',
+      flowRatio: print.flowRatio ?? '',
+      pressureAdvance: '',
+      maxVolumetricSpeedMm3PerSecond: '',
+      fanPercent: print.fanPercent ?? '',
+      retractionMm: print.retractionMm ?? '',
+      retractionSpeedMmPerSecond: print.retractionSpeedMmPerSecond ?? '',
     }));
   }
 
@@ -514,6 +522,8 @@ export function App() {
           tareSource,
           grossMeasuredWeightGrams,
           stockBasis: spoolDraft.stockBasis,
+          preferredNozzleTemperatureC: optionalNonNegativeDecimal(spoolDraft.preferredNozzleTemperatureC, 'Température buse pour cette bobine'),
+          preferredBedTemperatureC: optionalNonNegativeDecimal(spoolDraft.preferredBedTemperatureC, 'Température plateau pour cette bobine'),
           notes: optionalText(spoolDraft.notes),
         },
       });
@@ -753,11 +763,27 @@ export function App() {
                         <button type="button" className={referenceMode === 'existing' ? 'selected' : ''} onClick={() => setReferenceMode('existing')}>Référence existante</button>
                       </div>
                       {referenceMode === 'new' ? (
-                        <ReferenceFields draft={referenceDraft} onChange={setReferenceDraft} idPrefix="create" existingReferences={snapshot.filamentReferences} />
+                        <ReferenceFields
+                          draft={referenceDraft}
+                          onChange={setReferenceDraft}
+                          idPrefix="create"
+                          existingReferences={snapshot.filamentReferences}
+                          spoolNozzleTemperatureC={spoolDraft.preferredNozzleTemperatureC}
+                          spoolBedTemperatureC={spoolDraft.preferredBedTemperatureC}
+                          onSpoolNozzleTemperatureChange={(value) => patchSpool('preferredNozzleTemperatureC', value)}
+                          onSpoolBedTemperatureChange={(value) => patchSpool('preferredBedTemperatureC', value)}
+                        />
                       ) : (
                         <div className="existing-reference-panel">
                           <label className="field"><span>Référence filament <b>obligatoire</b></span><select value={selectedReferenceId} onChange={(event) => setSelectedReferenceId(event.target.value)}><option value="">Sélectionner une référence…</option>{snapshot.filamentReferences.map((reference) => <option key={reference.id} value={reference.id}>{referenceLabel(reference)} · {reference.material}</option>)}</select></label>
                           {selectedReference ? <div className="reference-preview"><span className="large-swatch" style={{ background: selectedReference.colorHex ?? '#334155' }} /><div><strong>{referenceLabel(selectedReference)}</strong><span>{selectedReference.material} · {selectedReference.diameterMm} mm · {formatGrams(selectedReference.nominalWeightGrams)}</span></div></div> : <p className="helper-text">Les données communes seront reprises sans créer de copie indépendante.</p>}
+                          <details className="advanced-panel print-settings-panel spool-temperature-panel">
+                            <summary><span>Températures pour cette bobine</span><small>Facultatif · ne modifie pas la référence</small></summary>
+                            <div className="advanced-content"><div className="field-grid">
+                              <label className="field"><span>Buse pour cette bobine <b>°C</b></span><input value={spoolDraft.preferredNozzleTemperatureC} onChange={(event) => patchSpool('preferredNozzleTemperatureC', event.target.value)} inputMode="decimal" placeholder="ex. 205" /></label>
+                              <label className="field"><span>Plateau pour cette bobine <b>°C</b></span><input value={spoolDraft.preferredBedTemperatureC} onChange={(event) => patchSpool('preferredBedTemperatureC', event.target.value)} inputMode="decimal" placeholder="ex. 55" /></label>
+                            </div></div>
+                          </details>
                         </div>
                       )}
                     </CreationSection>
@@ -849,7 +875,7 @@ export function App() {
                     <div className="summary-details">
                       <div className="spool-visual"><div className="spool-ring"><span style={{ background: /^#[0-9a-f]{6}$/i.test(summaryColor ?? '') ? summaryColor ?? '#334155' : '#334155' }} /></div><div><h3>{summaryTitle}</h3><p>{referenceMode === 'existing' ? selectedReference?.material ?? '—' : referenceDraft.material || '—'} · {referenceMode === 'existing' ? selectedReference?.diameterMm ?? '—' : referenceDraft.diameterMm || '—'} mm</p></div></div>
                       <div className="summary-metric"><span>Filament disponible</span><strong>{summaryRemaining === null ? '—' : formatGrams(summaryRemaining)}</strong>{summaryPercent !== null ? <small>{summaryPercent.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} % du nominal</small> : null}</div>
-                      <div className="summary-grid"><div><span>Poids nominal</span><strong>{summaryNominal === null ? '—' : formatGrams(summaryNominal)}</strong></div><div><span>Tare</span><strong>{summaryTare === null ? 'Non renseignée' : formatGrams(summaryTare)}</strong></div><div><span>Support</span><strong>{supportLabel(spoolDraft.supportKind)}</strong></div><div><span>Origine tare</span><strong>{tareSourceLabel(summaryTare === null ? null : spoolDraft.tareSource)}</strong></div></div>
+                      <div className="summary-grid"><div><span>Poids nominal</span><strong>{summaryNominal === null ? '—' : formatGrams(summaryNominal)}</strong></div><div><span>Tare</span><strong>{summaryTare === null ? 'Non renseignée' : formatGrams(summaryTare)}</strong></div><div><span>Support</span><strong>{supportLabel(spoolDraft.supportKind)}</strong></div><div><span>Origine tare</span><strong>{tareSourceLabel(summaryTare === null ? null : spoolDraft.tareSource)}</strong></div>{spoolDraft.preferredNozzleTemperatureC.trim() ? <div><span>Buse choisie</span><strong>{spoolDraft.preferredNozzleTemperatureC} °C</strong></div> : null}{spoolDraft.preferredBedTemperatureC.trim() ? <div><span>Plateau choisi</span><strong>{spoolDraft.preferredBedTemperatureC} °C</strong></div> : null}</div>
                       <div className="summary-rule"><span className={spoolDraft.stockBasis === 'measured' ? 'dot green' : 'dot amber'} />{spoolDraft.stockBasis === 'measured' ? 'Poids brut conservé comme mesure physique.' : 'Aucune mesure physique ni tare ne sera inventée.'}</div>
                       <div className="summary-series"><span>Lot</span><strong>{previewIds.length || 0} exemplaire{previewIds.length > 1 ? 's' : ''}</strong><small>{previewIds.slice(0, 3).join(' · ')}{previewIds.length > 3 ? ` · +${previewIds.length - 3}` : ''}</small></div>
                     </div>
