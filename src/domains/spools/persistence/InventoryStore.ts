@@ -10,6 +10,12 @@ export interface InventorySnapshot {
   spools: PersistedSpoolV2[];
 }
 
+export interface InventoryBatchCreate {
+  filamentReference?: FilamentReference;
+  location?: StorageLocation;
+  spools: PersistedSpoolV2[];
+}
+
 export interface InventoryStore {
   getSnapshot(): Promise<InventorySnapshot>;
   listSpools(): Promise<PersistedSpoolV2[]>;
@@ -22,6 +28,7 @@ export interface InventoryStore {
   getLocation(id: string): Promise<StorageLocation | undefined>;
   createLocation(location: StorageLocation): Promise<void>;
   createSpools(spools: PersistedSpoolV2[]): Promise<void>;
+  createInventoryBatch(batch: InventoryBatchCreate): Promise<void>;
   updateSpool(spool: PersistedSpoolV2): Promise<void>;
   replaceSnapshot(snapshot: InventorySnapshot): Promise<void>;
 }

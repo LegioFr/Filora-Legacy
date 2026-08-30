@@ -8,7 +8,11 @@ import {
   type PersistedSpoolV2,
   type StorageLocation,
 } from '../model.js';
-import type { InventorySnapshot, InventoryStore } from './InventoryStore.js';
+import type {
+  InventoryBatchCreate,
+  InventorySnapshot,
+  InventoryStore,
+} from './InventoryStore.js';
 
 export const FILORA_DATABASE_NAME = 'filora';
 export const FILORA_DATABASE_VERSION_V2 = 2;
@@ -206,18 +210,69 @@ export class IndexedDbInventoryStore implements InventoryStore {
   }
 
   async createSpools(spools: PersistedSpoolV2[]): Promise<void> {
-    const validated = normalizeUnique(spools, validatePersistedSpoolV2, 'Bobine');
+    await this.createInventoryBatch({ spools });
+  }
+
+  async createInventoryBatch(batch: InventoryBatchCreate): Promise<void> {
+    const filamentReference = batch.filamentReference
+      ? validateFilamentReference(batch.filamentReference)
+      : undefined;
+    const location = batch.location ? validateStorageLocation(batch.location) : undefined;
+    const spools = normalizeUnique(batch.spools, validatePersistedSpoolV2, 'Bobine');
+
+    const current = await this.getSnapshot();
+    const referenceIds = new Set(current.filamentReferences.map((reference) => reference.id.toLowerCase()));
+    const locationIds = new Set(current.locations.map((item) => item.id.toLowerCase()));
+
+    if (filamentReference) {
+      if (referenceIds.has(filamentReference.id.toLowerCase())) {
+        throw duplicateError('Cette référence filament');
+      }
+      referenceIds.add(filamentReference.id.toLowerCase());
+    }
+    if (location) {
+      if (locationIds.has(location.id.toLowerCase())) {
+        throw duplicateError('Cet emplacement');
+      }
+      locationIds.add(location.id.toLowerCase());
+    }
+
+    for (const spool of spools) {
+      if (spool.filamentReferenceId !== null && !referenceIds.has(spool.filamentReferenceId.toLowerCase())) {
+        throw new Error(`Bobine ${spool.id} : référence filament introuvable.`);
+      }
+      if (spool.locationId !== null && !locationIds.has(spool.locationId.toLowerCase())) {
+        throw new Error(`Bobine ${spool.id} : emplacement introuvable.`);
+      }
+    }
+
     const database = await this.openDatabase();
     try {
-      const transaction = database.transaction(SPOOL_IDENTITIES_STORE, 'readwrite');
+      const transaction = database.transaction(
+        [SPOOL_IDENTITIES_STORE, FILAMENT_REFERENCES_STORE, LOCATIONS_STORE],
+        'readwrite',
+      );
       const done = transactionDone(transaction);
-      const objectStore = transaction.objectStore(SPOOL_IDENTITIES_STORE);
-      const requests = validated.map((spool) => requestResult(objectStore.add(spool)));
+      const spoolStore = transaction.objectStore(SPOOL_IDENTITIES_STORE);
+      const referenceStore = transaction.objectStore(FILAMENT_REFERENCES_STORE);
+      const locationStore = transaction.objectStore(LOCATIONS_STORE);
+      const requests: Promise<unknown>[] = [];
+
+      if (filamentReference) {
+        requests.push(requestResult(referenceStore.add(filamentReference)));
+      }
+      if (location) {
+        requests.push(requestResult(locationStore.add(location)));
+      }
+      for (const spool of spools) {
+        requests.push(requestResult(spoolStore.add(spool)));
+      }
+
       try {
         await Promise.all([...requests, done]);
       } catch (error) {
         if (error instanceof DOMException && error.name === 'ConstraintError') {
-          throw duplicateError('Une bobine avec cet ID');
+          throw duplicateError('Une donnée du lot');
         }
         throw error;
       }
@@ -250,8 +305,8 @@ export class IndexedDbInventoryStore implements InventoryStore {
       for (const reference of validated.filamentReferences) {
         requests.push(requestResult(referenceStore.add(reference)));
       }
-      for (const location of validated.locations) {
-        requests.push(requestResult(locationStore.add(location)));
+      for (const item of validated.locations) {
+        requests.push(requestResult(locationStore.add(item)));
       }
       for (const spool of validated.spools) {
         requests.push(requestResult(spoolStore.add(spool)));

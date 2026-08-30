@@ -261,6 +261,50 @@ assert(
   'failed series transaction must not persist its earlier items',
 );
 
+const seriesReference: FilamentReference = {
+  ...reference,
+  id: 'ref-series',
+  brand: 'Bambu Lab',
+  manufacturerColor: 'Jade White',
+};
+const seriesLocation: StorageLocation = { id: 'loc-series', name: 'Drybox' };
+const seriesSpools: PersistedSpoolV2[] = [
+  { ...spool, id: 'SP-0070', filamentReferenceId: seriesReference.id, locationId: seriesLocation.id },
+  { ...spool, id: 'SP-0071', filamentReferenceId: seriesReference.id, locationId: seriesLocation.id },
+];
+await store.createInventoryBatch({
+  filamentReference: seriesReference,
+  location: seriesLocation,
+  spools: seriesSpools,
+});
+const afterAtomicCreate = await store.getSnapshot();
+assert(afterAtomicCreate.filamentReferences.some((item) => item.id === seriesReference.id), 'atomic batch must create its new product reference');
+assert(afterAtomicCreate.locations.some((item) => item.id === seriesLocation.id), 'atomic batch must create its new location');
+assert(seriesSpools.every((item) => afterAtomicCreate.spools.some((stored) => stored.id === item.id)), 'atomic batch must create every physical spool');
+
+const beforeAtomicFailure = await store.getSnapshot();
+const rollbackReference: FilamentReference = { ...reference, id: 'ref-rollback' };
+const rollbackLocation: StorageLocation = { id: 'loc-rollback', name: 'Rollback' };
+let atomicRollbackRejected = false;
+try {
+  await store.createInventoryBatch({
+    filamentReference: rollbackReference,
+    location: rollbackLocation,
+    spools: [
+      { ...spool, id: 'SP-0200', filamentReferenceId: rollbackReference.id, locationId: rollbackLocation.id },
+      { ...spool, id: 'SP-0068', filamentReferenceId: rollbackReference.id, locationId: rollbackLocation.id },
+    ],
+  });
+} catch {
+  atomicRollbackRejected = true;
+}
+assert(atomicRollbackRejected, 'duplicate inside rich creation batch must reject the whole transaction');
+const afterAtomicFailure = await store.getSnapshot();
+assert(!afterAtomicFailure.filamentReferences.some((item) => item.id === rollbackReference.id), 'failed atomic batch must not leave its new reference behind');
+assert(!afterAtomicFailure.locations.some((item) => item.id === rollbackLocation.id), 'failed atomic batch must not leave its new location behind');
+assert(!afterAtomicFailure.spools.some((item) => item.id === 'SP-0200'), 'failed atomic batch must not leave an earlier spool behind');
+assert(afterAtomicFailure.spools.length === beforeAtomicFailure.spools.length, 'failed atomic batch must leave stock cardinality unchanged');
+
 await store.replaceSnapshot({
   filamentReferences: [reference],
   locations: [location],
