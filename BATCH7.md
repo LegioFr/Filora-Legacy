@@ -83,6 +83,31 @@ Conditions :
 - ne le conserver que si le gain pratique est réel ;
 - ne pas laisser son évaluation ralentir l’adoption initiale de Playwright.
 
+## État d’avancement Playwright au 2026-08-30
+
+- faisabilité locale Codex → Playwright démontrée avec Chromium ;
+- `@playwright/test` version `1.62.1` enregistrée et lockfile mis à jour ;
+- Firefox et WebKit non installés ;
+- smoke test initial fonctionnel ;
+- suite E2E fonctionnelle structurée présente sur la branche, avec 28 tests couvrant les parcours utilisateur actuellement demandés ;
+- HEAD vérifié après la construction de cette suite : `6014fadcf3f969527d6686ad961caf01cf341e61` ;
+- Codex rapporte localement 28/28 tests, typecheck, build et architecture PASS ; cette déclaration locale n’est pas encore remplacée par une preuve CI distante indépendante ;
+- aucun fichier métier de Filora ni workflow CI n’a été modifié par le commit de construction de la suite E2E ;
+- prochaines étapes Playwright : viewports simulés sur un sous-ensemble critique, puis intégration CI minimale, puis décision explicite sur le test de rollback inter-stockages.
+
+## Garde-fou d’exécution des tests d’interface
+
+Pour toute session locale/manuelle de tests d’interface Filora, le coordinateur doit appliquer le garde-fou permanent enregistré dans `PROJECT_STATE.md` :
+
+1. avant exécution, demander explicitement à Mickaël de choisir **VISIBLE** ou **ARRIÈRE-PLAN** pour la session ;
+2. en mode VISIBLE, utiliser un navigateur visible et maximisé lorsque possible, avec un ralentissement léger uniquement si nécessaire pour l’observation ;
+3. en mode ARRIÈRE-PLAN, utiliser l’exécution headless rapide ;
+4. fournir au même moment une Preview **HTTPS** correspondant à l’état réellement testé lorsqu’une telle Preview existe et peut être vérifiée ;
+5. si aucune Preview HTTPS vérifiable n’est disponible, le dire explicitement et ne jamais inventer de lien ; une adresse locale peut seulement être proposée séparément et clairement identifiée comme locale ;
+6. ne pas appliquer cette interaction à chaque exécution automatique de CI déjà autorisée.
+
+Le choix VISIBLE/ARRIÈRE-PLAN doit être redemandé à chaque nouvelle session pertinente et ne doit pas être supposé à partir d’une session précédente. Ce protocole permet à Mickaël d’observer Playwright ou de vérifier manuellement la Preview sans transformer chaque test en jalon humain obligatoire.
+
 ## Findings / décisions à l’ouverture
 
 ### Traités ou intégrés au Batch 7
