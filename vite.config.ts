@@ -23,6 +23,8 @@ const themeColor = test ? '#14181f' : '#f5f5f0'
 const iconAssetVersion = '2'
 const icon192 = `./icons/${iconPrefix}-192.png?v=${iconAssetVersion}`
 const icon512 = `./icons/${iconPrefix}-512.png?v=${iconAssetVersion}`
+const rawBuildId = env.VERCEL_GIT_COMMIT_SHA ?? env.GITHUB_SHA ?? env.VERCEL_URL ?? 'local'
+const buildId = rawBuildId.replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 64) || 'local'
 
 function manifestSource(): string {
   return JSON.stringify({
@@ -53,16 +55,22 @@ function manifestSource(): string {
 
 function serviceWorkerSource(): string {
   const cachePrefix = test ? 'filora-test-' : 'filora-'
-  const cacheName = `${cachePrefix}v3`
-  return `const CACHE_PREFIX = ${JSON.stringify(cachePrefix)};
+  const cacheName = `${cachePrefix}${buildId}`
+  return `const BUILD_ID = ${JSON.stringify(buildId)};
+const CACHE_PREFIX = ${JSON.stringify(cachePrefix)};
 const CACHE_NAME = ${JSON.stringify(cacheName)};
 const SHELL = ['./', './index.html', './manifest.webmanifest', ${JSON.stringify(icon192)}, ${JSON.stringify(icon512)}];
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL))
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {
