@@ -43,6 +43,7 @@
     "tools/filora_guard.py",
     "tools/check_architecture.py",
     ".github/workflows/filora-guard.yml",
+    "playwright.config.ts",
     "tests/test_filora_guard.py",
     "tests/test_human_validation_guard.py",
     "tests/test_workflow_guard.py",
