@@ -72,7 +72,7 @@ export function mountPwaDebug() {
     result: null,
     error: null,
   }
-  let registrations: ServiceWorkerRegistration[] = []
+  let registrations: readonly ServiceWorkerRegistration[] = []
   let refreshError: string | null = null
   let collapsed = false
   let actionStatus = ''
@@ -143,14 +143,18 @@ export function mountPwaDebug() {
   `
   document.body.append(panel)
 
-  const textarea = panel.querySelector('textarea')
-  const status = panel.querySelector<HTMLElement>('.filora-pwa-debug-status')
-  const collapseButton = panel.querySelector<HTMLButtonElement>('[data-action="collapse"]')
+  const textareaElement = panel.querySelector<HTMLTextAreaElement>('textarea')
+  const statusElement = panel.querySelector<HTMLElement>('.filora-pwa-debug-status')
+  const collapseButtonElement = panel.querySelector<HTMLButtonElement>('[data-action="collapse"]')
 
-  if (!textarea || !status || !collapseButton) {
+  if (!textareaElement || !statusElement || !collapseButtonElement) {
     panel.remove()
     return
   }
+
+  const textarea = textareaElement as HTMLTextAreaElement
+  const status = statusElement as HTMLElement
+  const collapseButton = collapseButtonElement as HTMLButtonElement
 
   const onBeforeInstallPrompt = (event: Event) => {
     const promptEvent = event as BeforeInstallPromptEventLike
