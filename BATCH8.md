@@ -185,7 +185,7 @@ Mickaël a explicitement approuvé le comportement produit et le découpage : de
 
 Son accord couvre aussi le niveau Critique retenu pour la promotion. Cette approbation définit l’intention et autorise la transition ; elle ne remplace pas les preuves techniques, la CI ni la revue indépendante.
 
-### Jalon humain requis — ACQUIS
+### Jalon humain requis — VALIDÉ
 
 Les propriétés réellement observables ont été validées sur la tablette :
 
