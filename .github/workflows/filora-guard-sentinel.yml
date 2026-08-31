@@ -23,10 +23,9 @@ jobs:
         with:
           script: |
             const protectedExact = new Set([
-              '.github/workflows/filora-guard.yml',
-              '.github/workflows/filora-guard-sentinel.yml',
               'DEVELOPMENT.md',
               'workflow/contract.json',
+              'playwright.config.ts',
               'tools/filora_guard.py',
               'tools/check_review_governance.py',
               'tools/check_claude_review_prompt.py',
@@ -38,6 +37,9 @@ jobs:
               'tests/test_workflow_transition_wrapper.py',
               'tests/test_guard_entry_boundary.py',
             ]);
+            const protectedPrefixes = [
+              '.github/workflows/',
+            ];
 
             const changedFiles = context.payload.pull_request.changed_files;
             if (!Number.isInteger(changedFiles) || changedFiles < 0) {
@@ -68,7 +70,10 @@ jobs:
             const paths = files.flatMap((file) =>
               [file.filename, file.previous_filename].filter(Boolean)
             );
-            const blocked = [...new Set(paths.filter((path) => protectedExact.has(path)))];
+            const blocked = [...new Set(paths.filter((path) =>
+              protectedExact.has(path)
+              || protectedPrefixes.some((prefix) => path.startsWith(prefix))
+            ))];
 
             if (blocked.length > 0) {
               core.setFailed(
