@@ -92,7 +92,7 @@ test('enregistre le service worker simple et précharge uniquement l enveloppe P
   expect(state.scope).toBe('http://127.0.0.1:4173/')
   expect(state.cacheContents).toEqual([
     {
-      key: 'filora-test-v2',
+      key: 'filora-test-v3',
       paths: [
         '/',
         '/index.html',

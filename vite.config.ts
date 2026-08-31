@@ -46,7 +46,7 @@ function manifestSource(): string {
 
 function serviceWorkerSource(): string {
   const cachePrefix = test ? 'filora-test-' : 'filora-'
-  const cacheName = `${cachePrefix}v2`
+  const cacheName = `${cachePrefix}v3`
   return `const CACHE_PREFIX = ${JSON.stringify(cachePrefix)};
 const CACHE_NAME = ${JSON.stringify(cacheName)};
 const SHELL = ['./', './index.html', './manifest.webmanifest', ${JSON.stringify(icon192)}, ${JSON.stringify(icon512)}];
