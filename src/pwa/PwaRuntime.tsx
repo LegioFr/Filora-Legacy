@@ -40,7 +40,7 @@ export function PwaRuntime() {
     let disposed = false
     let registration: ServiceWorkerRegistration | null = null
     let intervalId: number | undefined
-    const hadControllerAtStart = Boolean(navigator.serviceWorker.controller)
+    let controllerEstablished = Boolean(navigator.serviceWorker.controller)
     let currentController = navigator.serviceWorker.controller
 
     const checkForUpdate = () => {
@@ -53,14 +53,18 @@ export function PwaRuntime() {
 
     const onControllerChange = () => {
       const nextController = navigator.serviceWorker.controller
-      if (
-        !disposed
-        && hadControllerAtStart
-        && nextController
-        && nextController !== currentController
-      ) {
-        setUpdateAvailable(true)
+      if (disposed || !nextController || nextController === currentController) {
+        currentController = nextController
+        return
       }
+
+      if (!controllerEstablished) {
+        controllerEstablished = true
+        currentController = nextController
+        return
+      }
+
+      setUpdateAvailable(true)
       currentController = nextController
     }
 
