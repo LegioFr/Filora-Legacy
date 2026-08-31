@@ -57,10 +57,25 @@ export function PwaRuntime() {
       }
     }
 
-    const onUpdateFound = () => {
+    const trackInstallingWorker = (worker: ServiceWorker | null) => {
+      if (installingWorker === worker) {
+        if (worker?.state === 'installed') exposeWaitingWorker(worker)
+        return
+      }
+
       installingWorker?.removeEventListener('statechange', onInstallingStateChange)
-      installingWorker = registration?.installing ?? null
-      installingWorker?.addEventListener('statechange', onInstallingStateChange)
+      installingWorker = worker
+      if (!installingWorker) return
+
+      if (installingWorker.state === 'installed') {
+        exposeWaitingWorker(installingWorker)
+        return
+      }
+      installingWorker.addEventListener('statechange', onInstallingStateChange)
+    }
+
+    const onUpdateFound = () => {
+      trackInstallingWorker(registration?.installing ?? null)
     }
 
     const checkForUpdate = () => {
@@ -88,6 +103,7 @@ export function PwaRuntime() {
 
       registration = nextRegistration
       registration.addEventListener('updatefound', onUpdateFound)
+      trackInstallingWorker(registration.installing)
       exposeWaitingWorker(registration.waiting)
       window.addEventListener('focus', checkForUpdate)
       document.addEventListener('visibilitychange', onVisibilityChange)
