@@ -3,6 +3,7 @@ import {
   FILORA_DATABASE_VERSION,
   SPOOL_IDENTITIES_STORE,
 } from '../src/domains/spools/persistence/IndexedDbSpoolIdentityStore.js';
+import { listMeasuredSpools } from '../src/domains/spools/listMeasuredSpools.js';
 import {
   calculateAvailableFilamentGrams,
   registerMeasuredSpool,
@@ -71,6 +72,15 @@ class FakeTransaction {
         }, 0);
         return request as unknown as IDBRequest<unknown>;
       },
+      getAll: () => {
+        const request = new FakeRequest<StoredSpool[]>();
+        setTimeout(() => {
+          request.result = Array.from(this.records.values(), (record) => ({ ...record }));
+          request.onsuccess?.(new Event('success'));
+          completeImmediately();
+        }, 0);
+        return request as unknown as IDBRequest<unknown>;
+      },
       delete: (id: string) => {
         this.records.delete(id);
         completeImmediately();
@@ -133,6 +143,9 @@ function assert(condition: unknown, message: string): asserts condition {
 const factory = new FakeFactory();
 const store = new IndexedDbSpoolIdentityStore(factory as unknown as IDBFactory, 'filora-test');
 
+const initiallyListed = await listMeasuredSpools(store);
+assert(initiallyListed.length === 0, 'an empty store must produce an empty stock list');
+
 const registered = await registerMeasuredSpool(store, {
   id: ' spool-1 ',
   grossMeasuredWeightGrams: 842.6,
@@ -153,7 +166,7 @@ assert(loaded?.id === 'spool-1', 'persisted spool must be readable');
 assert(loaded.grossMeasuredWeightGrams === 842.6, 'persisted gross measured weight must be readable without alteration');
 assert(loaded.tareWeightGrams === 210, 'persisted tare must be readable without alteration');
 assert(loaded.tareSource === 'measured_empty_support', 'persisted tare source must be readable');
-assert(factory.requestedVersion === FILORA_DATABASE_VERSION, 'database version must be explicit');
+assert(factory.requestedVersion === FILORA_DATABASE_VERSION, 'database version must remain explicit and unchanged');
 
 const manufacturerTareSpool = await registerMeasuredSpool(store, {
   id: 'spool-manufacturer-tare',
@@ -165,6 +178,15 @@ assert(manufacturerTareSpool.tareSource === 'manufacturer', 'manufacturer tare s
 assert(
   Math.abs(calculateAvailableFilamentGrams(manufacturerTareSpool) - 575) < 1e-9,
   'manufacturer tare must be used in the same stock calculation',
+);
+
+const listed = await listMeasuredSpools(store);
+assert(listed.length === 2, 'stock list must contain every persisted spool');
+assert(listed[0]?.id === 'spool-1', 'stock list must be deterministic by id');
+assert(listed[1]?.id === 'spool-manufacturer-tare', 'stock list must contain the second persisted spool');
+assert(
+  Math.abs(calculateAvailableFilamentGrams(listed[1]!) - 575) < 1e-9,
+  'listed stock must derive available filament from persisted gross weight and tare',
 );
 
 let tareExceedsGrossRejected = false;
@@ -257,21 +279,27 @@ const failingFactory = {
     throw new Error('forced IndexedDB failure');
   },
 } as unknown as IDBFactory;
+const failingStore = new IndexedDbSpoolIdentityStore(failingFactory, 'filora-failure-test');
 
 let failureObserved = false;
 try {
-  await registerMeasuredSpool(
-    new IndexedDbSpoolIdentityStore(failingFactory, 'filora-failure-test'),
-    {
-      id: 'spool-2',
-      grossMeasuredWeightGrams: 500,
-      tareWeightGrams: 100,
-      tareSource: 'manufacturer',
-    },
-  );
+  await registerMeasuredSpool(failingStore, {
+    id: 'spool-2',
+    grossMeasuredWeightGrams: 500,
+    tareWeightGrams: 100,
+    tareSource: 'manufacturer',
+  });
 } catch (error) {
   failureObserved = error instanceof Error && error.message === 'forced IndexedDB failure';
 }
 assert(failureObserved, 'persistence failures must propagate instead of becoming success');
 
-console.log('PASS: measured spool gross/tare/source/available/write/read/validation/duplicate/remove/error/transaction timing checks');
+let listFailureObserved = false;
+try {
+  await listMeasuredSpools(failingStore);
+} catch (error) {
+  listFailureObserved = error instanceof Error && error.message === 'forced IndexedDB failure';
+}
+assert(listFailureObserved, 'stock listing failures must propagate instead of becoming an empty stock');
+
+console.log('PASS: measured spool write/read/list/available/validation/duplicate/remove/error/transaction timing checks');
