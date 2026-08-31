@@ -121,6 +121,11 @@ test('signale une nouvelle version de service worker puis recharge après action
   await openApp(page)
   await waitForServiceWorkerControl(page)
 
+  // Une vraie mise à jour arrive dans une session déjà contrôlée par le SW précédent.
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Stock de bobines' })).toBeVisible()
+  await waitForServiceWorkerControl(page)
+
   await page.evaluate(async () => {
     await navigator.serviceWorker.register('/sw.js?e2e-next=1', { scope: '/' })
   })
