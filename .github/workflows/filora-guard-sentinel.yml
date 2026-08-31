@@ -27,6 +27,7 @@ jobs:
               'workflow/contract.json',
               'package.json',
               'package-lock.json',
+              '.npmrc',
               'playwright.config.ts',
               'tools/filora_guard.py',
               'tools/check_review_governance.py',
@@ -41,6 +42,7 @@ jobs:
             ]);
             const protectedPrefixes = [
               '.github/workflows/',
+              'tests/e2e/',
             ];
 
             const changedFiles = context.payload.pull_request.changed_files;

@@ -24,7 +24,7 @@ L’audit est une preuve d’entrée pour le Batch 9, pas une autorité remplaç
 
 ### F4.4
 
-**Accord propriétaire obtenu.** Mickaël a approuvé le démarrage du Batch 9 de remédiation et le périmètre initial F-006 après présentation de l’intention, des conséquences et du chemin critique de validation. Après revue indépendante du premier candidat F-006, il a approuvé l’extension bornée du même finding à `.github/workflows/filora-guard.yml` pour traiter la même classe de contournement `npm postinstall`. Après la seconde revue indépendante, il a également approuvé la promotion de `package.json` et `package-lock.json` en surface Critique afin de fermer les contournements concrets restants de `guard` et `e2e` sans ajouter de nouvelle mécanique.
+**Accord propriétaire obtenu.** Mickaël a approuvé le démarrage du Batch 9 de remédiation et le périmètre initial F-006 après présentation de l’intention, des conséquences et du chemin critique de validation. Après revue indépendante du premier candidat F-006, il a approuvé l’extension bornée du même finding à `.github/workflows/filora-guard.yml` pour traiter la même classe de contournement `npm postinstall`. Après la seconde revue indépendante, il a également approuvé la promotion de `package.json` et `package-lock.json` en surface Critique afin de fermer les contournements concrets restants de `guard` et `e2e` sans ajouter de nouvelle mécanique. Après la troisième revue indépendante, il a enfin approuvé l’extension bornée de cette même surface Critique à `.npmrc` et au préfixe `tests/e2e/`, ainsi que la correction documentaire associée, sans ajouter de nouveau fichier à la PR #77.
 
 ### Jalon humain requis — EN ATTENTE
 
@@ -74,18 +74,22 @@ Le ruleset GitHub réel actif sur `main` et `test-preview` exige actuellement un
 
 Le sentinel initial protégeait une liste exacte de surfaces critiques, mais cette liste n’incluait pas le workflow Playwright ni `playwright.config.ts`. Le workflow Playwright exécutait en outre la suite via `npm run test:e2e`, ce qui créait une dépendance inutile à un script modifiable hors de la surface protégée par le sentinel.
 
-Les revues indépendantes de la PR #77 ont ensuite confirmé trois contournements réalistes de cette même cause racine :
+Les revues indépendantes de la PR #77 ont ensuite confirmé cinq contournements réalistes de cette même cause racine :
 
 1. un `postinstall` pouvait remplacer le runner Playwright ou les outils Node après `npm ci` ;
 2. modifier les scripts `typecheck`/`build` de `package.json` pouvait rendre le `guard` faussement vert malgré `--ignore-scripts` ;
-3. une dépendance locale pouvait exposer un faux binaire `playwright` dans `node_modules/.bin` même avec `--ignore-scripts`.
+3. une dépendance locale pouvait exposer un faux binaire `playwright` dans `node_modules/.bin` même avec `--ignore-scripts` ;
+4. un `.npmrc` de projet pouvait imposer `script-shell=./fake-shell.sh` et rendre `npm run typecheck` / `npm run build` faussement verts sans modifier `package.json` ;
+5. une PR ordinaire pouvait réduire `tests/e2e/` à une suite vide/triviale, laissant le check `e2e` vert sans préserver la valeur des 39 scénarios attendus.
+
+Filora a été vérifié mono-package sur le candidat concerné : un seul `package.json` et un seul `package-lock.json` à la racine, aucun workspace npm et aucun `.npmrc` suivi. La protection exacte de `.npmrc` vise donc le seul emplacement de configuration npm projet pertinent dans l’architecture actuelle ; cette hypothèse devra être réévaluée si Filora devient un jour multi-package/workspaces.
 
 ### Périmètre F-006 autorisé
 
-- `.github/workflows/filora-guard-sentinel.yml` : considérer tout `.github/workflows/` comme surface critique et protéger aussi `playwright.config.ts`, `package.json` et `package-lock.json` ;
+- `.github/workflows/filora-guard-sentinel.yml` : considérer tout `.github/workflows/` comme surface critique et protéger aussi `playwright.config.ts`, `package.json`, `package-lock.json`, `.npmrc` et le préfixe `tests/e2e/` ;
 - `.github/workflows/playwright-e2e.yml` : appeler directement le binaire Playwright installé et installer les dépendances avec `npm ci --ignore-scripts` afin qu’un hook npm de cycle de vie ne puisse pas remplacer le runner avant son exécution ;
 - `.github/workflows/filora-guard.yml` : appliquer la même protection `npm ci --ignore-scripts` à la chaîne Node du guard afin qu’un hook npm ne puisse pas falsifier `tsc` ou le build ;
-- `workflow/contract.json` : déclarer `playwright.config.ts`, `package.json` et `package-lock.json` comme contrôles critiques durables ;
+- `workflow/contract.json` : déclarer `playwright.config.ts`, `package.json`, `package-lock.json`, `.npmrc` et `tests/e2e/` comme contrôles critiques durables ;
 - état/documentation Batch 9 nécessaires à la reprise.
 
 Aucune modification du contenu de `package.json` ou `package-lock.json`, aucun nouveau système de SHA de revue, aucun nouveau mécanisme de bypass et aucun changement métier ne font partie de F-006.
@@ -99,11 +103,14 @@ Aucune modification du contenu de `package.json` ou `package-lock.json`, aucun n
 - HEAD à l’ouverture : `c0828a64177cdea614f01df9183a9bb491e06519` ;
 - le diff à l’ouverture contenait exactement 6 fichiers, tous dans le périmètre F-006/état Batch 9 ;
 - après l’événement `opened`, les runs GitHub Actions n’ont pas été immédiatement observables ; une synchronisation documentaire utile a produit un événement `synchronize` ;
-- sur le candidat `3a173a04dcdeab888ab74992460f2b1de1c3e77a`, `guard` et `e2e` ont réellement réussi, tandis que `sentinel` a réellement échoué comme attendu parce que la PR touche sa propre surface critique ;
+- sur le candidat `3a173a04dcdeab888ab74992460f2b1de1c3e77a`, `guard` et `e2e` ont ensuite réellement réussi, tandis que `sentinel` a réellement échoué comme attendu parce que la PR touche sa propre surface critique ;
 - la revue Codex indépendante de `3a173a04dcdeab888ab74992460f2b1de1c3e77a` a trouvé un **P1 réel** : `postinstall` pouvait remplacer `node_modules/.bin/playwright` après `npm ci` ;
 - le candidat `59c130f407281c6db695c966b434b2df798cb524` a ensuite fermé ce premier P1 avec `npm ci --ignore-scripts --no-audit --no-fund` dans `e2e` et `guard` ; GitHub Actions a réellement produit `guard` SUCCESS avec 96 tests Python, architecture, typecheck et build, ainsi que `e2e` SUCCESS avec installation explicite de Chromium et **39/39 tests Playwright** ; `sentinel` a échoué comme attendu ;
 - la seconde revue Codex indépendante du SHA exact `59c130f407281c6db695c966b434b2df798cb524` a confirmé le P1 `postinstall` fermé mais trouvé **deux nouveaux P1 réels** : scripts npm `typecheck`/`build` falsifiables et faux binaire `playwright` via une dépendance locale ;
-- ces deux P1 bloquent tout bypass/intégration de `59c130f...` et justifient la promotion de `package.json` et `package-lock.json` en surface Critique, plutôt qu’une nouvelle série de rustines sur chaque commande.
+- le candidat `68564b56855786b8b505ee5ba81fb7517c88b2e5` a ensuite promu `package.json` et `package-lock.json` en surface Critique ; sur ce SHA exact, `guard` a réellement réussi avec checkout exact, 96 tests Python, architecture, `npm ci --ignore-scripts`, typecheck et build, et `e2e` a réellement installé Chromium puis exécuté **39/39 tests Playwright** ; `sentinel` a échoué comme attendu ;
+- la troisième revue Codex indépendante du SHA exact `68564b56855786b8b505ee5ba81fb7517c88b2e5` a confirmé que les P1 précédents étaient fermés mais trouvé **deux nouveaux P1 réels** : contournement de `npm run` via `.npmrc` / `script-shell` et remplacement de la valeur du check `e2e` par modification libre de `tests/e2e/`. Elle a aussi signalé un **P2 documentaire** : `PROJECT_STATE.md` présentait encore le risque de downgrade Playwright comme reporté alors que la protection Critique de `package.json`/`package-lock.json` avait déjà été décidée ;
+- décision : protéger `.npmrc` et `tests/e2e/` dans le sentinel et le contrat, corriger `PROJECT_STATE.md`, conserver la PR à exactement 7 fichiers changés, puis refaire CI réelle et revue Codex du nouveau SHA exact ;
+- règle de sortie : si cette nouvelle revue trouve encore un **nouveau** contournement réaliste de la chaîne de preuve, arrêter les rustines chemin par chemin et reconsidérer l’architecture du contrôle avant toute nouvelle extension.
 
 Le HEAD courant doit toujours être relu directement depuis GitHub avant toute revue ou intégration ; aucun SHA de candidat n’est considéré durable après une nouvelle modification.
 
