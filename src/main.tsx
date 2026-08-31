@@ -15,12 +15,6 @@ if (!root) {
   throw new Error('Filora root element is missing')
 }
 
-if (new URLSearchParams(window.location.search).get('pwa-debug') === '1') {
-  void import('./pwa/debug')
-    .then(({ mountPwaDebug }) => mountPwaDebug())
-    .catch((error) => console.error('Filora PWA diagnostic failed to load', error))
-}
-
 document.title = FILORA_APP_NAME
 document.documentElement.dataset.filoraApp = FILORA_APP_NAME
 

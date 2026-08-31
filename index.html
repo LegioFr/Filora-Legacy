@@ -8,33 +8,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>Filora</title>
-    <script>
-      (() => {
-        if (new URLSearchParams(window.location.search).get('pwa-debug') !== '1') return
-
-        const state = {
-          startedAt: new Date().toISOString(),
-          beforeinstallprompt: [],
-          appinstalled: [],
-        }
-
-        Object.defineProperty(window, '__FILORA_PWA_DEBUG_EARLY__', {
-          value: state,
-          configurable: true,
-        })
-
-        window.addEventListener('beforeinstallprompt', (event) => {
-          state.beforeinstallprompt.push({
-            at: new Date().toISOString(),
-            platforms: Array.isArray(event.platforms) ? [...event.platforms] : [],
-          })
-        })
-
-        window.addEventListener('appinstalled', () => {
-          state.appinstalled.push(new Date().toISOString())
-        })
-      })()
-    </script>
   </head>
   <body>
     <div id="root"></div>
