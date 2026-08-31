@@ -13,8 +13,9 @@ const test = channel === 'test'
 const appName = test ? 'Filora Test' : 'Filora'
 const iconPrefix = test ? 'filora-test' : 'filora'
 const themeColor = test ? '#14181f' : '#f5f5f0'
-const icon192 = `./icons/${iconPrefix}-192.png`
-const icon512 = `./icons/${iconPrefix}-512.png`
+const iconAssetVersion = '2'
+const icon192 = `./icons/${iconPrefix}-192.png?v=${iconAssetVersion}`
+const icon512 = `./icons/${iconPrefix}-512.png?v=${iconAssetVersion}`
 
 function manifestSource(): string {
   return JSON.stringify({
@@ -44,8 +45,10 @@ function manifestSource(): string {
 }
 
 function serviceWorkerSource(): string {
-  const cacheName = test ? 'filora-test-v1' : 'filora-v1'
-  return `const CACHE_NAME = ${JSON.stringify(cacheName)};
+  const cachePrefix = test ? 'filora-test-' : 'filora-'
+  const cacheName = `${cachePrefix}v2`
+  return `const CACHE_PREFIX = ${JSON.stringify(cachePrefix)};
+const CACHE_NAME = ${JSON.stringify(cacheName)};
 const SHELL = ['./', './index.html', './manifest.webmanifest', ${JSON.stringify(icon192)}, ${JSON.stringify(icon512)}];
 
 self.addEventListener('install', (event) => {
@@ -56,7 +59,18 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    Promise.all([
+      caches.keys().then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
+        )
+      ),
+      self.clients.claim(),
+    ])
+  );
 });
 
 self.addEventListener('fetch', (event) => {
