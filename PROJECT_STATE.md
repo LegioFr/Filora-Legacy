@@ -8,8 +8,8 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 ## Reprise structurée
 - stage: Batch 8 — installation PWA Test et Officielle
 - status: ouvert
-- git: PR #65 fusionnée dans `test-preview`; base vérifiée au démarrage du Batch 8, branche de travail `batch8/pwa-installation`
-- next_action: vérifier la configuration réelle de déploiement et les origines HTTPS stables disponibles pour `test-preview` et `main`, puis proposer l’implémentation PWA minimale correspondante avant modification du code produit
+- git: PR #66 fusionnée dans `test-preview`; `filora-test-stable` suit désormais `test-preview`; préparation de la promotion contrôlée vers `main`
+- next_action: ouvrir la PR de promotion `test-preview` vers `main` après intégration du préflight Critique, vérifier ses contrôles et sa revue indépendante, puis valider Filora officielle et l’isolation réelle avant clôture du Batch 8
 
 ## État courant
 
@@ -26,16 +26,16 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - **Accord propriétaire F4.4 Batch 7 :** obtenu pour la correction du checkout sale et l’introduction de la CI Playwright minimale.
 - **Revue indépendante Batch 7 :** `passed`. Codex a revu le candidat `0dd038681b6f51f9369cebf5624cbfd7e8a1bede`, trouvé un unique P2 documentaire dans ce fichier, puis ce finding a été corrigé dans `69798abfaa88dff57cdfb254155cf39876368a2d`, avec guard/e2e/sentinel verts et thread résolu. Une re-review supplémentaire de `69798ab...` a été demandée mais n’est pas utilisée comme preuve tant qu’elle n’a pas produit de verdict ; aucune boucle supplémentaire n’est requise pour ce correctif documentaire ciblé.
 - **Jalon humain applicatif Batch 7 :** non requis ; le Batch 7 n’introduit pas de modification produit/UX.
-- **Batch 8 :** **ouvert** pour rendre Filora Test et Filora officielle installables séparément comme PWA, avec origines stables distinctes, isolation des données locales et mise à jour contrôlée.
-- **Risque Batch 8 :** Sensible au démarrage ; relever la classification si l’implémentation réelle introduit un critère objectivement Critique.
-- **Décision propriétaire Batch 8 :** obtenue pour le comportement produit et le découpage Test / Officielle / mise à jour contrôlée.
-- **Revue indépendante Batch 8 :** en attente.
-- **Jalon humain applicatif Batch 8 :** en attente.
+- **Batch 8 :** **ouvert**. La PR #66 a été fusionnée dans `test-preview` au commit `da9b2c22b7af973075f1bb99f2274faeeedc813e`. Filora Test est réellement installable sur son origine stable, se lance en standalone, affiche son identité TEST et a démontré un scénario réel de mise à jour contrôlée. L’Officielle, la coexistence et l’isolation bidirectionnelle restent à valider.
+- **Risque Batch 8 :** Sensible pour l’implémentation PWA initiale, relevé à **Critique** pour la promotion cumulative vers `main`, car le diff réel depuis `main` inclut des surfaces de contrôle Critiques, notamment `DEVELOPMENT.md` et le workflow Playwright.
+- **Décision propriétaire Batch 8 :** obtenue pour le comportement produit, le découpage Test / Officielle / mise à jour contrôlée et, le 2026-08-31, pour la reclassification Critique nécessaire à la promotion cumulative vers `main`.
+- **Revue indépendante Batch 8 :** `pending` pour le candidat exact de promotion vers `main`. Les revues Codex du travail PWA sur la PR #66 ont traité les findings concrets avant son intégration à `test-preview`, mais elles ne remplacent pas la revue du candidat de promotion Critique.
+- **Jalon humain applicatif Batch 8 :** partiellement acquis : Filora Test installée, standalone, identité TEST et mise à jour réelle validées ; Filora officielle installée séparément, coexistence et isolation réelle restent en attente.
 - **Branche officielle :** `main`.
 - **Branche de validation :** `test-preview`.
-- **Branche de travail Batch 8 :** `batch8/pwa-installation`.
+- **Branche de préflight promotion Batch 8 :** `batch8/promotion-preflight`.
 
-`workflow/state.json` porte pour le Batch 8 ouvert : `current_batch: 8`, `batch_status: open`, `risk: sensitive`, `independent_review: pending`, `owner_approval: obtained`, `next_batch_allowed: false`.
+`workflow/state.json` porte pour le Batch 8 ouvert : `current_batch: 8`, `batch_status: open`, `risk: critical`, `independent_review: pending`, `owner_approval: obtained`, `next_batch_allowed: false`.
 
 `next_batch_allowed: false` est attendu tant que le Batch 8 reste ouvert et n’a pas satisfait ses conditions de clôture.
 
@@ -269,9 +269,9 @@ Les consommations et l’évolution métier du menu Stock sont explicitement rep
 
 ## Conditions de transition
 
-Le Batch 8 est **ouvert** sur `batch8/pwa-installation`. Son état machine doit rester `open / sensitive / independent_review: pending / owner_approval: obtained / next_batch_allowed: false` jusqu’aux transitions réellement acquises.
+Le Batch 8 est **ouvert**. La PR #66 est intégrée à `test-preview` et `filora-test-stable` suit désormais cette branche en Production. L’état machine doit rester `open / critical / independent_review: pending / owner_approval: obtained / next_batch_allowed: false` jusqu’aux transitions réellement acquises.
 
-Avant toute implémentation PWA, vérifier la configuration réelle de déploiement et les origines HTTPS stables disponibles pour Test et Officielle. Aucune URL ne doit être inventée.
+La prochaine transition est la promotion contrôlée de `test-preview` vers `main`. Elle ne doit pas être présentée comme acquise avant succès des contrôles applicables et de la revue indépendante du candidat exact. Après promotion, Filora officielle devra être vérifiée sur son origine HTTPS stable, installée séparément et utilisée pour démontrer l’isolation réelle dans les deux sens avant clôture du Batch 8.
 
 ## Documents canoniques
 

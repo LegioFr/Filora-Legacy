@@ -146,17 +146,19 @@ La réserve historique `gitDirty` n’appelle pas de développement dédié dans
 
 ## Classification F4.2 / F4.3
 
-**Sensible** au démarrage.
+**Sensible au démarrage, relevé à Critique pour la promotion cumulative vers `main`.**
 
-Justification : le Batch touche l’installation PWA, le mécanisme de mise à jour, le comportement de déploiement/origine et potentiellement le build ou des fichiers sensibles associés. Il ne prévoit toutefois ni migration destructive, ni changement de l’autorité métier centrale, ni affaiblissement d’un garde-fou, ni modification simultanée d’un objet protégé et de son mécanisme de contrôle.
+Le travail PWA du Batch 8 est sensible par nature : il touche l’installation, le mécanisme de mise à jour, le comportement de déploiement/origine et le build, sans migration destructive ni changement de l’autorité métier centrale.
 
-Si l’implémentation réelle introduit un critère objectivement Critique, la classification devra être relevée plutôt que contournée.
+Avant la promotion vers `main`, le diff réel `main...test-preview` a toutefois été vérifié. `main` est encore sur l’état promu à l’issue du Batch 2 et la promotion cumulative inclut des changements de Batches ultérieurs, dont `DEVELOPMENT.md` et le workflow Playwright. Ces chemins constituent des surfaces de contrôle Critiques selon les garde-fous Filora. La classification de l’état machine est donc relevée à **Critique** avant l’ouverture de la PR de promotion, sans modifier ni affaiblir les garde-fous.
+
+Cette reclassification Critique et la préparation de la promotion ont été explicitement approuvées par Mickaël le 2026-08-31.
 
 ## F4.4 — décision propriétaire
 
 Le comportement produit et le découpage ont été explicitement approuvés par Mickaël avant démarrage : deux applications installables séparées, Test sur `test-preview`, Officielle sur `main`, données isolées et mise à jour contrôlée avec action utilisateur.
 
-Cette approbation définit l’intention et l’expérience attendue ; elle ne remplace pas les preuves techniques ni la revue indépendante imposée par le niveau Sensible.
+L’accord propriétaire couvre également la reclassification Critique nécessaire à la promotion cumulative vers `main`. Cette approbation définit l’intention et autorise la transition ; elle ne remplace pas les preuves techniques, la CI ni la revue indépendante du candidat exact.
 
 ### Jalon humain requis — EN ATTENTE
 
@@ -170,6 +172,8 @@ Une validation humaine sera nécessaire avant clôture pour les propriétés ré
 - isolation observable des données ;
 - apparition et utilisation du mécanisme **Mise à jour disponible → Mettre à jour** sur un scénario réel approprié.
 
+À ce stade, l’installation réelle de Filora Test, son lancement standalone, son identification visuelle TEST et un scénario réel de mise à jour contrôlée ont été observés. L’installation de l’Officielle, la coexistence et l’isolation bidirectionnelle restent à acquérir avant clôture.
+
 ## Preuves attendues avant clôture
 
 1. candidat exact identifié ;
@@ -181,7 +185,7 @@ Une validation humaine sera nécessaire avant clôture pour les propriétés ré
 7. suite Playwright complète conservée et verte, avec les tests nouveaux applicables ;
 8. guard, architecture, typecheck et build applicables verts ;
 9. validation humaine du comportement installable acquise ;
-10. revue indépendante adaptée au niveau Sensible sur le candidat exact ;
+10. revue indépendante adaptée au niveau **Critique** sur le candidat exact de promotion ;
 11. aucun finding bloquant non décidé ;
 12. aucune promotion vers `main` présentée comme acquise avant les validations réellement nécessaires.
 
