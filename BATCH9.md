@@ -24,7 +24,7 @@ L’audit est une preuve d’entrée pour le Batch 9, pas une autorité remplaç
 
 ### F4.4
 
-**Accord propriétaire obtenu.** Mickaël a approuvé le démarrage du Batch 9 de remédiation et le périmètre initial F-006 après présentation de l’intention, des conséquences et du chemin critique de validation.
+**Accord propriétaire obtenu.** Mickaël a approuvé le démarrage du Batch 9 de remédiation et le périmètre initial F-006 après présentation de l’intention, des conséquences et du chemin critique de validation. Après revue indépendante du premier candidat F-006, il a également approuvé l’extension bornée du même finding à `.github/workflows/filora-guard.yml` pour traiter la même classe de contournement `npm postinstall`.
 
 ### Jalon humain requis — EN ATTENTE
 
@@ -70,16 +70,19 @@ Le risque théorique d’un downgrade futur de `@playwright/test` via `package.j
 
 Le ruleset GitHub réel actif sur `main` et `test-preview` exige actuellement uniquement le check `sentinel`. Les checks réellement publiés sur les PR sont exactement `sentinel`, `guard` et `e2e`.
 
-Le sentinel actuel protège une liste exacte de surfaces critiques, mais cette liste n’inclut pas le workflow Playwright ni `playwright.config.ts`. Le workflow Playwright exécute en outre la suite via `npm run test:e2e`, ce qui crée une dépendance inutile à un script modifiable hors de la surface protégée par le sentinel.
+Le sentinel initial protégeait une liste exacte de surfaces critiques, mais cette liste n’incluait pas le workflow Playwright ni `playwright.config.ts`. Le workflow Playwright exécutait en outre la suite via `npm run test:e2e`, ce qui créait une dépendance inutile à un script modifiable hors de la surface protégée par le sentinel.
 
 ### Périmètre F-006 autorisé
 
 - `.github/workflows/filora-guard-sentinel.yml` : considérer tout `.github/workflows/` comme surface critique et protéger aussi `playwright.config.ts` ;
-- `.github/workflows/playwright-e2e.yml` : appeler directement le binaire Playwright installé au lieu de dépendre du script npm pour l’exécution critique ;
+- `.github/workflows/playwright-e2e.yml` : appeler directement le binaire Playwright installé et installer les dépendances avec `npm ci --ignore-scripts` afin qu’un hook npm de cycle de vie ne puisse pas remplacer le runner avant son exécution ;
+- `.github/workflows/filora-guard.yml` : appliquer la même protection `npm ci --ignore-scripts` à la chaîne Node du guard afin qu’un hook npm ne puisse pas falsifier `tsc` ou le build ;
 - `workflow/contract.json` : déclarer `playwright.config.ts` comme contrôle critique durable ;
 - état/documentation Batch 9 nécessaires à la reprise.
 
 Aucune modification de `package.json`, aucun nouveau système de SHA de revue, aucun nouveau mécanisme de bypass et aucun changement métier ne font partie de F-006.
+
+`claude-review-package.yml` a été vérifié séparément : il n’exécute aucun `npm ci` et n’est donc pas concerné par ce vecteur précis.
 
 ### PR F-006 en cours
 
@@ -87,8 +90,12 @@ Aucune modification de `package.json`, aucun nouveau système de SHA de revue, a
 - base à l’ouverture : `1803e5b22bafab09b29d68539ef7f0a9286596ec` ;
 - HEAD à l’ouverture : `c0828a64177cdea614f01df9183a9bb491e06519` ;
 - le diff à l’ouverture contenait exactement 6 fichiers, tous dans le périmètre F-006/état Batch 9 ;
-- après l’événement `opened`, aucun run GitHub Actions `sentinel`, `guard` ou `e2e` n’a été observé sur ce HEAD ; seule la vérification Vercel Preview Comments était présente. Cette absence ne constitue ni un succès ni l’échec `sentinel` attendu ;
-- une synchronisation documentaire de cette même PR est donc effectuée afin de produire un événement `synchronize` et de revérifier la chaîne. Le HEAD courant doit toujours être relu directement depuis GitHub avant toute revue ou intégration.
+- après l’événement `opened`, les runs GitHub Actions n’ont pas été immédiatement observables ; une synchronisation documentaire utile a produit un événement `synchronize` ;
+- sur le candidat `3a173a04dcdeab888ab74992460f2b1de1c3e77a`, `guard` et `e2e` ont ensuite réellement réussi, tandis que `sentinel` a réellement échoué comme attendu parce que la PR touche sa propre surface critique ;
+- la revue Codex indépendante du SHA exact `3a173a04dcdeab888ab74992460f2b1de1c3e77a` a trouvé un **P1 réel** : un `postinstall` ajouté dans `package.json`/`package-lock.json` pouvait profiter de `npm ci` pour remplacer `node_modules/.bin/playwright` avant `playwright install`/`playwright test` et obtenir un faux vert ;
+- ce P1 bloque tout bypass/intégration du candidat précédent ; le correctif retenu est `npm ci --ignore-scripts --no-audit --no-fund` dans les workflows E2E et guard. Une nouvelle preuve CI et une nouvelle revue indépendante du nouveau SHA exact sont obligatoires avant intégration.
+
+Le HEAD courant doit toujours être relu directement depuis GitHub avant toute revue ou intégration ; aucun SHA de candidat n’est considéré durable après une nouvelle modification.
 
 ### Preuve et intégration F-006
 
