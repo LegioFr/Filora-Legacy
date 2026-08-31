@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#14181f" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon-192.png" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <title>Filora PWA Probe</title>
+    <script>
+      (() => {
+        const state = {
+          startedAt: new Date().toISOString(),
+          beforeinstallprompt: [],
+          appinstalled: [],
+        }
+        window.__FILORA_PWA_PROBE__ = state
+        window.addEventListener('beforeinstallprompt', (event) => {
+          state.beforeinstallprompt.push({
+            at: new Date().toISOString(),
+            platforms: Array.isArray(event.platforms) ? [...event.platforms] : [],
+          })
+        })
+        window.addEventListener('appinstalled', () => {
+          state.appinstalled.push(new Date().toISOString())
+        })
+      })()
+    </script>
+    <style>
+      :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0b0f14; color: #f8fafc; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; box-sizing: border-box; }
+      main { width: min(760px, 100%); background: #14181f; border: 1px solid #334155; border-radius: 18px; padding: 24px; box-sizing: border-box; }
+      h1 { margin-top: 0; }
+      p { color: #cbd5e1; }
+      .status { display: grid; gap: 8px; margin: 20px 0; }
+      .row { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid #273244; }
+      .value { text-align: right; overflow-wrap: anywhere; }
+      .ok { color: #86efac; }
+      .bad { color: #fca5a5; }
+      button { border: 1px solid #64748b; border-radius: 9px; background: #1e293b; color: white; padding: 10px 14px; font-weight: 700; }
+      textarea { margin-top: 16px; width: 100%; min-height: 260px; box-sizing: border-box; background: #020617; color: #e2e8f0; border: 1px solid #475569; border-radius: 10px; padding: 12px; }
+      code { color: #7dd3fc; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Filora PWA Probe</h1>
+      <p>Sonde statique isolée. Elle ne lit ni n’écrit aucune donnée Filora.</p>
+      <p>Après stabilisation du service worker, utilise le menu Chrome <strong>Installer et créer un raccourci</strong>.</p>
+      <div class="status">
+        <div class="row"><span>Contexte sécurisé</span><strong id="secure" class="value"></strong></div>
+        <div class="row"><span>Contrôleur actuel</span><strong id="controller" class="value"></strong></div>
+        <div class="row"><span>SW Probe actif</span><strong id="probe-sw" class="value"></strong></div>
+        <div class="row"><span>Portée Probe</span><strong id="scope" class="value"></strong></div>
+        <div class="row"><span>beforeinstallprompt</span><strong id="bip" class="value"></strong></div>
+        <div class="row"><span>Mode standalone</span><strong id="standalone" class="value"></strong></div>
+      </div>
+      <button id="refresh" type="button">Actualiser le diagnostic</button>
+      <textarea id="report" readonly spellcheck="false" aria-label="Diagnostic PWA Probe"></textarea>
+    </main>
+    <script>
+      (() => {
+        const EXPECTED_SW_PATH = '/pwa-probe/sw.js'
+        const state = window.__FILORA_PWA_PROBE__
+        let registration = null
+        let registrationError = null
+
+        const workerInfo = (worker) => worker ? { scriptURL: worker.scriptURL, state: worker.state } : null
+
+        async function snapshot() {
+          const controller = navigator.serviceWorker?.controller ?? null
+          let manifest = null
+          let manifestError = null
+          try {
+            const response = await fetch('./manifest.webmanifest', { cache: 'no-store' })
+            manifest = { status: response.status, contentType: response.headers.get('content-type'), json: await response.json() }
+          } catch (error) {
+            manifestError = String(error)
+          }
+
+          return {
+            collectedAt: new Date().toISOString(),
+            page: { href: location.href, origin: location.origin, secureContext: window.isSecureContext },
+            manifest,
+            manifestError,
+            serviceWorker: {
+              supported: 'serviceWorker' in navigator,
+              expectedScriptPath: EXPECTED_SW_PATH,
+              controller: workerInfo(controller),
+              controllerIsProbe: Boolean(controller && new URL(controller.scriptURL).pathname === EXPECTED_SW_PATH),
+              registrationError,
+              registration: registration ? {
+                scope: registration.scope,
+                installing: workerInfo(registration.installing),
+                waiting: workerInfo(registration.waiting),
+                active: workerInfo(registration.active),
+              } : null,
+            },
+            installation: {
+              beforeinstallprompt: { received: state.beforeinstallprompt.length > 0, events: state.beforeinstallprompt },
+              appinstalled: { received: state.appinstalled.length > 0, events: state.appinstalled },
+              displayModeStandalone: matchMedia('(display-mode: standalone)').matches,
+            },
+          }
+        }
+
+        async function render() {
+          const report = await snapshot()
+          document.querySelector('#secure').textContent = report.page.secureContext ? 'oui' : 'non'
+          document.querySelector('#secure').className = `value ${report.page.secureContext ? 'ok' : 'bad'}`
+          document.querySelector('#controller').textContent = report.serviceWorker.controller?.scriptURL ?? 'aucun'
+          document.querySelector('#controller').className = `value ${report.serviceWorker.controllerIsProbe ? 'ok' : 'bad'}`
+          document.querySelector('#probe-sw').textContent = report.serviceWorker.registration?.active?.state ?? 'pas actif'
+          document.querySelector('#probe-sw').className = `value ${report.serviceWorker.registration?.active?.state === 'activated' ? 'ok' : 'bad'}`
+          document.querySelector('#scope').textContent = report.serviceWorker.registration?.scope ?? '—'
+          document.querySelector('#bip').textContent = report.installation.beforeinstallprompt.received ? 'reçu' : 'non reçu'
+          document.querySelector('#bip').className = `value ${report.installation.beforeinstallprompt.received ? 'ok' : 'bad'}`
+          document.querySelector('#standalone').textContent = report.installation.displayModeStandalone ? 'oui' : 'non'
+          document.querySelector('#report').value = JSON.stringify(report, null, 2)
+        }
+
+        async function ensureProbeWorker() {
+          if (!('serviceWorker' in navigator)) {
+            registrationError = 'Service Worker API indisponible'
+            await render()
+            return
+          }
+          try {
+            registration = await navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' })
+            await registration.update()
+
+            const active = registration.active
+            if (active && (!navigator.serviceWorker.controller || new URL(navigator.serviceWorker.controller.scriptURL).pathname !== EXPECTED_SW_PATH)) {
+              const reloadKey = 'filora-pwa-probe-reloaded'
+              if (sessionStorage.getItem(reloadKey) !== '1') {
+                sessionStorage.setItem(reloadKey, '1')
+                location.reload()
+                return
+              }
+            }
+          } catch (error) {
+            registrationError = String(error)
+          }
+          await render()
+        }
+
+        navigator.serviceWorker?.addEventListener('controllerchange', () => { void render() })
+        window.addEventListener('beforeinstallprompt', () => { void render() })
+        window.addEventListener('appinstalled', () => { void render() })
+        document.querySelector('#refresh').addEventListener('click', () => { void render() })
+        void ensureProbeWorker()
+        setInterval(() => { void render() }, 1000)
+      })()
+    </script>
+  </body>
+</html>
