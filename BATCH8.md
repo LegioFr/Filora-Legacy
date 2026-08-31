@@ -1,7 +1,8 @@
 # BATCH8.md — Installation PWA Test et Officielle
 
-**Statut : en cours**  
-**Date de démarrage : 2026-08-31**
+**Statut : clôturé**  
+**Date de démarrage : 2026-08-31**  
+**Date de clôture : 2026-08-31**
 
 ## Intention
 
@@ -39,18 +40,22 @@ Chaque application doit :
 - signaler lorsqu’une nouvelle version est disponible ;
 - appliquer cette nouvelle version uniquement après une action explicite **Mettre à jour**, puis recharger proprement l’application.
 
+Ces propriétés ont été acquises et vérifiées avant la clôture.
+
 ## Séparation Test / Officielle
 
 ### Filora Test
 
 - source fonctionnelle : `test-preview` ;
+- origine stable vérifiée : `https://filora-test-stable.vercel.app` ;
 - reçoit les changements destinés aux validations du projet ;
 - sert aux tests humains des nouveaux Batches ;
-- doit être visuellement identifiable comme version **TEST** afin de réduire le risque de saisie dans la mauvaise application.
+- est visuellement identifiable par le badge **TEST**.
 
 ### Filora officielle
 
 - source fonctionnelle : `main` ;
+- origine stable vérifiée : `https://filora-app-nine.vercel.app` ;
 - reste stable pendant le développement d’un Batch ;
 - ne reçoit une évolution qu’après validation et promotion vers `main` selon le flux normal Filora.
 
@@ -58,23 +63,29 @@ Chaque application doit :
 
 Deux noms ou deux manifestes ne suffisent pas à garantir l’isolation des données navigateur.
 
-Le Batch doit vérifier et utiliser **deux origines HTTPS stables réellement distinctes** pour Test et Officielle. Une simple différence de chemin sur une même origine ne doit pas être présentée comme une preuve d’isolation.
+Le Batch utilise deux origines HTTPS stables réellement distinctes :
 
-Les URLs exactes ne sont pas inventées dans ce document : elles devront être déterminées et vérifiées sur la configuration de déploiement réellement disponible.
+- Test : `https://filora-test-stable.vercel.app` ;
+- Officielle : `https://filora-app-nine.vercel.app`.
 
-La preuve d’isolation doit démontrer qu’une donnée créée dans Filora Test n’apparaît pas dans Filora officielle et réciproquement.
+L’isolation a été démontrée sur la tablette réelle dans les deux sens :
+
+- Filora Test contenait la bobine `SP-0001` tandis que Filora Official affichait `0 bobine` ;
+- une donnée a ensuite été créée dans Filora Official et Mickaël a confirmé qu’elle n’apparaissait pas dans Filora Test.
+
+Cette preuve humaine complète la séparation technique par origine ; aucune simple différence de chemin sur une origine commune n’est utilisée comme preuve.
 
 ## Mise à jour contrôlée
 
-Le mécanisme de mise à jour doit rester simple et compréhensible :
+Le mécanisme de mise à jour suit le comportement attendu :
 
 1. une nouvelle version applicative devient disponible ;
 2. l’application déjà ouverte détecte cette nouvelle version sans remplacer brutalement la session en cours ;
-3. l’interface affiche une information explicite de type **Mise à jour disponible** ;
+3. l’interface affiche **Mise à jour disponible** ;
 4. l’utilisateur choisit **Mettre à jour** ;
-5. la nouvelle version prend la main et l’application se recharge proprement.
+5. le worker en attente est activé puis l’application se recharge proprement.
 
-Une version installée ne doit pas pouvoir rester silencieusement bloquée indéfiniment sur un ancien code sans information lorsqu’une mise à jour contrôlable est disponible.
+Ce scénario a été observé réellement sur Filora Test. Un second bandeau de mise à jour a également été observé lors de la validation finale ; le domaine stable Test a été contrôlé côté Vercel et restait bien rattaché au déploiement Production de `test-preview`, sans dérive vers `main`.
 
 ## Frontière offline / cache
 
@@ -86,21 +97,24 @@ En particulier :
 - IndexedDB reste l’autorité technique locale actuelle des données métier persistantes ;
 - aucun cache de données métier, d’API ou de synchronisation distante n’est introduit ;
 - aucun compte, cloud ou synchronisation n’est ajouté ;
-- les mécanismes nécessaires au shell/installabilité et à la mise à jour doivent rester minimaux et proportionnés.
+- le service worker ne gère que le shell/versionnement nécessaire à l’installation et à la mise à jour contrôlée.
 
 ## Playwright et non-régression
 
-La suite Playwright existante reste une base obligatoire du Batch :
+La suite Playwright existante a été conservée et étendue sans affaiblissement :
 
 - les **33 tests existants restent présents** ;
-- la CI doit continuer à exécuter la suite complète via `npm run test:e2e` ;
-- aucun test ne doit être ignoré, raccourci, sélectionné ou affaibli pour accélérer le Batch ;
-- les nouveaux comportements PWA automatisables doivent recevoir des tests proportionnés lorsqu’ils peuvent être vérifiés fiablement dans l’environnement disponible ;
-- l’installation réelle et le comportement de lancement sur les appareils utilisés restent soumis à validation humaine lorsqu’ils ne peuvent pas être prouvés par Playwright seul.
+- 6 tests PWA ont été ajoutés ;
+- la suite courante comprend donc **39 tests Playwright** ;
+- la CI continue d’exécuter la suite complète via `npm run test:e2e` ;
+- aucun test n’a été ignoré, raccourci, sélectionné ou affaibli pour accélérer le Batch ;
+- le candidat exact de la PR #74 a obtenu le check E2E complet en **SUCCESS**.
 
-## Findings / décisions avant implémentation
+Les validations matérielles impossibles à prouver uniquement par Playwright ont été réalisées sur la tablette réelle.
 
-### À traiter dans Batch 8
+## Findings / décisions Batch 8
+
+### Traités
 
 - rendre Filora Test installable depuis une origine HTTPS stable liée à `test-preview` ;
 - rendre Filora officielle installable séparément depuis une origine HTTPS stable liée à `main` ;
@@ -110,7 +124,10 @@ La suite Playwright existante reste une base obligatoire du Batch :
 - fournir un mécanisme de mise à jour contrôlé avec action utilisateur explicite ;
 - vérifier le flux d’installation et de mise à jour sur les appareils réellement utilisés ;
 - conserver la suite Playwright complète sans affaiblissement ;
-- synchroniser `PROJECT_STATE.md` et la fin de `BATCH7.md` avec la fusion réellement acquise de la PR #65.
+- synchroniser `PROJECT_STATE.md` avec l’état réel du projet ;
+- findings Codex PWA successifs sur la PR #66 : corrigés avant intégration à `test-preview` ;
+- finding P2 Codex sur `BATCH8.md` lors de la revue de la PR #74 : l’ancienne justification Critique décrivait encore le diff cumulatif antérieur au rattrapage de `main` ; corrigé dans cette synchronisation de clôture ;
+- finding P2 Codex sur `PROJECT_STATE.md` lors de la revue de la PR #74 : l’action de reprise demandait encore d’ouvrir la PR de promotion alors que #74 existait déjà ; corrigé dans cette synchronisation de clôture.
 
 ### Reportés
 
@@ -123,7 +140,7 @@ La suite Playwright existante reste une base obligatoire du Batch :
 - `localeCompare()` sans locale explicite sauf nécessité fonctionnelle ;
 - compteur de téléchargement basé sur l’état UI.
 
-La réserve historique `gitDirty` n’appelle pas de développement dédié dans ce Batch. Lorsqu’une Preview contrôlée du bon état sera utilisée, son SHA et sa propreté devront être vérifiés directement plutôt que supposés.
+La réserve historique `gitDirty` n’appelle pas de développement dédié dans ce Batch. Les preuves finales utilisées ici sont rattachées aux états GitHub et déploiements effectivement vérifiés.
 
 ### Rejetés
 
@@ -146,49 +163,91 @@ La réserve historique `gitDirty` n’appelle pas de développement dédié dans
 
 ## Classification F4.2 / F4.3
 
-**Sensible au démarrage, relevé à Critique pour la promotion cumulative vers `main`.**
+**Sensible pour l’implémentation PWA, conservé à Critique pour la promotion vers `main`.**
 
-Le travail PWA du Batch 8 est sensible par nature : il touche l’installation, le mécanisme de mise à jour, le comportement de déploiement/origine et le build, sans migration destructive ni changement de l’autorité métier centrale.
+Le travail PWA est sensible par nature : il touche l’installation, le mécanisme de mise à jour, les origines de déploiement et le build, sans migration destructive ni changement de l’autorité métier centrale.
 
-Avant la promotion vers `main`, le diff réel `main...test-preview` a toutefois été vérifié. `main` est encore sur l’état promu à l’issue du Batch 2 et la promotion cumulative inclut des changements de Batches ultérieurs, dont `DEVELOPMENT.md` et le workflow Playwright. Ces chemins constituent des surfaces de contrôle Critiques selon les garde-fous Filora. La classification de l’état machine est donc relevée à **Critique** avant l’ouverture de la PR de promotion, sans modifier ni affaiblir les garde-fous.
+Avant la PR #74, `main` a été rattrapée séquentiellement jusqu’au Batch 7 par les PR #69 à #73. La promotion finale ne constituait donc plus une promotion cumulative depuis le Batch 2 :
 
-Cette reclassification Critique et la préparation de la promotion ont été explicitement approuvées par Mickaël le 2026-08-31.
+- base #74 : `main` au SHA `795d68068fbaad47dda278e05345ff93eec6bc5c` ;
+- head #74 : `test-preview` au SHA `0ed6227d46c4de5be7b2d0dfac900d4569792782` ;
+- diff fonctionnel : transition Batch 7 → Batch 8 uniquement.
+
+La mention précédente de `DEVELOPMENT.md` et du workflow Playwright comme surfaces présentes dans le diff de #74 était donc devenue obsolète et est retirée. Le niveau **Critique** a néanmoins été conservé comme surclassement volontaire déjà approuvé pour cette promotion officielle d’un mécanisme PWA durable d’installation/mise à jour et de deux canaux distincts. Ce niveau n’est pas présenté comme imposé par un chemin Critique encore présent dans le diff final.
+
+Mickaël avait explicitement approuvé cette classification Critique et la promotion correspondante le 2026-08-31.
 
 ## F4.4 — décision propriétaire
 
-Le comportement produit et le découpage ont été explicitement approuvés par Mickaël avant démarrage : deux applications installables séparées, Test sur `test-preview`, Officielle sur `main`, données isolées et mise à jour contrôlée avec action utilisateur.
+**Décision propriétaire : obtenue.**
 
-L’accord propriétaire couvre également la reclassification Critique nécessaire à la promotion cumulative vers `main`. Cette approbation définit l’intention et autorise la transition ; elle ne remplace pas les preuves techniques, la CI ni la revue indépendante du candidat exact.
+Mickaël a explicitement approuvé le comportement produit et le découpage : deux applications installables séparées, Test sur `test-preview`, Officielle sur `main`, données isolées et mise à jour contrôlée avec action utilisateur.
 
-### Jalon humain requis — EN ATTENTE
+Son accord couvre aussi le niveau Critique retenu pour la promotion. Cette approbation définit l’intention et autorise la transition ; elle ne remplace pas les preuves techniques, la CI ni la revue indépendante.
 
-Une validation humaine sera nécessaire avant clôture pour les propriétés réellement observables, notamment :
+### Jalon humain requis — ACQUIS
 
-- installation de **Filora Test** ;
-- installation séparée de **Filora** ;
-- présence simultanée des deux applications ;
-- identification visuelle sans ambiguïté de la version Test ;
-- lancement en mode application ;
-- isolation observable des données ;
-- apparition et utilisation du mécanisme **Mise à jour disponible → Mettre à jour** sur un scénario réel approprié.
+Les propriétés réellement observables ont été validées sur la tablette :
 
-À ce stade, l’installation réelle de Filora Test, son lancement standalone, son identification visuelle TEST et un scénario réel de mise à jour contrôlée ont été observés. L’installation de l’Officielle, la coexistence et l’isolation bidirectionnelle restent à acquérir avant clôture.
+- **Filora Test** installée ;
+- **Filora** officielle installée séparément sans désinstaller l’ancienne Filora historique ;
+- présence simultanée des applications ;
+- badge **TEST** visible uniquement sur la version Test ;
+- Filora Official lancée en mode application autonome, sans barre Chrome ;
+- Filora Official sans badge TEST ;
+- isolation Test → Official démontrée avec `SP-0001` présente dans Test et absente d’Official ;
+- isolation Official → Test démontrée après création d’une donnée dans Official et confirmation de son absence dans Test ;
+- scénario réel **Mise à jour disponible → Mettre à jour** observé sur Filora Test.
 
-## Preuves attendues avant clôture
+## Revue indépendante Batch 8
 
-1. candidat exact identifié ;
-2. deux origines HTTPS stables vérifiées, sans URL inventée ;
-3. manifestes/identités PWA distincts et installabilité vérifiable ;
-4. isolation réelle des stockages démontrée ;
-5. mise à jour contrôlée démontrée sur une version installée ;
-6. aucun cache métier ou mécanisme de synchronisation hors périmètre ;
-7. suite Playwright complète conservée et verte, avec les tests nouveaux applicables ;
-8. guard, architecture, typecheck et build applicables verts ;
-9. validation humaine du comportement installable acquise ;
-10. revue indépendante adaptée au niveau **Critique** sur le candidat exact de promotion ;
-11. aucun finding bloquant non décidé ;
-12. aucune promotion vers `main` présentée comme acquise avant les validations réellement nécessaires.
+La promotion Critique a reçu une revue Codex sur le candidat exact de la PR #74, commit revu `0ed6227d46c4de5be7b2d0dfac900d4569792782`, avec la base réelle `795d68068fbaad47dda278e05345ff93eec6bc5c`.
+
+Codex n’a remonté aucun finding produit/PWA bloquant sur ce candidat. Deux findings P2 documentaires ont été remontés :
+
+1. justification Critique encore fondée sur l’ancien diff cumulatif ;
+2. `PROJECT_STATE.md` demandant encore d’ouvrir la PR de promotion.
+
+Ces deux findings ont été explicitement décidés non bloquants pour la promotion parce qu’ils ne remettaient pas en cause une propriété produit, PWA ou de données, puis corrigés dans la synchronisation documentaire de clôture. Aucune boucle de revue supplémentaire n’est ajoutée pour ces corrections purement documentaires sans changement du code produit ni des mécanismes de contrôle.
+
+**État de revue indépendante : `passed`.**
+
+## Preuves acquises avant clôture
+
+1. **Candidat exact :** PR #74, base `795d68068fbaad47dda278e05345ff93eec6bc5c`, head `0ed6227d46c4de5be7b2d0dfac900d4569792782`.
+2. **Promotion :** PR #74 fusionnée dans `main`, merge `2a1b9221f28113de119d9aa7071c412d023564a1`.
+3. **Origines stables :** `filora-test-stable.vercel.app` pour Test et `filora-app-nine.vercel.app` pour Official, distinctes et vérifiées.
+4. **Identités PWA :** manifeste Test = `Filora Test`, manifeste Official = `Filora`, affichage `standalone`, icônes distinctes.
+5. **Déploiement Official :** déploiement Production Vercel du merge `2a1b9221...` en `READY`; le domaine stable Official sert le manifeste officiel et un service worker versionné sur ce SHA.
+6. **Déploiement Test :** le domaine stable Test reste rattaché au déploiement Production `test-preview` `0ed6227d...` et sert le manifeste `Filora Test`.
+7. **Isolation :** démonstration matérielle dans les deux sens acquise sur la tablette.
+8. **Mise à jour contrôlée :** démonstration réelle acquise, en plus du test Playwright correspondant.
+9. **Frontière offline :** aucun cache métier, compte, cloud ou synchronisation distante ajouté ; le cache reste limité au shell/version applicative.
+10. **Contrôles PR #74 :** `guard` SUCCESS, `sentinel` SUCCESS, Playwright E2E complet SUCCESS, Vercel `filora-app`, `filora-test-app` et `filora-test-stable` SUCCESS.
+11. **Revue indépendante :** Codex a revu le commit exact `0ed6227d46...`; deux P2 documentaires décidés et corrigés, aucun finding bloquant produit/PWA.
+12. **Issues/PR :** aucune Issue ouverte et aucune PR ouverte au préflight final de clôture.
+13. **Documents canoniques :** aucun des quatre documents canoniques n’est modifié par cette clôture.
+14. **Validations indisponibles :** aucune propriété obligatoire du Batch 8 ne reste non démontrée.
+
+## Rapport de clôture
+
+- **Intention / périmètre :** installation PWA Test et Officielle, identités séparées, origines distinctes, isolation locale et mise à jour contrôlée ; aucune fonctionnalité métier Stock ajoutée.
+- **État technique produit :** Batch 8 promu dans `main` par #74 au merge `2a1b9221f28113de119d9aa7071c412d023564a1` ; candidat produit revu `0ed6227d46c4de5be7b2d0dfac900d4569792782`.
+- **Changements réalisés :** runtime PWA, manifestes/icônes Test/Official, service worker versionné et contrôlé, tests PWA, validation stricte des icônes, configuration de canal de build.
+- **Changements sensibles :** installation/mise à jour PWA, comportement de déploiement et origines ; classification finale Critique conservée pour la promotion.
+- **F4.2/F4.3 :** **Critique**.
+- **F4.4 :** **décision propriétaire, accord obtenu**.
+- **Tests / contrôles :** applicables et verts sur le candidat de promotion exact.
+- **Preuves supplémentaires :** validation réelle sur tablette et vérification directe des domaines/déploiements.
+- **Review indépendante :** **passed**.
+- **Findings :** deux P2 documentaires de #74 traités dans la clôture ; findings reportés listés plus haut inchangés.
+- **Documents canoniques :** non modifiés.
+- **Réserves bloquantes / validations manquantes :** aucune.
 
 ## Condition de clôture
 
-Le Batch 8 pourra être clôturé lorsque Filora Test et Filora officielle sont réellement installables comme deux applications distinctes, que leurs données sont démontrées isolées, que le mécanisme de mise à jour contrôlé fonctionne sans stratégie offline métier disproportionnée, que les contrôles automatiques applicables sont verts, que la validation humaine est acquise et qu’aucun finding bloquant ne reste non décidé.
+**SATISFAITE.**
+
+Filora Test et Filora officielle sont installables comme deux applications distinctes, leurs données ont été démontrées isolées dans les deux sens, le mécanisme de mise à jour contrôlé fonctionne sans stratégie offline métier disproportionnée, les contrôles automatiques applicables sont verts, la revue indépendante requise est acquise, la validation humaine est acquise et aucun finding bloquant ne reste non décidé.
+
+Le Batch 8 est donc **clôturé**. Cette clôture autorise uniquement la transition machine `next_batch_allowed: true` ; elle ne démarre pas le Batch 9.
