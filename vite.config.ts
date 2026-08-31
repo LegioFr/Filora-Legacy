@@ -8,7 +8,14 @@ const runtimeProcess = (globalThis as typeof globalThis & {
 
 const env = runtimeProcess?.env ?? {}
 const branch = env.VERCEL_GIT_COMMIT_REF ?? env.GITHUB_REF_NAME ?? ''
-const channel: FiloraChannel = branch === 'main' ? 'production' : 'test'
+const projectProductionUrl = (env.VERCEL_PROJECT_PRODUCTION_URL ?? '').toLowerCase()
+const channel: FiloraChannel = projectProductionUrl === 'filora-test-stable.vercel.app'
+  ? 'test'
+  : projectProductionUrl === 'filora-app-nine.vercel.app'
+    ? 'production'
+    : branch === 'main'
+      ? 'production'
+      : 'test'
 const test = channel === 'test'
 const appName = test ? 'Filora Test' : 'Filora'
 const iconPrefix = test ? 'filora-test' : 'filora'
