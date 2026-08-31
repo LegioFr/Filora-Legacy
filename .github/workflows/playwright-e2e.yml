@@ -1,0 +1,49 @@
+name: Playwright E2E
+
+on:
+  pull_request:
+    branches:
+      - test-preview
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Assert exact clean PR HEAD
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test -z "$(git status --porcelain)"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Chromium only
+        run: npx playwright install --with-deps chromium
+
+      - name: Run full Playwright E2E suite
+        run: npm run test:e2e
+
+      - name: Upload Playwright failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failure-${{ github.run_id }}
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
