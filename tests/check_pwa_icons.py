@@ -2,7 +2,7 @@
 """Strictly validate Filora PWA PNG icons.
 
 Checks PNG signature, chunk boundaries, CRCs, IHDR dimensions/format,
-valid zlib-compressed IDAT scanlines, and requires a terminal IEND chunk.
+valid zlib-compressed IDAT scanlines, known critical chunks, and a terminal IEND.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ ICONS = {
     ROOT / "public/icons/filora-test-512.png": 512,
 }
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+KNOWN_CRITICAL_CHUNKS = {b"IHDR", b"PLTE", b"IDAT", b"IEND"}
 
 
 def validate_png(path: Path, expected_size: int) -> None:
@@ -48,6 +49,11 @@ def validate_png(path: Path, expected_size: int) -> None:
 
         if not saw_ihdr and chunk_type != b"IHDR":
             raise ValueError("IHDR doit être le premier chunk")
+
+        if (chunk_type[0] & 0x20) == 0 and chunk_type not in KNOWN_CRITICAL_CHUNKS:
+            raise ValueError(
+                f"chunk critique PNG inconnu: {chunk_type.decode('ascii', 'replace')}"
+            )
 
         payload = data[payload_start:payload_end]
         stored_crc = struct.unpack(">I", data[payload_end:crc_end])[0]
