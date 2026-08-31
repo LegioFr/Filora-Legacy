@@ -14,7 +14,6 @@ test('expose un manifeste installable clairement identifié Filora Test', async 
   const manifest = await page.evaluate(async () => {
     const response = await fetch('/manifest.webmanifest', { cache: 'no-store' })
     return response.json() as Promise<{
-      id: string
       name: string
       short_name: string
       start_url: string
@@ -22,21 +21,23 @@ test('expose un manifeste installable clairement identifié Filora Test', async 
       display: string
       prefer_related_applications: boolean
       icons: Array<{ src: string; sizes: string; type: string; purpose?: string }>
+      id?: string
     }>
   })
 
   expect(manifest).toMatchObject({
-    id: '/filora-test',
     name: 'Filora Test',
     short_name: 'Filora Test',
-    start_url: '/',
-    scope: '/',
+    start_url: './',
+    scope: './',
     display: 'standalone',
     prefer_related_applications: false,
   })
+  expect(Object.hasOwn(manifest, 'id')).toBe(false)
+  expect(manifest.icons.map((icon) => icon.src)).toEqual(['./icon-192.png', './icon-512.png'])
   expect(manifest.icons.map((icon) => icon.sizes)).toEqual(['192x192', '512x512'])
   expect(manifest.icons.every((icon) => icon.type === 'image/png')).toBe(true)
-  expect(manifest.icons.every((icon) => icon.purpose === 'any')).toBe(true)
+  expect(manifest.icons.every((icon) => icon.purpose === 'any maskable')).toBe(true)
   await expect(page.getByLabel('Version de test')).toHaveText('TEST')
   await expect(page).toHaveTitle('Filora Test')
 })
@@ -63,7 +64,7 @@ test('affiche le vrai bouton d installation uniquement quand Chrome fournit befo
   await expect.poll(async () => page.evaluate(() => document.documentElement.dataset.installPromptCalled)).toBe('yes')
 })
 
-test('enregistre un service worker avec uniquement le cache shell hors ligne Filora', async ({ page }) => {
+test('enregistre le service worker simple et précharge uniquement l enveloppe PWA', async ({ page }) => {
   await openApp(page)
   await waitForServiceWorkerControl(page)
 
@@ -77,15 +78,20 @@ test('enregistre un service worker avec uniquement le cache shell hors ligne Fil
     }))
     return {
       active: registration?.active?.state ?? null,
+      activeScriptURL: registration?.active?.scriptURL ?? null,
       scope: registration?.scope ?? null,
       cacheContents,
     }
   })
 
   expect(state.active).toBe('activated')
+  expect(state.activeScriptURL).toBe('http://127.0.0.1:4173/sw.js')
   expect(state.scope).toBe('http://127.0.0.1:4173/')
   expect(state.cacheContents).toEqual([
-    { key: 'filora-shell-v1', paths: ['/offline.html'] },
+    {
+      key: 'filora-test-v1',
+      paths: ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png'],
+    },
   ])
 })
 
@@ -102,15 +108,12 @@ test('Chromium ne signale aucune erreur d installabilite PWA', async ({ page, co
   expect(result.installabilityErrors).toEqual([])
 })
 
-test('propose explicitement une mise à jour et ne l applique qu après action utilisateur', async ({ page }) => {
+test('signale une nouvelle version de service worker puis recharge après action utilisateur', async ({ page }) => {
   await openApp(page)
   await waitForServiceWorkerControl(page)
 
   await page.evaluate(async () => {
-    await navigator.serviceWorker.register('/sw.js?build=e2e-next', {
-      scope: '/',
-      updateViaCache: 'none',
-    })
+    await navigator.serviceWorker.register('/sw.js?e2e-next=1', { scope: '/' })
   })
 
   const prompt = page.getByRole('status').filter({ hasText: 'Mise à jour disponible' })

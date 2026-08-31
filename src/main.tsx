@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './app/App'
-import { FILORA_APP_NAME, FILORA_ICON_192 } from './pwa/channel'
+import { FILORA_APP_NAME } from './pwa/channel'
 import { PwaRuntime } from './pwa/PwaRuntime'
 import './styles.css'
 import './responsive.css'
@@ -17,16 +17,6 @@ if (!root) {
 
 document.title = FILORA_APP_NAME
 document.documentElement.dataset.filoraApp = FILORA_APP_NAME
-
-const icon = document.createElement('link')
-icon.rel = 'icon'
-icon.href = FILORA_ICON_192
-document.head.append(icon)
-
-const touchIcon = document.createElement('link')
-touchIcon.rel = 'apple-touch-icon'
-touchIcon.href = FILORA_ICON_192
-document.head.append(touchIcon)
 
 createRoot(root).render(
   <StrictMode>
