@@ -1,6 +1,21 @@
 const READY_TIMEOUT_MS = 5_000
 const REFRESH_INTERVAL_MS = 1_000
 
+type InstallPromptRecord = {
+  at: string
+  platforms: string[]
+}
+
+type EarlyDebugState = {
+  startedAt: string
+  beforeinstallprompt: InstallPromptRecord[]
+  appinstalled: string[]
+}
+
+type WindowWithEarlyDebug = Window & {
+  __FILORA_PWA_DEBUG_EARLY__?: EarlyDebugState
+}
+
 type BeforeInstallPromptEventLike = Event & {
   platforms?: string[]
 }
@@ -53,9 +68,10 @@ function formatTime(date: Date): string {
 export function mountPwaDebug() {
   if (document.getElementById('filora-pwa-debug')) return
 
-  const startedAt = new Date()
-  const beforeInstallPromptEvents: Array<{ at: string; platforms: string[] }> = []
-  const appInstalledEvents: string[] = []
+  const earlyState = (window as WindowWithEarlyDebug).__FILORA_PWA_DEBUG_EARLY__
+  const startedAt = earlyState ? new Date(earlyState.startedAt) : new Date()
+  const beforeInstallPromptEvents: InstallPromptRecord[] = earlyState?.beforeinstallprompt ?? []
+  const appInstalledEvents: string[] = earlyState?.appinstalled ?? []
   let readyState: ReadyState = { state: 'pending' }
   let manifestState: ManifestState = {
     rawHref: null,
@@ -131,7 +147,7 @@ export function mountPwaDebug() {
       <button type="button" data-action="collapse">Réduire</button>
     </header>
     <div class="filora-pwa-debug-body">
-      <p>Laisse cet onglet ouvert au moins 60 s et interagis avec la page. Le signal <code>beforeinstallprompt</code> est écouté en continu.</p>
+      <p>Laisse cet onglet ouvert au moins 60 s et interagis avec la page. Le signal <code>beforeinstallprompt</code> est écouté dès le chargement du document.</p>
       <div class="filora-pwa-debug-actions">
         <button type="button" data-action="refresh">Actualiser</button>
         <button type="button" data-action="copy">Copier</button>
@@ -170,8 +186,13 @@ export function mountPwaDebug() {
     void refreshRuntime()
   }
 
-  window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
-  window.addEventListener('appinstalled', onAppInstalled)
+  // With ?pwa-debug=1, index.html already listens from the <head> and owns
+  // these arrays. The fallback listeners below are only for unusual cases
+  // where the diagnostic module is mounted without that early bootstrap.
+  if (!earlyState) {
+    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+    window.addEventListener('appinstalled', onAppInstalled)
+  }
 
   async function fetchManifest() {
     const manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
@@ -259,7 +280,10 @@ export function mountPwaDebug() {
       diagnostic: {
         startedAt: formatTime(startedAt),
         elapsedSeconds: Math.round((now.getTime() - startedAt.getTime()) / 1000),
-        note: 'beforeinstallprompt = événements reçus depuis le chargement du module ?pwa-debug=1',
+        captureStartedInHead: Boolean(earlyState),
+        note: earlyState
+          ? 'beforeinstallprompt/appinstalled = événements capturés dès le <head>, avant React et les imports dynamiques'
+          : 'fallback: événements capturés depuis le chargement du module de diagnostic',
       },
       page: {
         href: window.location.href,
@@ -411,8 +435,10 @@ export function mountPwaDebug() {
 
   window.addEventListener('pagehide', () => {
     window.clearInterval(intervalId)
-    window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
-    window.removeEventListener('appinstalled', onAppInstalled)
+    if (!earlyState) {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', onAppInstalled)
+    }
   }, { once: true })
 
   render()
