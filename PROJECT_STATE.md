@@ -7,9 +7,9 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 
 ## Reprise structurée
 - stage: Batch 8 — installation PWA Test et Officielle
-- status: ouvert
-- git: PR #66 fusionnée dans `test-preview`; `filora-test-stable` suit désormais `test-preview`; préparation de la promotion contrôlée vers `main`
-- next_action: ouvrir la PR de promotion `test-preview` vers `main` après intégration du préflight Critique, vérifier ses contrôles et sa revue indépendante, puis valider Filora officielle et l’isolation réelle avant clôture du Batch 8
+- status: clôturé
+- git: Batch 8 promu vers `main` par la PR #74 ; Filora Official est servie par `filora-app-nine.vercel.app` depuis `main` et Filora Test par `filora-test-stable.vercel.app` depuis `test-preview`
+- next_action: ne pas démarrer automatiquement le Batch 9 ; lors de sa préparation, reconstruire l’état réel depuis GitHub, consulter les Issues/findings ouverts et proposer son périmètre avant toute modification
 
 ## État courant
 
@@ -17,27 +17,26 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - **Batch 0 :** clôturé et intégré à `main`.
 - **Batch 1 :** clôturé et intégré à `main`.
 - **Batch 2 :** clôturé, validé et promu vers `main`.
-- **Batch 3 :** clôturé, validé et intégré à `test-preview`.
-- **Batch 4 :** clôturé, validé et intégré à `test-preview`.
-- **Batch 5 :** clôturé et intégré à `test-preview` par la PR #62.
-- **Batch 6 :** clôturé et intégré à `test-preview` par la PR #64.
-- **Batch 7 :** **clôturé et intégré à `test-preview` par la PR #65**, avec Playwright, CI, rollback navigateur et évaluation réelle de Graphify terminés. Graphify `0.9.53` a été essayé puis retiré ; verdict : **RETIRER pour Filora aujourd’hui**.
+- **Batch 3 :** clôturé, validé et promu vers `main` par la PR #69.
+- **Batch 4 :** clôturé, validé et promu vers `main` par la PR #70.
+- **Batch 5 :** clôturé, intégré à `test-preview` par la PR #62 puis promu vers `main` par la PR #71.
+- **Batch 6 :** clôturé, intégré à `test-preview` par la PR #64 puis promu vers `main` par la PR #72.
+- **Batch 7 :** clôturé, intégré à `test-preview` par la PR #65 puis promu vers `main` par la PR #73, avec Playwright, CI, rollback navigateur et évaluation réelle de Graphify terminés. Graphify `0.9.53` a été essayé puis retiré ; verdict : **RETIRER pour Filora aujourd’hui**.
 - **Risque Batch 7 :** Critique, car l’ajout d’un workflow sous `.github/workflows/` constitue une surface structurelle de contrôle selon le guard Filora.
 - **Accord propriétaire F4.4 Batch 7 :** obtenu pour la correction du checkout sale et l’introduction de la CI Playwright minimale.
 - **Revue indépendante Batch 7 :** `passed`. Codex a revu le candidat `0dd038681b6f51f9369cebf5624cbfd7e8a1bede`, trouvé un unique P2 documentaire dans ce fichier, puis ce finding a été corrigé dans `69798abfaa88dff57cdfb254155cf39876368a2d`, avec guard/e2e/sentinel verts et thread résolu. Une re-review supplémentaire de `69798ab...` a été demandée mais n’est pas utilisée comme preuve tant qu’elle n’a pas produit de verdict ; aucune boucle supplémentaire n’est requise pour ce correctif documentaire ciblé.
 - **Jalon humain applicatif Batch 7 :** non requis ; le Batch 7 n’introduit pas de modification produit/UX.
-- **Batch 8 :** **ouvert**. La PR #66 a été fusionnée dans `test-preview` au commit `da9b2c22b7af973075f1bb99f2274faeeedc813e`. Filora Test est réellement installable sur son origine stable, se lance en standalone, affiche son identité TEST et a démontré un scénario réel de mise à jour contrôlée. L’Officielle, la coexistence et l’isolation bidirectionnelle restent à valider.
-- **Risque Batch 8 :** Sensible pour l’implémentation PWA initiale, relevé à **Critique** pour la promotion cumulative vers `main`, car le diff réel depuis `main` inclut des surfaces de contrôle Critiques, notamment `DEVELOPMENT.md` et le workflow Playwright.
-- **Décision propriétaire Batch 8 :** obtenue pour le comportement produit, le découpage Test / Officielle / mise à jour contrôlée et, le 2026-08-31, pour la reclassification Critique nécessaire à la promotion cumulative vers `main`.
-- **Revue indépendante Batch 8 :** `pending` pour le candidat exact de promotion vers `main`. Les revues Codex du travail PWA sur la PR #66 ont traité les findings concrets avant son intégration à `test-preview`, mais elles ne remplacent pas la revue du candidat de promotion Critique.
-- **Jalon humain applicatif Batch 8 :** partiellement acquis : Filora Test installée, standalone, identité TEST et mise à jour réelle validées ; Filora officielle installée séparément, coexistence et isolation réelle restent en attente.
+- **Batch 8 :** **clôturé**. La PR #66 a intégré l’implémentation PWA dans `test-preview`. Après rattrapage séquentiel de `main` par #69 à #73, la PR #74 a promu le candidat Batch 8 exact vers `main` au merge `2a1b9221f28113de119d9aa7071c412d023564a1`. Filora Test et Filora Official sont installées séparément, lancées en standalone, identifiées sans ambiguïté et leurs données ont été démontrées isolées dans les deux sens sur la tablette réelle.
+- **Risque Batch 8 :** Sensible pour l’implémentation PWA, conservé à **Critique** pour la promotion officielle. La PR #74 portait réellement la transition Batch 7 → Batch 8 ; l’ancienne justification par un diff cumulatif contenant `DEVELOPMENT.md` et le workflow Playwright était devenue obsolète et a été corrigée à la clôture.
+- **Décision propriétaire Batch 8 :** obtenue pour le comportement produit, le découpage Test / Officielle / mise à jour contrôlée et le niveau Critique retenu pour la promotion.
+- **Revue indépendante Batch 8 :** `passed`. Codex a revu le candidat exact de la PR #74, commit `0ed6227d46c4de5be7b2d0dfac900d4569792782`, base `795d68068fbaad47dda278e05345ff93eec6bc5c`. Aucun finding produit/PWA bloquant ; deux P2 documentaires ont été décidés non bloquants puis corrigés dans la synchronisation de clôture.
+- **Jalon humain applicatif Batch 8 :** **acquis** : Filora Test installée/standalone/badge TEST/mise à jour contrôlée ; Filora Official installée séparément/standalone/sans badge TEST ; coexistence réelle ; isolation Test → Official et Official → Test démontrée.
 - **Branche officielle :** `main`.
 - **Branche de validation :** `test-preview`.
-- **Branche de préflight promotion Batch 8 :** `batch8/promotion-preflight`.
 
-`workflow/state.json` porte pour le Batch 8 ouvert : `current_batch: 8`, `batch_status: open`, `risk: critical`, `independent_review: pending`, `owner_approval: obtained`, `next_batch_allowed: false`.
+`workflow/state.json` porte après clôture du Batch 8 : `current_batch: 8`, `batch_status: closed`, `risk: critical`, `independent_review: passed`, `owner_approval: obtained`, `next_batch_allowed: true`.
 
-`next_batch_allowed: false` est attendu tant que le Batch 8 reste ouvert et n’a pas satisfait ses conditions de clôture.
+`next_batch_allowed: true` signifie que la préparation d’un Batch suivant est autorisée ; cela ne démarre pas le Batch 9 et ne dispense pas de son préflight.
 
 ## Base fonctionnelle acquise avant Batch 7
 
@@ -66,12 +65,12 @@ La persistance métier actuelle utilise IndexedDB direct sans Dexie, conforméme
 
 Playwright `1.62.1` est versionné avec Chromium uniquement. Firefox et WebKit n’ont pas été ajoutés.
 
-La suite E2E comprend :
+La suite E2E avant Batch 8 comprenait :
 
 - 28 tests fonctionnels couvrant les parcours utilisateur déjà implémentés : navigation, création de bobines, références nouvelles/existantes, paramètres d’impression, achat/rangement, stock nominal/mesuré, création en série, modification de référence, changement de filament, sauvegarde/restauration et isolation ;
 - 1 test navigateur de rollback inter-stockages IndexedDB / catalogue personnel ;
 - 4 tests de viewports représentatifs : mobile `390×844`, tablette `800×1280`, PC `1440×900`, ultra-wide `2560×1080` ;
-- soit **33 tests Playwright au total**.
+- soit **33 tests Playwright au total avant les tests PWA du Batch 8**.
 
 Le test de rollback navigateur fabrique les états par l’interface dans deux contextes Chromium isolés, injecte une panne unique sur l’écriture du catalogue local après le remplacement IndexedDB, puis recharge l’application. Il vérifie que l’ancienne bobine est réellement restaurée, que la bobine cible n’est pas restée dans IndexedDB, que l’ancien choix personnalisé du catalogue est revenu et que le choix cible n’a pas fui. Aucun crochet de test n’a été ajouté au code produit.
 
@@ -95,7 +94,7 @@ Le workflow séparé `.github/workflows/playwright-e2e.yml` :
 
 Le workflow `filora-guard.yml`, son sentinel, `DEVELOPMENT.md`, `workflow/contract.json` et les scripts de garde n’ont pas été modifiés par le Batch 7.
 
-### Preuves acquises avant le commit de clôture
+### Preuves acquises avant le commit de clôture du Batch 7
 
 Sur `f1c5e8af46eb226d8698e6a9fd6155bcdacd2452` : `e2e`, `guard` et `sentinel` SUCCESS, Playwright **33/33 PASS**, rollback navigateur PASS, checkout exact/propre PASS, architecture/typecheck/build/tests du guard PASS.
 
@@ -224,32 +223,37 @@ La simplification ne doit **jamais** réduire l’efficacité des tests :
 
 Objectif : **réduire le temps perdu autour des tests, jamais leur qualité, afin que les contrôles automatiques prennent réellement en charge les régressions automatisables.**
 
-## Batch 8 — PWA Test et Officielle
+## Batch 8 — PWA Test et Officielle acquis
 
-Le Batch 8 doit fournir deux applications installables séparément :
+Le Batch 8 fournit désormais deux applications installables séparément :
 
-- **Filora Test** sur une origine HTTPS stable liée à `test-preview` ;
-- **Filora** sur une origine HTTPS stable liée à `main`.
+- **Filora Test** sur `https://filora-test-stable.vercel.app`, origine stable liée à `test-preview` ;
+- **Filora** sur `https://filora-app-nine.vercel.app`, origine stable liée à `main`.
 
-Les deux origines doivent être réellement distinctes afin que l’isolation de stockage navigateur puisse être démontrée. Deux chemins différents sous une même origine ne suffisent pas à revendiquer cette isolation.
+Les deux origines sont réellement distinctes et l’isolation a été démontrée sur la tablette : `SP-0001` présente dans Test était absente d’Official, puis une donnée créée dans Official a été confirmée absente de Test.
 
-La version Test doit être visuellement identifiable. Le mécanisme de mise à jour doit annoncer une nouvelle version et laisser l’utilisateur choisir **Mettre à jour** avant activation/rechargement. Aucun cache métier offline, cloud, compte ou synchronisation n’entre dans le périmètre.
+La version Test est visuellement identifiable par le badge **TEST**. Le mécanisme de mise à jour annonce une nouvelle version et laisse l’utilisateur choisir **Mettre à jour** avant activation/rechargement. Aucun cache métier offline, cloud, compte ou synchronisation n’a été ajouté.
 
-Les 33 tests Playwright existants restent obligatoires et la CI continue d’exécuter la suite complète. Les comportements PWA automatisables seront ajoutés sans affaiblir les scénarios existants.
+Les 33 tests Playwright préexistants ont été conservés et 6 tests PWA ajoutés, soit **39 tests Playwright**. La CI continue d’exécuter la suite complète.
 
-Les consommations et l’évolution métier du menu Stock sont explicitement reportées au **Batch 9**.
+La promotion officielle a été réalisée par la PR #74 : base `795d68068fbaad47dda278e05345ff93eec6bc5c`, head `0ed6227d46c4de5be7b2d0dfac900d4569792782`, merge `2a1b9221f28113de119d9aa7071c412d023564a1`.
+
+Le déploiement Production Official correspondant est `READY`. Le manifeste Official sert `Filora`, le manifeste Test sert `Filora Test`, et le service worker Official est versionné sur le merge `2a1b9221...` tandis que le stable Test reste sur le déploiement Production `test-preview` `0ed6227d...` au moment de la clôture.
 
 ## Findings / décisions Batch 8
 
-### À traiter
+### Traités
 
 - installation PWA distincte de Filora Test et Filora officielle ;
 - origines HTTPS stables et réellement distinctes ;
-- isolation démontrée des données locales ;
+- isolation démontrée des données locales dans les deux sens ;
 - différenciation visible de la version Test ;
 - mise à jour contrôlée avec action utilisateur ;
 - validation humaine des deux installations et de leur coexistence ;
-- synchronisation documentaire post-merge Batch 7 intégrée à la préparation normale du Batch 8.
+- synchronisation documentaire post-merge Batch 7 ;
+- findings Codex PWA de la PR #66, corrigés avant intégration ;
+- P2 Codex de #74 sur la justification Critique devenue obsolète après rattrapage séquentiel de `main` ; corrigé à la clôture ;
+- P2 Codex de #74 sur l’action de reprise demandant encore d’ouvrir la PR de promotion ; corrigé à la clôture.
 
 ### Reportés
 
@@ -267,11 +271,31 @@ Les consommations et l’évolution métier du menu Stock sont explicitement rep
 - Graphify comme outil Filora permanent dans la version `0.9.53` et l’environnement Windows/Codex testé ; réévaluation future autorisée si les conditions changent ;
 - ajout des consommations métier au Batch 8.
 
+## Classification Batch 8
+
+### F4.2 / F4.3
+
+**Critique.** L’implémentation PWA était Sensible ; la promotion officielle est restée surclassée à Critique avec accord propriétaire. Après rattrapage de `main` jusqu’au Batch 7, le diff réel de #74 était limité à Batch 7 → Batch 8. La classification Critique n’est donc plus justifiée par la présence de `DEVELOPMENT.md` ou du workflow Playwright dans le diff ; elle a été conservée comme surclassement volontaire pour la promotion officielle du mécanisme PWA durable d’installation/mise à jour et des deux canaux.
+
+### F4.4
+
+**Décision propriétaire — accord obtenu.** Deux applications séparées, canaux Test/Official distincts, isolation locale et mise à jour contrôlée ont été explicitement approuvés, ainsi que le niveau Critique retenu pour la promotion.
+
+### Jalon humain applicatif
+
+**ACQUIS.** Installation Test et Official, coexistence, standalone, distinction visuelle, mise à jour contrôlée et isolation bidirectionnelle ont été validés sur la tablette réelle.
+
+## Revue indépendante Batch 8
+
+Codex a revu le candidat exact de la PR #74, `0ed6227d46c4de5be7b2d0dfac900d4569792782`, sur la base exacte `795d68068fbaad47dda278e05345ff93eec6bc5c`.
+
+La revue n’a trouvé aucun finding produit/PWA bloquant. Elle a trouvé deux P2 documentaires, tous deux traités dans la synchronisation de clôture. La revue indépendante est donc enregistrée `passed` sans boucle supplémentaire de relecture pour ces corrections documentaires ciblées.
+
 ## Conditions de transition
 
-Le Batch 8 est **ouvert**. La PR #66 est intégrée à `test-preview` et `filora-test-stable` suit désormais cette branche en Production. L’état machine doit rester `open / critical / independent_review: pending / owner_approval: obtained / next_batch_allowed: false` jusqu’aux transitions réellement acquises.
+Le Batch 8 est **clôturé**. Son état machine est `closed / critical / independent_review: passed / owner_approval: obtained / next_batch_allowed: true`.
 
-La prochaine transition est la promotion contrôlée de `test-preview` vers `main`. Elle ne doit pas être présentée comme acquise avant succès des contrôles applicables et de la revue indépendante du candidat exact. Après promotion, Filora officielle devra être vérifiée sur son origine HTTPS stable, installée séparément et utilisée pour démontrer l’isolation réelle dans les deux sens avant clôture du Batch 8.
+La clôture du Batch 8 ne démarre pas le Batch 9. Avant tout Batch suivant, reconstruire l’état GitHub, consulter les Issues/findings ouverts pertinents et vérifier les conditions de transition habituelles.
 
 ## Documents canoniques
 
