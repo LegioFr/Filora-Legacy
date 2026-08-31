@@ -8,6 +8,14 @@ async function waitForServiceWorkerControl(page: Parameters<typeof openApp>[0]) 
   })).toBe(true)
 }
 
+function expectedBuildId() {
+  const rawBuildId = process.env.VERCEL_GIT_COMMIT_SHA
+    ?? process.env.GITHUB_SHA
+    ?? process.env.VERCEL_URL
+    ?? 'local'
+  return rawBuildId.replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 64) || 'local'
+}
+
 test('expose un manifeste installable clairement identifié Filora Test', async ({ page }) => {
   await openApp(page)
 
@@ -67,6 +75,20 @@ test('affiche le vrai bouton d installation uniquement quand Chrome fournit befo
   await expect.poll(async () => page.evaluate(() => document.documentElement.dataset.installPromptCalled)).toBe('yes')
 })
 
+test('versionne le service worker et son cache avec l identifiant du build', async ({ page }) => {
+  await openApp(page)
+  const source = await page.evaluate(async () => {
+    const response = await fetch('/sw.js', { cache: 'no-store' })
+    return response.text()
+  })
+  const buildId = expectedBuildId()
+
+  expect(source).toContain(`const BUILD_ID = ${JSON.stringify(buildId)};`)
+  expect(source).toContain(`const CACHE_NAME = ${JSON.stringify(`filora-test-${buildId}`)};`)
+  expect(source).toContain("event.data.type === 'SKIP_WAITING'")
+  expect(source.indexOf('self.skipWaiting();')).toBeGreaterThan(source.indexOf("event.data.type === 'SKIP_WAITING'"))
+})
+
 test('enregistre le service worker simple et précharge uniquement l enveloppe PWA', async ({ page }) => {
   await openApp(page)
   await waitForServiceWorkerControl(page)
@@ -92,7 +114,7 @@ test('enregistre le service worker simple et précharge uniquement l enveloppe P
   expect(state.scope).toBe('http://127.0.0.1:4173/')
   expect(state.cacheContents).toEqual([
     {
-      key: 'filora-test-v3',
+      key: `filora-test-${expectedBuildId()}`,
       paths: [
         '/',
         '/index.html',
@@ -117,25 +139,35 @@ test('Chromium ne signale aucune erreur d installabilite PWA', async ({ page, co
   expect(result.installabilityErrors).toEqual([])
 })
 
-test('signale une nouvelle version même dans la première session puis recharge après action utilisateur', async ({ page }) => {
+test('garde une nouvelle version en attente puis l active seulement après action utilisateur', async ({ page }) => {
   await openApp(page)
   await waitForServiceWorkerControl(page)
-
-  // La première prise de contrôle ne doit pas être présentée comme une mise à jour,
-  // mais la prise de contrôle suivante dans la même session doit l'être.
   await expect(page.getByRole('status').filter({ hasText: 'Mise à jour disponible' })).toHaveCount(0)
 
   await page.evaluate(async () => {
+    await navigator.serviceWorker.ready
+    await new Promise((resolve) => setTimeout(resolve, 0))
     await navigator.serviceWorker.register('/sw.js?e2e-next=1', { scope: '/' })
   })
 
   const prompt = page.getByRole('status').filter({ hasText: 'Mise à jour disponible' })
   await expect(prompt).toContainText('Mise à jour disponible')
+
+  const beforeActivation = await page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.getRegistration('/')
+    return {
+      controller: navigator.serviceWorker.controller?.scriptURL ?? null,
+      waiting: registration?.waiting?.scriptURL ?? null,
+    }
+  })
+  expect(beforeActivation.controller).toBe('http://127.0.0.1:4173/sw.js')
+  expect(beforeActivation.waiting).toBe('http://127.0.0.1:4173/sw.js?e2e-next=1')
+
   const updateButton = prompt.getByRole('button', { name: 'Mettre à jour' })
   await expect(updateButton).toBeVisible()
-
   const navigation = page.waitForEvent('framenavigated')
   await updateButton.click()
   await navigation
+
   await expect(page.getByRole('heading', { name: 'Stock de bobines' })).toBeVisible()
 })
