@@ -246,10 +246,10 @@ Les conditions du Batch 7 sont satisfaites :
 11. accord propriétaire F4.4 : obtenu ;
 12. jalon humain applicatif : non requis.
 
-Le Batch 7 est **clôturé sur sa branche de travail**. Le commit de clôture doit encore obtenir les contrôles automatiques verts avant intégration.
+Le Batch 7 est **clôturé et intégré à `test-preview`**.
 
 ## Intégration
 
-La PR #65 reste le véhicule d’intégration vers `test-preview`. Elle ne doit être fusionnée qu’après contrôles verts du commit de clôture.
+La PR #65 a été fusionnée dans `test-preview` le 2026-08-30 après succès des contrôles applicables du commit de clôture.
 
-Après fusion, il faudra vérifier le HEAD réel de `test-preview` et la présence effective du merge avant tout Batch 8.
+Le HEAD post-fusion de `test-preview` a été vérifié à `810b4e3cbbac81ce1565a9cb303634d0888ccf69`, commit de merge de la PR #65. Les conditions de transition vers la préparation du Batch 8 ont donc été satisfaites.
