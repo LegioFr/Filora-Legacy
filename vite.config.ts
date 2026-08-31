@@ -53,13 +53,21 @@ function manifestSource(): string {
   }, null, 2)
 }
 
-function serviceWorkerSource(): string {
+function serviceWorkerSource(buildAssets: string[] = []): string {
   const cachePrefix = test ? 'filora-test-' : 'filora-'
   const cacheName = `${cachePrefix}${buildId}`
+  const shell = [...new Set([
+    './',
+    './index.html',
+    './manifest.webmanifest',
+    icon192,
+    icon512,
+    ...buildAssets,
+  ])]
   return `const BUILD_ID = ${JSON.stringify(buildId)};
 const CACHE_PREFIX = ${JSON.stringify(cachePrefix)};
 const CACHE_NAME = ${JSON.stringify(cacheName)};
-const SHELL = ['./', './index.html', './manifest.webmanifest', ${JSON.stringify(icon192)}, ${JSON.stringify(icon512)}];
+const SHELL = ${JSON.stringify(shell)};
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -130,9 +138,12 @@ function pwaAssetsPlugin(): Plugin {
         next()
       })
     },
-    generateBundle() {
+    generateBundle(_options, bundle) {
+      const buildAssets = Object.values(bundle)
+        .map((output) => `./${output.fileName}`)
+        .filter((fileName) => fileName !== './index.html')
       this.emitFile({ type: 'asset', fileName: 'manifest.webmanifest', source: manifestSource() })
-      this.emitFile({ type: 'asset', fileName: 'sw.js', source: serviceWorkerSource() })
+      this.emitFile({ type: 'asset', fileName: 'sw.js', source: serviceWorkerSource(buildAssets) })
     },
   }
 }
