@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FILORA_APP_NAME, FILORA_CHANNEL } from './channel'
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000
@@ -10,9 +10,12 @@ type BeforeInstallPromptEvent = Event & {
 
 export function PwaRuntime() {
   const [updateAvailable, setUpdateAvailable] = useState(false)
+  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null)
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [installed, setInstalled] = useState(() => window.matchMedia('(display-mode: standalone)').matches)
   const [installing, setInstalling] = useState(false)
+  const [applyingUpdate, setApplyingUpdate] = useState(false)
+  const reloadAfterActivation = useRef(false)
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
@@ -39,9 +42,26 @@ export function PwaRuntime() {
 
     let disposed = false
     let registration: ServiceWorkerRegistration | null = null
+    let installingWorker: ServiceWorker | null = null
     let intervalId: number | undefined
-    let controllerEstablished = Boolean(navigator.serviceWorker.controller)
-    let currentController = navigator.serviceWorker.controller
+
+    const exposeWaitingWorker = (worker: ServiceWorker | null) => {
+      if (disposed || !worker || !navigator.serviceWorker.controller) return
+      setWaitingWorker(worker)
+      setUpdateAvailable(true)
+    }
+
+    const onInstallingStateChange = () => {
+      if (installingWorker?.state === 'installed') {
+        exposeWaitingWorker(installingWorker)
+      }
+    }
+
+    const onUpdateFound = () => {
+      installingWorker?.removeEventListener('statechange', onInstallingStateChange)
+      installingWorker = registration?.installing ?? null
+      installingWorker?.addEventListener('statechange', onInstallingStateChange)
+    }
 
     const checkForUpdate = () => {
       if (registration) void registration.update().catch(() => undefined)
@@ -52,20 +72,13 @@ export function PwaRuntime() {
     }
 
     const onControllerChange = () => {
-      const nextController = navigator.serviceWorker.controller
-      if (disposed || !nextController || nextController === currentController) {
-        currentController = nextController
-        return
+      if (disposed) return
+      setWaitingWorker(null)
+      setUpdateAvailable(false)
+      if (reloadAfterActivation.current) {
+        reloadAfterActivation.current = false
+        window.location.reload()
       }
-
-      if (!controllerEstablished) {
-        controllerEstablished = true
-        currentController = nextController
-        return
-      }
-
-      setUpdateAvailable(true)
-      currentController = nextController
     }
 
     navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
@@ -74,6 +87,8 @@ export function PwaRuntime() {
       if (disposed) return
 
       registration = nextRegistration
+      registration.addEventListener('updatefound', onUpdateFound)
+      exposeWaitingWorker(registration.waiting)
       window.addEventListener('focus', checkForUpdate)
       document.addEventListener('visibilitychange', onVisibilityChange)
       intervalId = window.setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS)
@@ -83,6 +98,8 @@ export function PwaRuntime() {
 
     return () => {
       disposed = true
+      installingWorker?.removeEventListener('statechange', onInstallingStateChange)
+      registration?.removeEventListener('updatefound', onUpdateFound)
       navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
       window.removeEventListener('focus', checkForUpdate)
       document.removeEventListener('visibilitychange', onVisibilityChange)
@@ -103,8 +120,15 @@ export function PwaRuntime() {
   }
 
   function applyUpdate() {
-    if (!updateAvailable) return
-    window.location.reload()
+    if (!waitingWorker || applyingUpdate) return
+    setApplyingUpdate(true)
+    reloadAfterActivation.current = true
+    try {
+      waitingWorker.postMessage({ type: 'SKIP_WAITING' })
+    } catch {
+      reloadAfterActivation.current = false
+      setApplyingUpdate(false)
+    }
   }
 
   return (
@@ -128,7 +152,9 @@ export function PwaRuntime() {
             <strong>Mise à jour disponible</strong>
             <small>Recharge Filora pour utiliser la nouvelle version.</small>
           </span>
-          <button type="button" onClick={applyUpdate}>Mettre à jour</button>
+          <button type="button" onClick={applyUpdate} disabled={applyingUpdate}>
+            {applyingUpdate ? 'Mise à jour…' : 'Mettre à jour'}
+          </button>
         </aside>
       ) : null}
     </>
