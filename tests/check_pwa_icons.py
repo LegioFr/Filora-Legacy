@@ -2,7 +2,7 @@
 """Strictly validate Filora PWA PNG icons.
 
 Checks PNG signature, chunk boundaries, CRCs, IHDR dimensions/format,
-and requires a terminal IEND chunk.
+valid zlib-compressed IDAT scanlines, and requires a terminal IEND chunk.
 """
 
 from __future__ import annotations
@@ -29,8 +29,9 @@ def validate_png(path: Path, expected_size: int) -> None:
 
     offset = len(PNG_SIGNATURE)
     saw_ihdr = False
-    saw_idat = False
     saw_iend = False
+    idat_payloads: list[bytes] = []
+    width = height = 0
 
     while offset < len(data):
         if offset + 12 > len(data):
@@ -68,11 +69,11 @@ def validate_png(path: Path, expected_size: int) -> None:
                 raise ValueError(
                     f"format attendu RGB 8 bits, obtenu bit_depth={bit_depth}, color_type={color_type}"
                 )
-            if compression != 0 or filtering != 0 or interlace not in (0, 1):
+            if compression != 0 or filtering != 0 or interlace != 0:
                 raise ValueError("paramètres IHDR non supportés")
             saw_ihdr = True
         elif chunk_type == b"IDAT":
-            saw_idat = True
+            idat_payloads.append(payload)
         elif chunk_type == b"IEND":
             if length != 0:
                 raise ValueError("IEND doit être vide")
@@ -85,10 +86,32 @@ def validate_png(path: Path, expected_size: int) -> None:
 
     if not saw_ihdr:
         raise ValueError("IHDR absent")
-    if not saw_idat:
+    if not idat_payloads:
         raise ValueError("IDAT absent")
     if not saw_iend:
         raise ValueError("IEND absent")
+
+    compressed = b"".join(idat_payloads)
+    decoder = zlib.decompressobj()
+    try:
+        scanlines = decoder.decompress(compressed) + decoder.flush()
+    except zlib.error as exc:
+        raise ValueError(f"flux IDAT zlib invalide: {exc}") from exc
+
+    if not decoder.eof or decoder.unused_data or decoder.unconsumed_tail:
+        raise ValueError("flux IDAT zlib incomplet ou contient des données supplémentaires")
+
+    bytes_per_row = 1 + width * 3
+    expected_length = height * bytes_per_row
+    if len(scanlines) != expected_length:
+        raise ValueError(
+            f"taille IDAT décompressée {len(scanlines)}, attendu {expected_length}"
+        )
+
+    for row in range(height):
+        filter_type = scanlines[row * bytes_per_row]
+        if filter_type > 4:
+            raise ValueError(f"filtre PNG invalide à la ligne {row}: {filter_type}")
 
 
 def main() -> int:
