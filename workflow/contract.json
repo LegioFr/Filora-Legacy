@@ -40,6 +40,8 @@
   "critical_control_paths": [
     "DEVELOPMENT.md",
     "workflow/contract.json",
+    "package.json",
+    "package-lock.json",
     "tools/filora_guard.py",
     "tools/check_architecture.py",
     ".github/workflows/filora-guard.yml",
@@ -54,8 +56,6 @@
     "workflow/state.json",
     "PRODUCT.md",
     "DATA.md",
-    "ARCHITECTURE.md",
-    "package.json",
-    "package-lock.json"
+    "ARCHITECTURE.md"
   ]
 }

@@ -25,6 +25,8 @@ jobs:
             const protectedExact = new Set([
               'DEVELOPMENT.md',
               'workflow/contract.json',
+              'package.json',
+              'package-lock.json',
               'playwright.config.ts',
               'tools/filora_guard.py',
               'tools/check_review_governance.py',
