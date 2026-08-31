@@ -7,7 +7,7 @@
     "dev": "vite",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
-    "test:pwa-icons": "python3 tools/check_pwa_icons.py",
+    "test:pwa-icons": "python3 tests/check_pwa_icons.py",
     "build": "npm run test:model && npm run test:spool-batch && npm run test:reference-actions && npm run test:inventory-v2 && npm run test:backup-v2 && npm run test:persistence && npm run test:catalog && npm run test:pwa-icons && tsc --noEmit && vite build",
     "check:architecture": "python3 tools/check_architecture.py src",
     "test:model": "rm -rf .tmp-model-tests && tsc --ignoreConfig --outDir .tmp-model-tests --noEmit false --target ES2022 --module NodeNext --moduleResolution NodeNext --lib ES2022,DOM --skipLibCheck true tests/spool_model_check.ts src/domains/spools/model.ts && node .tmp-model-tests/tests/spool_model_check.js && rm -rf .tmp-model-tests",
