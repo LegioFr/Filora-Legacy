@@ -34,7 +34,10 @@ test('expose un manifeste installable clairement identifié Filora Test', async 
     prefer_related_applications: false,
   })
   expect(Object.hasOwn(manifest, 'id')).toBe(false)
-  expect(manifest.icons.map((icon) => icon.src)).toEqual(['./icon-192.png', './icon-512.png'])
+  expect(manifest.icons.map((icon) => icon.src)).toEqual([
+    './icons/filora-test-192.png',
+    './icons/filora-test-512.png',
+  ])
   expect(manifest.icons.map((icon) => icon.sizes)).toEqual(['192x192', '512x512'])
   expect(manifest.icons.every((icon) => icon.type === 'image/png')).toBe(true)
   expect(manifest.icons.every((icon) => icon.purpose === 'any maskable')).toBe(true)
@@ -90,7 +93,13 @@ test('enregistre le service worker simple et précharge uniquement l enveloppe P
   expect(state.cacheContents).toEqual([
     {
       key: 'filora-test-v1',
-      paths: ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png'],
+      paths: [
+        '/',
+        '/index.html',
+        '/manifest.webmanifest',
+        '/icons/filora-test-192.png',
+        '/icons/filora-test-512.png',
+      ],
     },
   ])
 })
@@ -118,10 +127,11 @@ test('signale une nouvelle version de service worker puis recharge après action
 
   const prompt = page.getByRole('status').filter({ hasText: 'Mise à jour disponible' })
   await expect(prompt).toContainText('Mise à jour disponible')
-  await expect(prompt.getByRole('button', { name: 'Mettre à jour' })).toBeVisible()
+  const updateButton = prompt.getByRole('button', { name: 'Mettre à jour' })
+  await expect(updateButton).toBeVisible()
 
   const navigation = page.waitForEvent('framenavigated')
-  await prompt.getByRole('button', { name: 'Mettre à jour' }).click()
+  await updateButton.click()
   await navigation
   await expect(page.getByRole('heading', { name: 'Stock de bobines' })).toBeVisible()
 })
