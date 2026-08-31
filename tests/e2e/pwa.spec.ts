@@ -117,14 +117,13 @@ test('Chromium ne signale aucune erreur d installabilite PWA', async ({ page, co
   expect(result.installabilityErrors).toEqual([])
 })
 
-test('signale une nouvelle version de service worker puis recharge après action utilisateur', async ({ page }) => {
+test('signale une nouvelle version même dans la première session puis recharge après action utilisateur', async ({ page }) => {
   await openApp(page)
   await waitForServiceWorkerControl(page)
 
-  // Une vraie mise à jour arrive dans une session déjà contrôlée par le SW précédent.
-  await page.reload()
-  await expect(page.getByRole('heading', { name: 'Stock de bobines' })).toBeVisible()
-  await waitForServiceWorkerControl(page)
+  // La première prise de contrôle ne doit pas être présentée comme une mise à jour,
+  // mais la prise de contrôle suivante dans la même session doit l'être.
+  await expect(page.getByRole('status').filter({ hasText: 'Mise à jour disponible' })).toHaveCount(0)
 
   await page.evaluate(async () => {
     await navigator.serviceWorker.register('/sw.js?e2e-next=1', { scope: '/' })
