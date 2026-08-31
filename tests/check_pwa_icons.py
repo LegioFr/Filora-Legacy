@@ -46,6 +46,9 @@ def validate_png(path: Path, expected_size: int) -> None:
         if crc_end > len(data):
             raise ValueError(f"{chunk_type.decode('ascii', 'replace')} dépasse la fin du fichier")
 
+        if not saw_ihdr and chunk_type != b"IHDR":
+            raise ValueError("IHDR doit être le premier chunk")
+
         payload = data[payload_start:payload_end]
         stored_crc = struct.unpack(">I", data[payload_end:crc_end])[0]
         computed_crc = zlib.crc32(chunk_type + payload) & 0xFFFFFFFF
