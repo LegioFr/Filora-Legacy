@@ -35,8 +35,8 @@ test('expose un manifeste installable clairement identifié Filora Test', async 
   })
   expect(Object.hasOwn(manifest, 'id')).toBe(false)
   expect(manifest.icons.map((icon) => icon.src)).toEqual([
-    './icons/filora-test-192.png',
-    './icons/filora-test-512.png',
+    './icons/filora-test-192.png?v=2',
+    './icons/filora-test-512.png?v=2',
   ])
   expect(manifest.icons.map((icon) => icon.sizes)).toEqual(['192x192', '512x512'])
   expect(manifest.icons.every((icon) => icon.type === 'image/png')).toBe(true)
@@ -92,7 +92,7 @@ test('enregistre le service worker simple et précharge uniquement l enveloppe P
   expect(state.scope).toBe('http://127.0.0.1:4173/')
   expect(state.cacheContents).toEqual([
     {
-      key: 'filora-test-v1',
+      key: 'filora-test-v2',
       paths: [
         '/',
         '/index.html',
