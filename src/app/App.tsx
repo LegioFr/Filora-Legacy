@@ -1,4 +1,10 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  createFiloraBackupJson,
+  parseFiloraBackupJson,
+  restoreFiloraBackup,
+} from '../domains/spools/backupMeasuredSpools'
+import type { FiloraBackupV1 } from '../domains/spools/backupMeasuredSpools'
 import { listMeasuredSpools } from '../domains/spools/listMeasuredSpools'
 import { loadMeasuredSpool } from '../domains/spools/loadMeasuredSpool'
 import {
@@ -15,6 +21,10 @@ function tareSourceLabel(source: TareSource) {
   return source === 'measured_empty_support' ? 'Support vide pesé' : 'Valeur fabricant'
 }
 
+function backupFileName() {
+  return `filora-backup-${new Date().toISOString().slice(0, 10)}.json`
+}
+
 export function App() {
   const store = useMemo(() => new IndexedDbSpoolIdentityStore(), [])
   const [spoolId, setSpoolId] = useState('')
@@ -26,6 +36,9 @@ export function App() {
   const [stockSpools, setStockSpools] = useState<PersistedSpoolIdentity[]>([])
   const [stockLoaded, setStockLoaded] = useState(false)
   const [stockError, setStockError] = useState<string | null>(null)
+  const [backupStatus, setBackupStatus] = useState('')
+  const [pendingBackup, setPendingBackup] = useState<FiloraBackupV1 | null>(null)
+  const [backupBusy, setBackupBusy] = useState(false)
 
   const refreshStock = useCallback(async () => {
     try {
@@ -90,6 +103,84 @@ export function App() {
       setStatus('Bobine relue depuis le stockage local.')
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Erreur inconnue')
+    }
+  }
+
+  async function handleBackupDownload() {
+    setBackupBusy(true)
+    setBackupStatus('')
+
+    try {
+      const json = await createFiloraBackupJson(store)
+      const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = backupFileName()
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      setBackupStatus(`Sauvegarde téléchargée — ${stockSpools.length} bobine${stockSpools.length > 1 ? 's' : ''}.`)
+    } catch (error) {
+      setBackupStatus(error instanceof Error ? error.message : 'Impossible de créer la sauvegarde.')
+    } finally {
+      setBackupBusy(false)
+    }
+  }
+
+  async function handleBackupFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    setPendingBackup(null)
+    setBackupStatus('')
+
+    if (!file) {
+      return
+    }
+
+    setBackupBusy(true)
+    try {
+      const text = await file.text()
+      const backup = parseFiloraBackupJson(text)
+      setPendingBackup(backup)
+      setBackupStatus(
+        `Sauvegarde valide — ${backup.spools.length} bobine${backup.spools.length > 1 ? 's' : ''}. Aucune donnée n'a encore été modifiée.`,
+      )
+    } catch (error) {
+      setBackupStatus(error instanceof Error ? error.message : 'Impossible de lire la sauvegarde sélectionnée.')
+    } finally {
+      setBackupBusy(false)
+    }
+  }
+
+  async function handleRestore() {
+    if (!pendingBackup) {
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Cette restauration remplacera entièrement le stock local actuel par ${pendingBackup.spools.length} bobine${pendingBackup.spools.length > 1 ? 's' : ''}. Continuer ?`,
+    )
+    if (!confirmed) {
+      setBackupStatus('Restauration annulée. Le stock local est inchangé.')
+      return
+    }
+
+    setBackupBusy(true)
+    setBackupStatus('')
+    try {
+      const restored = await restoreFiloraBackup(store, pendingBackup)
+      await refreshStock()
+      setPendingBackup(null)
+      setSavedSpool(null)
+      setBackupStatus(
+        `Restauration terminée — ${restored.spools.length} bobine${restored.spools.length > 1 ? 's' : ''} restaurée${restored.spools.length > 1 ? 's' : ''}.`,
+      )
+    } catch (error) {
+      setBackupStatus(error instanceof Error ? error.message : 'La restauration a échoué.')
+    } finally {
+      setBackupBusy(false)
     }
   }
 
@@ -225,6 +316,45 @@ export function App() {
               ))}
             </div>
           )}
+        </section>
+
+        <section className="stock-card" aria-labelledby="backup-title">
+          <div className="stock-heading">
+            <div>
+              <p className="eyebrow">Sécurité des données</p>
+              <h2 id="backup-title">Sauvegarde et restauration</h2>
+            </div>
+          </div>
+
+          <p>
+            Télécharge une copie complète du stock local actuel ou sélectionne une sauvegarde Filora à restaurer.
+          </p>
+
+          <div className="spool-actions">
+            <button type="button" onClick={handleBackupDownload} disabled={backupBusy}>
+              Télécharger la sauvegarde
+            </button>
+            <label>
+              Sélectionner une sauvegarde
+              <input type="file" accept="application/json,.json" onChange={handleBackupFile} disabled={backupBusy} />
+            </label>
+          </div>
+
+          {backupStatus ? <p className="status-message" role="status">{backupStatus}</p> : null}
+
+          {pendingBackup ? (
+            <div className="saved-result">
+              <span>Sauvegarde prête</span>
+              <strong>
+                {pendingBackup.spools.length} bobine{pendingBackup.spools.length > 1 ? 's' : ''}
+              </strong>
+              <span>Effet de la restauration</span>
+              <strong>Remplacement complet du stock local</strong>
+              <button type="button" onClick={handleRestore} disabled={backupBusy}>
+                Restaurer et remplacer le stock actuel
+              </button>
+            </div>
+          ) : null}
         </section>
       </div>
     </main>
