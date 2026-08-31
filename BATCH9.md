@@ -81,6 +81,15 @@ Le sentinel actuel protège une liste exacte de surfaces critiques, mais cette l
 
 Aucune modification de `package.json`, aucun nouveau système de SHA de revue, aucun nouveau mécanisme de bypass et aucun changement métier ne font partie de F-006.
 
+### PR F-006 en cours
+
+- PR critique : **#77** vers `test-preview` ;
+- base à l’ouverture : `1803e5b22bafab09b29d68539ef7f0a9286596ec` ;
+- HEAD à l’ouverture : `c0828a64177cdea614f01df9183a9bb491e06519` ;
+- le diff à l’ouverture contenait exactement 6 fichiers, tous dans le périmètre F-006/état Batch 9 ;
+- après l’événement `opened`, aucun run GitHub Actions `sentinel`, `guard` ou `e2e` n’a été observé sur ce HEAD ; seule la vérification Vercel Preview Comments était présente. Cette absence ne constitue ni un succès ni l’échec `sentinel` attendu ;
+- une synchronisation documentaire de cette même PR est donc effectuée afin de produire un événement `synchronize` et de revérifier la chaîne. Le HEAD courant doit toujours être relu directement depuis GitHub avant toute revue ou intégration.
+
 ### Preuve et intégration F-006
 
 La modification touche volontairement la propre surface protégée du sentinel. Un échec `sentinel` sur la PR candidate est donc **attendu** et ne doit jamais être corrigé en affaiblissant le contrôle.
