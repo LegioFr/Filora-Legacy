@@ -47,9 +47,13 @@ function manifestSource(): string {
 
 function serviceWorkerSource(version: string): string {
   return `const BUILD_ID = ${JSON.stringify(version)};
+const SHELL_CACHE = 'filora-shell-v1';
+const OFFLINE_URL = '/offline.html';
 
-self.addEventListener('install', () => {
-  void BUILD_ID;
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(SHELL_CACHE).then((cache) => cache.add(new Request(OFFLINE_URL, { cache: 'reload' }))),
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -64,12 +68,17 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
-  if (request.method !== 'GET') return;
+  if (request.method !== 'GET' || request.mode !== 'navigate') return;
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  event.respondWith(fetch(request));
+  event.respondWith(
+    fetch(request).catch(async () => {
+      const fallback = await caches.match(OFFLINE_URL, { cacheName: SHELL_CACHE });
+      return fallback ?? Response.error();
+    }),
+  );
 });
 `
 }

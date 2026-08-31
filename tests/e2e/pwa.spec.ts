@@ -63,22 +63,43 @@ test('affiche le vrai bouton d installation uniquement quand Chrome fournit befo
   await expect.poll(async () => page.evaluate(() => document.documentElement.dataset.installPromptCalled)).toBe('yes')
 })
 
-test('enregistre un service worker sans créer de cache métier', async ({ page }) => {
+test('enregistre un service worker avec uniquement le cache shell hors ligne Filora', async ({ page }) => {
   await openApp(page)
   await waitForServiceWorkerControl(page)
 
   const state = await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.getRegistration('/')
+    const cacheKeys = await caches.keys()
+    const cacheContents = await Promise.all(cacheKeys.map(async (key) => {
+      const cache = await caches.open(key)
+      const requests = await cache.keys()
+      return { key, paths: requests.map((request) => new URL(request.url).pathname) }
+    }))
     return {
       active: registration?.active?.state ?? null,
       scope: registration?.scope ?? null,
-      cacheKeys: await caches.keys(),
+      cacheContents,
     }
   })
 
   expect(state.active).toBe('activated')
   expect(state.scope).toBe('http://127.0.0.1:4173/')
-  expect(state.cacheKeys).toEqual([])
+  expect(state.cacheContents).toEqual([
+    { key: 'filora-shell-v1', paths: ['/offline.html'] },
+  ])
+})
+
+test('Chromium ne signale aucune erreur d installabilite PWA', async ({ page, context }) => {
+  await openApp(page)
+  await waitForServiceWorkerControl(page)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Stock de bobines' })).toBeVisible()
+
+  const session = await context.newCDPSession(page)
+  const result = await session.send('Page.getInstallabilityErrors') as {
+    installabilityErrors: Array<{ errorId: string; errorArguments: Array<{ name: string; value: string }> }>
+  }
+  expect(result.installabilityErrors).toEqual([])
 })
 
 test('propose explicitement une mise à jour et ne l applique qu après action utilisateur', async ({ page }) => {
