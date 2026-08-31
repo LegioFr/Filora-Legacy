@@ -42,7 +42,6 @@
     "workflow/contract.json",
     "package.json",
     "package-lock.json",
-    ".npmrc",
     "tools/filora_guard.py",
     "tools/check_architecture.py",
     ".github/workflows/filora-guard.yml",
