@@ -1,0 +1,414 @@
+import {
+  EMPTY_PRINT_SETTINGS,
+  type FilamentReference,
+  type LegacyPersistedSpoolIdentity,
+  type PersistedSpoolV2,
+  type StorageLocation,
+} from '../src/domains/spools/model.js';
+import {
+  FILAMENT_REFERENCES_STORE,
+  FILORA_DATABASE_VERSION_V2,
+  IndexedDbInventoryStore,
+  LOCATIONS_STORE,
+  SPOOL_IDENTITIES_STORE,
+  validateInventorySnapshot,
+} from '../src/domains/spools/persistence/IndexedDbInventoryStore.js';
+
+type StoredRecord = { id: string; [key: string]: unknown };
+type EventHandler = ((event: Event) => unknown) | null;
+
+class FakeRequest<T> {
+  result!: T;
+  error: DOMException | null = null;
+  onsuccess: EventHandler = null;
+  onerror: EventHandler = null;
+  onupgradeneeded: EventHandler = null;
+}
+
+function cloneStore(store: Map<string, StoredRecord>): Map<string, StoredRecord> {
+  return new Map(Array.from(store, ([id, value]) => [id, structuredClone(value)]));
+}
+
+class FakeTransaction {
+  error: DOMException | null = null;
+  oncomplete: EventHandler = null;
+  onerror: EventHandler = null;
+  onabort: EventHandler = null;
+
+  private readonly working = new Map<string, Map<string, StoredRecord>>();
+  private pendingRequests = 0;
+  private failed = false;
+
+  constructor(
+    private readonly stores: Map<string, Map<string, StoredRecord>>,
+    names: string[],
+    private readonly mode: IDBTransactionMode,
+  ) {
+    for (const name of names) {
+      const source = stores.get(name);
+      if (!source) throw new Error(`Missing store ${name}`);
+      this.working.set(name, cloneStore(source));
+    }
+  }
+
+  private schedule<T>(operation: () => T): IDBRequest<T> {
+    const request = new FakeRequest<T>();
+    this.pendingRequests += 1;
+    setTimeout(() => {
+      if (this.failed) return;
+      try {
+        request.result = operation();
+        request.onsuccess?.(new Event('success'));
+        this.pendingRequests -= 1;
+        if (this.pendingRequests === 0) {
+          if (this.mode === 'readwrite') {
+            for (const [name, values] of this.working) {
+              const destination = this.stores.get(name)!;
+              destination.clear();
+              for (const [id, value] of values) destination.set(id, structuredClone(value));
+            }
+          }
+          this.oncomplete?.(new Event('complete'));
+        }
+      } catch (error) {
+        const domError = error instanceof DOMException ? error : new DOMException(String(error), 'AbortError');
+        request.error = domError;
+        this.error = domError;
+        this.failed = true;
+        request.onerror?.(new Event('error'));
+        this.onerror?.(new Event('error'));
+        this.onabort?.(new Event('abort'));
+      }
+    }, 0);
+    return request as unknown as IDBRequest<T>;
+  }
+
+  objectStore(name: string): IDBObjectStore {
+    const store = this.working.get(name);
+    if (!store) throw new Error(`Unexpected store ${name}`);
+    return {
+      add: (value: StoredRecord) => this.schedule<IDBValidKey>(() => {
+        if (store.has(value.id)) throw new DOMException('Duplicate', 'ConstraintError');
+        store.set(value.id, structuredClone(value));
+        return value.id;
+      }),
+      put: (value: StoredRecord) => this.schedule<IDBValidKey>(() => {
+        store.set(value.id, structuredClone(value));
+        return value.id;
+      }),
+      get: (id: string) => this.schedule<StoredRecord | undefined>(() => {
+        const value = store.get(id);
+        return value ? structuredClone(value) : undefined;
+      }) as unknown as IDBRequest<unknown>,
+      getAll: () => this.schedule<StoredRecord[]>(() =>
+        Array.from(store.values(), (value) => structuredClone(value)),
+      ) as unknown as IDBRequest<unknown>,
+      clear: () => this.schedule<undefined>(() => {
+        store.clear();
+        return undefined;
+      }),
+    } as unknown as IDBObjectStore;
+  }
+}
+
+class FakeDatabase {
+  currentVersion = 1;
+  readonly stores = new Map<string, Map<string, StoredRecord>>([
+    [SPOOL_IDENTITIES_STORE, new Map()],
+  ]);
+  readonly objectStoreNames = {
+    contains: (name: string) => this.stores.has(name),
+  } as DOMStringList;
+
+  createObjectStore(name: string, options?: IDBObjectStoreParameters): IDBObjectStore {
+    if (options?.keyPath !== 'id' || this.stores.has(name)) throw new Error('Unexpected schema operation');
+    this.stores.set(name, new Map());
+    return {} as IDBObjectStore;
+  }
+
+  transaction(names: string | string[], mode: IDBTransactionMode = 'readonly'): IDBTransaction {
+    const normalized = Array.isArray(names) ? names : [names];
+    return new FakeTransaction(this.stores, normalized, mode) as unknown as IDBTransaction;
+  }
+
+  close(): void {}
+}
+
+class FakeFactory {
+  readonly database = new FakeDatabase();
+  requestedVersion: number | undefined;
+
+  open(_name: string, version?: number): IDBOpenDBRequest {
+    this.requestedVersion = version;
+    const request = new FakeRequest<IDBDatabase>();
+    request.result = this.database as unknown as IDBDatabase;
+    setTimeout(() => {
+      if ((version ?? this.database.currentVersion) > this.database.currentVersion) {
+        request.onupgradeneeded?.(new Event('upgradeneeded'));
+        this.database.currentVersion = version ?? this.database.currentVersion;
+      }
+      request.onsuccess?.(new Event('success'));
+    }, 0);
+    return request as unknown as IDBOpenDBRequest;
+  }
+}
+
+function assert(condition: unknown, message: string): asserts condition {
+  if (!condition) throw new Error(message);
+}
+
+function legacySpool(id: string): LegacyPersistedSpoolIdentity {
+  return {
+    id,
+    grossMeasuredWeightGrams: 842.6,
+    tareWeightGrams: 210.1,
+    tareSource: 'measured_empty_support',
+  };
+}
+
+// Régression : Batch 5 utilisait une clé IndexedDB sensible à la casse. Ces quatre
+// enregistrements sont donc historiquement distincts et doivent tous rester lisibles.
+const historicalFactory = new FakeFactory();
+for (const legacy of [legacySpool('A'), legacySpool('a'), legacySpool('LegacyCase'), legacySpool('LEGACYCASE')]) {
+  historicalFactory.database.stores.get(SPOOL_IDENTITIES_STORE)!.set(
+    legacy.id,
+    structuredClone(legacy) as unknown as StoredRecord,
+  );
+}
+const historicalStore = new IndexedDbInventoryStore(
+  historicalFactory as unknown as IDBFactory,
+  'filora-v2-historical-case-test',
+);
+const historicalSnapshot = await historicalStore.getSnapshot();
+assert(historicalSnapshot.spools.length === 4, 'case-distinct Batch 5 spool ids must all survive migration');
+assert((await historicalStore.getSpool('A'))?.id === 'A', 'exact historical uppercase id must resolve exactly');
+assert((await historicalStore.getSpool('a'))?.id === 'a', 'exact historical lowercase id must resolve exactly');
+
+let ambiguousCaseLookupRejected = false;
+try {
+  await historicalStore.getSpool('legacycase');
+} catch (error) {
+  ambiguousCaseLookupRejected = error instanceof Error && error.message.includes('ID ambigu');
+}
+assert(ambiguousCaseLookupRejected, 'case-insensitive fallback must reject an ambiguous historical id');
+
+const measuredCandidate: PersistedSpoolV2 = {
+  recordVersion: 2,
+  id: 'legacycase',
+  filamentReferenceId: null,
+  purchaseDate: null,
+  openDate: null,
+  supplier: null,
+  locationId: null,
+  purchasePriceEuros: null,
+  lastDriedDate: null,
+  purchaseUrl: null,
+  supportKind: null,
+  tareWeightGrams: 210.1,
+  tareSource: 'measured_empty_support',
+  grossMeasuredWeightGrams: 842.6,
+  stockBasis: 'measured',
+  notes: null,
+};
+let newCaseCollisionRejected = false;
+try {
+  await historicalStore.createSpools([measuredCandidate]);
+} catch (error) {
+  newCaseCollisionRejected = error instanceof Error && error.message.includes('existe déjà');
+}
+assert(newCaseCollisionRejected, 'new spool ids must still reject case-insensitive collisions with historical ids');
+assert((await historicalStore.getSnapshot()).spools.length === 4, 'rejected case collision must not change historical stock');
+
+const factory = new FakeFactory();
+const legacy: LegacyPersistedSpoolIdentity = {
+  id: 'batch5-recovery-001',
+  grossMeasuredWeightGrams: 842.6,
+  tareWeightGrams: 210.1,
+  tareSource: 'measured_empty_support',
+};
+factory.database.stores.get(SPOOL_IDENTITIES_STORE)!.set(
+  legacy.id,
+  structuredClone(legacy) as unknown as StoredRecord,
+);
+
+const store = new IndexedDbInventoryStore(factory as unknown as IDBFactory, 'filora-v2-test');
+const migrated = await store.getSpool(legacy.id);
+assert(factory.requestedVersion === FILORA_DATABASE_VERSION_V2, 'inventory store must explicitly open database version 2');
+assert(factory.database.stores.has(FILAMENT_REFERENCES_STORE), 'version 2 must add filament reference store');
+assert(factory.database.stores.has(LOCATIONS_STORE), 'version 2 must add location store');
+assert(migrated?.id === legacy.id, 'legacy id must remain readable after upgrade');
+assert(migrated.filamentReferenceId === null, 'legacy upgrade must not invent a product reference');
+assert(migrated.grossMeasuredWeightGrams === 842.6, 'legacy measured gross must be preserved');
+assert(migrated.tareWeightGrams === 210.1, 'legacy tare must be preserved');
+
+const reference: FilamentReference = {
+  id: 'ref-001',
+  brand: 'Polymaker',
+  material: 'PLA',
+  diameterMm: 1.75,
+  manufacturerType: 'Matte',
+  manufacturerColor: 'Black',
+  colorHex: '#111111',
+  nominalWeightGrams: 1000,
+  nozzleTemperatureC: { min: 190, max: 220 },
+  bedTemperatureC: { min: 45, max: 60 },
+  printSettings: { ...EMPTY_PRINT_SETTINGS, pressureAdvance: 0.04 },
+};
+const location: StorageLocation = { id: 'loc-atelier', name: 'Atelier' };
+await store.createFilamentReference(reference);
+await store.createLocation(location);
+
+const spool: PersistedSpoolV2 = {
+  recordVersion: 2,
+  id: 'SP-0068',
+  filamentReferenceId: reference.id,
+  purchaseDate: '2026-08-30',
+  openDate: null,
+  supplier: 'Boutique test',
+  locationId: location.id,
+  purchasePriceEuros: 24.9,
+  lastDriedDate: null,
+  purchaseUrl: 'https://example.test/filament',
+  supportKind: 'original',
+  tareWeightGrams: 200,
+  tareSource: 'manufacturer',
+  grossMeasuredWeightGrams: null,
+  stockBasis: 'nominal',
+  notes: null,
+};
+await store.createSpools([spool]);
+const snapshot = await store.getSnapshot();
+assert(snapshot.spools.length === 2, 'snapshot must contain legacy and new spool');
+assert(snapshot.filamentReferences.length === 1, 'snapshot must contain reference data');
+assert(snapshot.locations.length === 1, 'snapshot must contain location data');
+
+let orphanRejected = false;
+try {
+  validateInventorySnapshot({
+    filamentReferences: [],
+    locations: [location],
+    spools: [spool],
+  });
+} catch (error) {
+  orphanRejected = error instanceof Error && error.message.includes('référence filament introuvable');
+}
+assert(orphanRejected, 'snapshot validation must reject an active relation to a missing reference');
+
+let locationOrphanRejected = false;
+try {
+  validateInventorySnapshot({
+    filamentReferences: [reference],
+    locations: [],
+    spools: [spool],
+  });
+} catch (error) {
+  locationOrphanRejected = error instanceof Error && error.message.includes('emplacement introuvable');
+}
+assert(locationOrphanRejected, 'snapshot validation must reject an active relation to a missing location');
+
+const beforeDuplicate = await store.getSnapshot();
+let duplicateBatchRejected = false;
+try {
+  await store.createSpools([
+    { ...spool, id: 'SP-0069' },
+    { ...spool, id: 'SP-0068' },
+  ]);
+} catch {
+  duplicateBatchRejected = true;
+}
+assert(duplicateBatchRejected, 'series write containing a duplicate must fail');
+const afterDuplicate = await store.getSnapshot();
+assert(
+  afterDuplicate.spools.map((item) => item.id).sort().join(',') === beforeDuplicate.spools.map((item) => item.id).sort().join(','),
+  'failed series transaction must not persist its earlier items',
+);
+
+const seriesReference: FilamentReference = {
+  ...reference,
+  id: 'ref-series',
+  brand: 'Bambu Lab',
+  manufacturerColor: 'Jade White',
+};
+const seriesLocation: StorageLocation = { id: 'loc-series', name: 'Drybox' };
+const seriesSpools: PersistedSpoolV2[] = [
+  { ...spool, id: 'SP-0070', filamentReferenceId: seriesReference.id, locationId: seriesLocation.id },
+  { ...spool, id: 'SP-0071', filamentReferenceId: seriesReference.id, locationId: seriesLocation.id },
+];
+await store.createInventoryBatch({
+  filamentReference: seriesReference,
+  location: seriesLocation,
+  spools: seriesSpools,
+});
+const afterAtomicCreate = await store.getSnapshot();
+assert(afterAtomicCreate.filamentReferences.some((item) => item.id === seriesReference.id), 'atomic batch must create its new product reference');
+assert(afterAtomicCreate.locations.some((item) => item.id === seriesLocation.id), 'atomic batch must create its new location');
+assert(seriesSpools.every((item) => afterAtomicCreate.spools.some((stored) => stored.id === item.id)), 'atomic batch must create every physical spool');
+
+const updatedSharedReference = { ...seriesReference, manufacturerColor: 'Midnight Black' };
+await store.updateFilamentReference(updatedSharedReference);
+const afterSharedUpdate = await store.getSnapshot();
+assert(afterSharedUpdate.filamentReferences.find((item) => item.id === seriesReference.id)?.manufacturerColor === 'Midnight Black', 'shared reference correction must update the shared product record');
+assert(afterSharedUpdate.spools.filter((item) => item.filamentReferenceId === seriesReference.id).length === 2, 'shared reference correction must keep both physical spool links');
+
+const reassignedReference: FilamentReference = {
+  ...reference,
+  id: 'ref-reassigned',
+  brand: 'Rosa3D',
+  manufacturerColor: 'Carmin',
+};
+const targetBeforeReassignment = await store.getSpool('SP-0070');
+assert(targetBeforeReassignment, 'target spool must exist before reassignment');
+await store.createFilamentReferenceAndUpdateSpool(reassignedReference, {
+  ...targetBeforeReassignment,
+  filamentReferenceId: reassignedReference.id,
+});
+const afterReassignment = await store.getSnapshot();
+assert(afterReassignment.filamentReferences.some((item) => item.id === reassignedReference.id), 'new product reassignment must persist new reference');
+assert(afterReassignment.spools.find((item) => item.id === 'SP-0070')?.filamentReferenceId === reassignedReference.id, 'target spool must move to new product reference');
+assert(afterReassignment.spools.find((item) => item.id === 'SP-0071')?.filamentReferenceId === seriesReference.id, 'other spool sharing old product must remain unchanged');
+
+let orphanUpdateRejected = false;
+try {
+  const target = await store.getSpool('SP-0070');
+  assert(target, 'reassigned target must still exist');
+  await store.updateSpool({ ...target, filamentReferenceId: 'missing-reference' });
+} catch (error) {
+  orphanUpdateRejected = error instanceof Error && error.message.includes('référence filament introuvable');
+}
+assert(orphanUpdateRejected, 'ordinary spool update must reject orphaned product relation');
+assert((await store.getSpool('SP-0070'))?.filamentReferenceId === reassignedReference.id, 'rejected orphan update must leave persisted relation unchanged');
+
+const beforeAtomicFailure = await store.getSnapshot();
+const rollbackReference: FilamentReference = { ...reference, id: 'ref-rollback' };
+const rollbackLocation: StorageLocation = { id: 'loc-rollback', name: 'Rollback' };
+let atomicRollbackRejected = false;
+try {
+  await store.createInventoryBatch({
+    filamentReference: rollbackReference,
+    location: rollbackLocation,
+    spools: [
+      { ...spool, id: 'SP-0200', filamentReferenceId: rollbackReference.id, locationId: rollbackLocation.id },
+      { ...spool, id: 'SP-0068', filamentReferenceId: rollbackReference.id, locationId: rollbackLocation.id },
+    ],
+  });
+} catch {
+  atomicRollbackRejected = true;
+}
+assert(atomicRollbackRejected, 'duplicate inside rich creation batch must reject the whole transaction');
+const afterAtomicFailure = await store.getSnapshot();
+assert(!afterAtomicFailure.filamentReferences.some((item) => item.id === rollbackReference.id), 'failed atomic batch must not leave its new reference behind');
+assert(!afterAtomicFailure.locations.some((item) => item.id === rollbackLocation.id), 'failed atomic batch must not leave its new location behind');
+assert(!afterAtomicFailure.spools.some((item) => item.id === 'SP-0200'), 'failed atomic batch must not leave an earlier spool behind');
+assert(afterAtomicFailure.spools.length === beforeAtomicFailure.spools.length, 'failed atomic batch must leave stock cardinality unchanged');
+
+await store.replaceSnapshot({
+  filamentReferences: [reference],
+  locations: [location],
+  spools: [{ ...spool, id: 'SP-0100' }],
+});
+const replaced = await store.getSnapshot();
+assert(replaced.spools.length === 1 && replaced.spools[0]?.id === 'SP-0100', 'snapshot replacement must replace spool store');
+assert(replaced.filamentReferences.length === 1, 'snapshot replacement must preserve references');
+assert(replaced.locations.length === 1, 'snapshot replacement must preserve locations');
+
+console.log('Batch 6 IndexedDB v2 migration checks passed');

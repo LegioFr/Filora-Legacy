@@ -1,0 +1,31 @@
+/* Correctifs responsive finaux observés pendant la validation humaine du Batch 6. */
+
+@media (min-width: 1900px) {
+  .workspace {
+    max-width: 2400px;
+  }
+
+  .stock-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .creation-modal {
+    width: min(1680px, calc(100vw - 96px));
+  }
+}
+
+@media (max-width: 700px) {
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .topbar .primary-link {
+    display: inline-flex;
+    width: 100%;
+    min-height: 46px;
+    align-items: center;
+    justify-content: center;
+  }
+}
