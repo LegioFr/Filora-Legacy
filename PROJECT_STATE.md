@@ -9,7 +9,7 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - stage: Batch 9 — remédiation de l’audit global
 - status: en cours
 - git: branche `batch9/audit-remediation` créée depuis `test-preview` `1803e5b22bafab09b29d68539ef7f0a9286596ec` ; première correction en cours : F-006 sur la chaîne de preuve GitHub
-- next_action: finaliser le candidat F-006 avec admission fail-closed base-side, vérifier la CI du SHA exact puis obtenir une revue indépendante avant tout bypass critique ou intégration
+- next_action: vérifier la CI du candidat F-006 à 12 fichiers puis obtenir la revue indépendante du SHA exact avant tout bypass critique ou intégration
 
 ## État courant
 
@@ -33,7 +33,7 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - **Jalon humain applicatif Batch 8 :** **acquis** : Filora Test installée/standalone/badge TEST/mise à jour contrôlée ; Filora Official installée séparément/standalone/sans badge TEST ; coexistence réelle ; isolation Test → Official et Official → Test démontrée.
 - **Batch 9 :** **en cours**. Il est réservé à la remédiation des findings confirmés de l’audit global exhaustif post-Batch-8. Aucun nouveau métier n’est démarré. Ordre prévu : F-006 → F-002 → F-001 → F-003 + F-005 → F-004 → checkpoint.
 - **Risque Batch 9 :** **Critique**, car F-006 touche d’abord les mécanismes de contrôle GitHub ; le niveau reste Critique pendant le Batch ouvert.
-- **Accord propriétaire F4.4 Batch 9 :** obtenu pour le démarrage de la remédiation et le périmètre F-006, puis confirmé pour les extensions bornées rendues nécessaires par les revues indépendantes de #77 : durcissement npm, protection de la suite E2E, test du vrai `dist/`, séparation `build`/`e2e` sur deux runners et inversion finale du sentinel vers une admission fail-closed fondée sur l’état de la base.
+- **Accord propriétaire F4.4 Batch 9 :** obtenu pour le démarrage de la remédiation et le périmètre F-006, puis confirmé pour les extensions bornées rendues nécessaires par les revues indépendantes de #77 : durcissement npm, protection de la suite E2E, test du vrai `dist/`, séparation `build`/`e2e` sur deux runners, inversion du sentinel vers une admission fail-closed fondée sur l’état de la base, puis alignement du plancher de risque de `tools/filora_guard.py` sur le contrat/état de base avec régressions dans `tests/test_workflow_guard.py`. Cette dernière extension a été autorisée après contre-revue Claude favorable sur le traitement des renommages ; le périmètre de #77 est désormais de **12 fichiers**.
 - **Revue indépendante Batch 9 :** `pending` ; aucune correction F-006 ne sera intégrée sur la seule affirmation de l’agent d’implémentation.
 - **Audit global post-Batch-8 :** verdict **NO-GO** pour la poursuite métier ; 2 bloquants et 4 importants ont été contre-vérifiés comme réels. Les autres findings sont reportés au checkpoint ou conservés comme observations selon `BATCH9.md`.
 - **Branche officielle :** `main`.
@@ -98,9 +98,9 @@ Le workflow séparé `.github/workflows/playwright-e2e.yml` :
 - n’utilise aucun secret ;
 - conserve les preuves Playwright uniquement en cas d’échec.
 
-Dans F-006, le workflow appelle directement les binaires Vite/Playwright installés plutôt que de dépendre de scripts npm modifiables. `playwright.config.ts` interdit `test.only` en CI avec `forbidOnly` et sert le `dist/` déjà construit. Le sentinel en cours de remplacement n’essaie plus d’énumérer tous les fichiers dangereux : depuis sa version base-side, il admet seulement `src/**`, `public/**`, `index.html`, les tests métier racine `tests/*_check.ts`, `tests/check_pwa_icons.py`, `PROJECT_STATE.md`, les chemins Sensibles déjà déclarés dans le contrat de la base et le seul fichier Batch autorisé par l’état de cette base. Tout autre chemin est Critique par défaut.
+Dans F-006, le workflow appelle directement les binaires Vite/Playwright installés plutôt que de dépendre de scripts npm modifiables. `playwright.config.ts` interdit `test.only` en CI avec `forbidOnly` et sert le `dist/` déjà construit. Le sentinel en cours de remplacement n’essaie plus d’énumérer tous les fichiers dangereux : depuis sa version base-side, il admet seulement `src/**`, `public/**`, `index.html`, les tests métier racine `tests/*_check.ts`, `tests/check_pwa_icons.py`, `PROJECT_STATE.md`, les chemins Sensibles déjà déclarés dans le contrat de la base et le seul fichier Batch autorisé par l’état de cette base. Tout autre chemin est Critique par défaut. Le `workflow-state` du guard applique désormais le même principe pour le plancher de risque : contrat et état de base authentifiés, Critique prioritaire sur l’allowlist ordinaire, ancien et nouveau chemin d’un renommage pris en compte par `_changed_paths()`, et Critique par défaut pour tout chemin non admis.
 
-Le workflow `filora-guard.yml`, son sentinel, `DEVELOPMENT.md`, `workflow/contract.json` et les scripts de garde n’avaient pas été modifiés par le Batch 7 ; F-006 modifie désormais volontairement le sentinel, le workflow guard et le contrat par le chemin Critique.
+Le workflow `filora-guard.yml`, son sentinel, `DEVELOPMENT.md`, `workflow/contract.json` et les scripts de garde n’avaient pas été modifiés par le Batch 7 ; F-006 modifie désormais volontairement le sentinel, le workflow guard, le contrat, `tools/filora_guard.py` et ses régressions de workflow par le chemin Critique.
 
 ### Preuves acquises avant le commit de clôture du Batch 7
 
@@ -305,13 +305,13 @@ Le Batch 9 est **ouvert**. Son document détaillé est `BATCH9.md`.
 
 Les findings sérieux retenus avant checkpoint sont : **F-006, F-002, F-001, F-003, F-005 et F-004**. Les findings mineurs F-007 à F-013 sont reportés au checkpoint ; F-014 à F-017 restent des observations non bloquantes. La réserve initiale sur un éventuel downgrade futur de `@playwright/test` n’est plus simplement reportée : les revues de #77 ont démontré que la chaîne de dépendances et de configuration participe directement à la valeur des checks.
 
-La première correction F-006 abandonne désormais la blacklist de noms de fichiers au profit d’une admission base-side fail-closed : seules les surfaces applicatives/non critiques explicitement admises, les chemins Sensibles déjà déclarés dans le contrat de la base et le fichier Batch autorisé par l’état de cette base peuvent passer comme PR non critique ; tout autre chemin est Critique par défaut. La preuve E2E reste en parallèle isolée entre un runner de build et un runner de certification recevant uniquement `dist/`. Après intégration du candidat revu, le ruleset réel doit être mis à jour immédiatement vers `sentinel + guard + e2e` requis, puis le nouveau sentinel doit être éprouvé sur une PR suivante avant tout travail F-002.
+La première correction F-006 abandonne désormais la blacklist de noms de fichiers au profit d’une admission base-side fail-closed : seules les surfaces applicatives/non critiques explicitement admises, les chemins Sensibles déjà déclarés dans le contrat de la base et le fichier Batch autorisé par l’état de cette base peuvent passer comme PR non critique ; tout autre chemin est Critique par défaut. Le guard aligne son plancher de risque sur cette même base authentifiée et conserve les deux côtés des renommages. La preuve E2E reste en parallèle isolée entre un runner de build et un runner de certification recevant uniquement `dist/`. Après intégration du candidat revu, le ruleset réel doit être mis à jour immédiatement vers `sentinel + guard + e2e` requis, puis le nouveau sentinel doit être éprouvé sur une PR suivante avant tout travail F-002.
 
 ## Conditions de transition
 
 Le Batch 8 est clôturé et a autorisé la préparation du Batch suivant. Le Batch 9 est désormais **ouvert / critical / independent_review: pending / owner_approval: obtained / next_batch_allowed: false**.
 
-Aucun Batch suivant ne peut être démarré tant que le Batch 9 n’est pas clôturé. La prochaine action est le préflight/review du candidat F-006 exact, pas une fonctionnalité métier.
+Aucun Batch suivant ne peut être démarré tant que le Batch 9 n’est pas clôturé. La prochaine action est la CI puis la revue indépendante du candidat F-006 exact à 12 fichiers, pas une fonctionnalité métier.
 
 ## Documents canoniques
 

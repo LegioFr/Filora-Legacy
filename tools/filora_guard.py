@@ -391,14 +391,43 @@ def _path_matches(path: str, rule: str) -> bool:
     return path == rule or (rule.endswith("/") and path.startswith(rule))
 
 
-def required_risk_for_paths(paths: list[str], contract: dict) -> str:
-    if any(_is_structural_control_path(path) for path in paths):
+def _is_ordinary_path(path: str) -> bool:
+    return (
+        path == "index.html"
+        or path == "PROJECT_STATE.md"
+        or path == "tests/check_pwa_icons.py"
+        or path.startswith("src/")
+        or path.startswith("public/")
+        or re.fullmatch(r"tests/[^/]+_check\.ts", path) is not None
+    )
+
+
+def _allowed_batch_files_for(state: dict | None) -> set[str]:
+    if state is None:
+        return set()
+    allowed: set[str] = set()
+    if state.get("batch_status") == "open":
+        allowed.add(f"BATCH{state['current_batch']}.md")
+    elif state.get("batch_status") == "closed" and state.get("next_batch_allowed") is True:
+        allowed.add(f"BATCH{state['current_batch'] + 1}.md")
+    return allowed
+
+
+def required_risk_for_paths(paths: list[str], contract: dict, state: dict | None = None) -> str:
+    required = "ordinary"
+    allowed_batch_files = _allowed_batch_files_for(state)
+    for path in paths:
+        if _is_structural_control_path(path):
+            return "critical"
+        if any(_path_matches(path, rule) for rule in contract["critical_control_paths"]):
+            return "critical"
+        if any(_path_matches(path, rule) for rule in contract["sensitive_paths"]):
+            required = "sensitive"
+            continue
+        if _is_ordinary_path(path) or path in allowed_batch_files:
+            continue
         return "critical"
-    if any(any(_path_matches(path, rule) for rule in contract["critical_control_paths"]) for path in paths):
-        return "critical"
-    if any(any(_path_matches(path, rule) for rule in contract["sensitive_paths"]) for path in paths):
-        return "sensitive"
-    return "ordinary"
+    return required
 
 
 def _validate_state_shape(state: dict) -> str | None:
@@ -442,6 +471,20 @@ def _base_state(root: Path, base_ref: str) -> dict | None:
     error = _validate_state_shape(value)
     if error:
         raise ValueError("base workflow/state.json invalid: " + error)
+    return value
+
+
+def _base_contract(root: Path, base_ref: str) -> dict:
+    text = _show(root, base_ref, "workflow/contract.json")
+    if text is None:
+        raise ValueError("base workflow/contract.json is missing")
+    try:
+        value = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"base workflow/contract.json is invalid JSON: {exc}") from exc
+    if not isinstance(value, dict):
+        raise ValueError("base workflow/contract.json must be an object")
+    _validate_contract(value)
     return value
 
 
@@ -496,47 +539,49 @@ def check_workflow_state(root: Path, state_path: Path, contract_path: Path, proj
             return fail(f"BATCH{current_batch}.md exists while predecessor {predecessor.name} is not declared closed")
     if base_ref:
         try:
-            _validate_base_ref(root, base_ref)
-            paths = _changed_paths(root, base_ref)
-            required_risk = required_risk_for_paths(paths, contract)
-            base = _base_state(root, base_ref)
+            base_sha = _validate_base_ref(root, base_ref)
+            paths = _changed_paths(root, base_sha)
+            base = _base_state(root, base_sha)
+            if base is None:
+                raise ValueError("base workflow/state.json is missing")
+            base_contract = _base_contract(root, base_sha)
+            required_risk = required_risk_for_paths(paths, base_contract, base)
         except ValueError as exc:
             return fail(str(exc))
         if RISK_RANK[state["risk"]] < RISK_RANK[required_risk]:
             return fail(f"workflow risk={state['risk']} under-classifies objective diff; changed paths require at least {required_risk}")
-        if base:
-            base_batch = base["current_batch"]
-            if current_batch < base_batch:
-                return fail("current_batch cannot decrease relative to base")
-            if current_batch > base_batch + 1:
-                return fail("current_batch can advance by only one Batch")
-            if current_batch == base_batch:
-                if RISK_RANK[state["risk"]] < RISK_RANK[base["risk"]]:
-                    return fail(f"workflow risk cannot decrease within Batch {current_batch}: base={base['risk']} candidate={state['risk']}")
-            else:
-                if base.get("batch_status") != "closed":
-                    return fail("atomic Batch transition rejected: base Batch is not closed")
-                if base.get("next_batch_allowed") is not True:
-                    return fail("atomic Batch transition rejected: base next_batch_allowed is not true")
-                risk = base.get("risk")
-                if risk in {"sensitive", "critical"} and base.get("independent_review") != "passed":
-                    return fail("atomic Batch transition rejected: base independent review is not passed")
-                if risk == "critical" and base.get("owner_approval") != "obtained":
-                    return fail("atomic Batch transition rejected: base owner approval is not obtained")
-                base_text = _show(root, base_ref, f"BATCH{base_batch}.md")
-                if base_text is None:
-                    return fail("atomic Batch transition rejected: base Batch document is missing")
-                statuses = BATCH_STATUS_RE.findall(base_text)
-                humans = HUMAN_VALIDATION_RE.findall(base_text)
-                if len(statuses) != 1 or len(humans) != 1:
-                    return fail("atomic Batch transition rejected: base Batch document is not machine-readable")
-                try:
-                    if _status_kind(statuses[0]) != "closed":
-                        return fail("atomic Batch transition rejected: base Batch document is not closed")
-                except ValueError as exc:
-                    return fail("atomic Batch transition rejected: " + str(exc))
-                if humans[0] == "EN ATTENTE":
-                    return fail("atomic Batch transition rejected: base human validation is pending")
+        base_batch = base["current_batch"]
+        if current_batch < base_batch:
+            return fail("current_batch cannot decrease relative to base")
+        if current_batch > base_batch + 1:
+            return fail("current_batch can advance by only one Batch")
+        if current_batch == base_batch:
+            if RISK_RANK[state["risk"]] < RISK_RANK[base["risk"]]:
+                return fail(f"workflow risk cannot decrease within Batch {current_batch}: base={base['risk']} candidate={state['risk']}")
+        else:
+            if base.get("batch_status") != "closed":
+                return fail("atomic Batch transition rejected: base Batch is not closed")
+            if base.get("next_batch_allowed") is not True:
+                return fail("atomic Batch transition rejected: base next_batch_allowed is not true")
+            risk = base.get("risk")
+            if risk in {"sensitive", "critical"} and base.get("independent_review") != "passed":
+                return fail("atomic Batch transition rejected: base independent review is not passed")
+            if risk == "critical" and base.get("owner_approval") != "obtained":
+                return fail("atomic Batch transition rejected: base owner approval is not obtained")
+            base_text = _show(root, base_sha, f"BATCH{base_batch}.md")
+            if base_text is None:
+                return fail("atomic Batch transition rejected: base Batch document is missing")
+            statuses = BATCH_STATUS_RE.findall(base_text)
+            humans = HUMAN_VALIDATION_RE.findall(base_text)
+            if len(statuses) != 1 or len(humans) != 1:
+                return fail("atomic Batch transition rejected: base Batch document is not machine-readable")
+            try:
+                if _status_kind(statuses[0]) != "closed":
+                    return fail("atomic Batch transition rejected: base Batch document is not closed")
+            except ValueError as exc:
+                return fail("atomic Batch transition rejected: " + str(exc))
+            if humans[0] == "EN ATTENTE":
+                return fail("atomic Batch transition rejected: base human validation is pending")
     if state["batch_status"] == "open" and state["next_batch_allowed"]:
         return fail("next_batch_allowed cannot be true while the current Batch is open")
     if state["batch_status"] == "closed":
