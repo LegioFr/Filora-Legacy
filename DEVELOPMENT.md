@@ -1086,6 +1086,18 @@ Son rôle consiste à :
 
 Une contradiction entre reviewers ne se résout pas par vote.
 
+## 17.4 Format des transferts manuels de prompts et paquets de revue
+
+Lorsqu’un prompt, un paquet de preuves ou un paquet de contre-revue doit être transmis manuellement par Mickaël à Claude, Codex, Codex Security ou tout autre reviewer externe, le coordinateur le fournit par défaut sous forme de fichier texte UTF-8 `.txt` téléchargeable.
+
+Le chat contient alors seulement un résumé court, l’étiquette de revue applicable et le lien ou fichier, afin d’éviter de surcharger la conversation et d’éviter à Mickaël de copier manuellement un long prompt.
+
+Un prompt très court peut rester directement dans le chat lorsqu’un fichier n’apporterait aucun bénéfice réel.
+
+Cette règle concerne uniquement le format du transfert manuel. Elle ne change ni les exigences de preuve ni le contenu requis du paquet définis ailleurs dans ce document.
+
+Lorsque le coordinateur dispose lui-même d’un accès direct et autorisé au reviewer ou à l’outil concerné, il doit utiliser cet accès directement conformément à la section 6.1 plutôt que créer artificiellement un transfert manuel. Dans ce cas, le fichier `.txt` n’est pas obligatoire sauf utilité réelle.
+
 ---
 
 # 18. Prévention du fractionnement entre Batches
@@ -1265,3 +1277,32 @@ La gouvernance doit permettre aux IA de travailler efficacement sans leur permet
 Le but n'est pas de supprimer tout risque.
 
 Le but est que les risques importants soient détectés, rendus visibles, traités au bon niveau et jamais masqués pour permettre au développement de continuer.
+
+---
+
+# 26. Protocole permanent avant toute demande d’autorisation
+
+Cette règle s’applique à **toute demande d’autorisation dans tout Batch Filora, présent ou futur**. Elle n’est liée ni au Batch 9 ni à F-006.
+
+1. Toute demande d’autorisation est `REVUE INDÉPENDANTE : REQUISE` par défaut.
+
+2. `REVUE INDÉPENDANTE : NON REQUISE` n’est permis que si le coordinateur peut démontrer objectivement que **toutes** les opérations proposées :
+   - restent dans le périmètre déjà explicitement autorisé ;
+   - ne touchent que des chemins classés ordinaires par les règles en vigueur ;
+   - ne modifient aucun workflow, guard, sentinel, ruleset, mécanisme de preuve, permission, dépendance, contrat ou document canonique ;
+   - n’élargissent ni la liste de fichiers ni la portée précédemment autorisée ;
+   - ne changent aucune décision déjà approuvée.
+
+3. Au moindre doute, information manquante ou impossibilité de démontrer toutes ces conditions, la revue indépendante est `REQUISE`.
+
+4. Si la revue indépendante est `REQUISE`, la demande d’autorisation doit être accompagnée **dans le même message** du paquet de contre-vérification prêt à transmettre au reviewer indépendant. Lorsqu’un transfert manuel est nécessaire, le fichier `.txt` attaché ou lié dans ce même message conformément à la section 17.4 satisfait cette exigence.
+
+5. Si le retour du reviewer est nécessaire avant la décision finale, aucun feu vert final ne peut être demandé avant réception et confrontation de ce retour aux preuves disponibles.
+
+6. Une demande d’autorisation qui ne respecte pas cette règle est **nulle**. Un `vas-y`, `d’accord` ou équivalent reçu en réponse à une demande invalide n’autorise aucune modification.
+
+7. Mickaël n’a pas à déterminer lui-même si une revue était techniquement nécessaire, à rappeler cette règle ou à certifier le contenu technique du paquet.
+
+8. Cette règle est une règle de gouvernance durable. Elle ne doit pas être matérialisée par un champ ad hoc dans `workflow/state.json`, qui conserve son rôle d’état du Batch courant.
+
+9. Les mécanismes de revue indépendante applicables restent ceux définis en F4.5 et dans les sections 12 à 17. Cette section impose l’ordre et le format de la demande d’autorisation ; elle ne transforme pas une seconde IA en preuve absolue.

@@ -277,6 +277,16 @@ class WorkflowGuardTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "SENSITIVE")
 
+    def test_unknown_path_is_critical_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            contract = Path(tmp) / "contract.json"
+            contract.write_text(json.dumps(self.contract()), encoding="utf-8")
+            result = self.run_guard(
+                "change-risk", "--contract", str(contract), "--path", "totally-unknown.tooling.js"
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "CRITICAL")
+
     def test_contract_cannot_remove_existing_critical_control(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -321,6 +331,114 @@ class WorkflowGuardTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("critical control path(s) declared in contract are missing", result.stderr)
         self.assertIn("tests/test_workflow_transition_wrapper.py", result.stderr)
+
+    def test_base_contract_not_candidate_contract_sets_risk_floor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state, contract, project = self.write_fixture(root)
+            protected = root / "src" / "protected.ts"
+            protected.parent.mkdir(parents=True, exist_ok=True)
+            protected.write_text("base\n", encoding="utf-8")
+            base_contract = self.contract()
+            base_contract["critical_control_paths"].append("src/protected.ts")
+            contract.write_text(json.dumps(base_contract), encoding="utf-8")
+            self.init_git_base(root)
+
+            protected.write_text("candidate\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/protected.ts"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "change protected source"], cwd=root, check=True)
+            contract.write_text(json.dumps(self.contract()), encoding="utf-8")
+
+            result = self.run_workflow(root, state, contract, project, "base")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("changed paths require at least critical", result.stderr)
+
+    def test_base_state_not_candidate_state_controls_batch_path_admission(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            closed = self.state(batch_status="closed", independent_review="passed", next_batch_allowed=True)
+            state, contract, project = self.write_fixture(
+                root, closed, batch2_status="clôturé", project_status="clôturé"
+            )
+            self.init_git_base(root)
+
+            state.write_text(json.dumps(self.state()), encoding="utf-8")
+            (root / "BATCH2.md").write_text(
+                "# BATCH2\n\n**Statut : en validation**\n\n### Jalon humain requis — NON REQUIS\n",
+                encoding="utf-8",
+            )
+            project.write_text(
+                "# PROJECT_STATE\n\n## Reprise structurée\n"
+                "- stage: Batch 2 — validation\n"
+                "- status: en validation sur test-preview\n"
+                "- git: lire GitHub\n"
+                "- next_action: poursuivre la première gate autorisée\n\n## État courant\n",
+                encoding="utf-8",
+            )
+            subprocess.run(["git", "add", "workflow/state.json", "BATCH2.md", "PROJECT_STATE.md"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "reopen candidate batch"], cwd=root, check=True)
+
+            result = self.run_workflow(root, state, contract, project, "base")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("changed paths require at least critical", result.stderr)
+
+    def test_renamed_critical_file_is_detected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state, contract, project = self.write_fixture(root)
+            old = root / "critical-control.txt"
+            old.write_text("same content\n", encoding="utf-8")
+            base_contract = self.contract()
+            base_contract["critical_control_paths"].append("critical-control.txt")
+            contract.write_text(json.dumps(base_contract), encoding="utf-8")
+            self.init_git_base(root)
+
+            new = root / "src" / "utils_moved.ts"
+            new.parent.mkdir(parents=True, exist_ok=True)
+            subprocess.run(["git", "mv", "critical-control.txt", "src/utils_moved.ts"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "rename critical control"], cwd=root, check=True)
+            contract.write_text(json.dumps(self.contract()), encoding="utf-8")
+
+            result = self.run_workflow(root, state, contract, project, "base")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("changed paths require at least critical", result.stderr)
+
+    def test_critical_base_rule_precedes_ordinary_allowlist(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state, contract, project = self.write_fixture(root)
+            protected = root / "src" / "critical_even_under_src.ts"
+            protected.parent.mkdir(parents=True, exist_ok=True)
+            protected.write_text("base\n", encoding="utf-8")
+            payload = self.contract()
+            payload["critical_control_paths"].append("src/critical_even_under_src.ts")
+            contract.write_text(json.dumps(payload), encoding="utf-8")
+            self.init_git_base(root)
+
+            protected.write_text("candidate\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/critical_even_under_src.ts"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "change critical src path"], cwd=root, check=True)
+
+            result = self.run_workflow(root, state, contract, project, "base")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("changed paths require at least critical", result.stderr)
+
+    def test_mixed_diff_uses_maximum_risk(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state, contract, project = self.write_fixture(root)
+            self.init_git_base(root)
+
+            ordinary = root / "src" / "ordinary.ts"
+            ordinary.parent.mkdir(parents=True, exist_ok=True)
+            ordinary.write_text("ordinary\n", encoding="utf-8")
+            (root / "z-toolchain.config").write_text("critical unknown\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/ordinary.ts", "z-toolchain.config"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "mixed diff"], cwd=root, check=True)
+
+            result = self.run_workflow(root, state, contract, project, "base")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("changed paths require at least critical", result.stderr)
 
     def test_risk_cannot_decrease_within_same_batch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -12,33 +12,17 @@ on:
       - ready_for_review
 
 permissions:
+  contents: read
   pull-requests: read
 
 jobs:
   sentinel:
     runs-on: ubuntu-latest
     steps:
-      - name: Reject ordinary PR changes to critical guard surface
+      - name: Reject changes outside the trusted non-critical surface
         uses: actions/github-script@v7
         with:
           script: |
-            const protectedExact = new Set([
-              '.github/workflows/filora-guard.yml',
-              '.github/workflows/filora-guard-sentinel.yml',
-              'DEVELOPMENT.md',
-              'workflow/contract.json',
-              'tools/filora_guard.py',
-              'tools/check_review_governance.py',
-              'tools/check_claude_review_prompt.py',
-              'tools/check_codex_security_prompt.py',
-              'tools/check_architecture.py',
-              'tests/test_filora_guard.py',
-              'tests/test_human_validation_guard.py',
-              'tests/test_workflow_guard.py',
-              'tests/test_workflow_transition_wrapper.py',
-              'tests/test_guard_entry_boundary.py',
-            ]);
-
             const changedFiles = context.payload.pull_request.changed_files;
             if (!Number.isInteger(changedFiles) || changedFiles < 0) {
               core.setFailed('Cannot establish pull_request.changed_files; fail closed.');
@@ -49,6 +33,133 @@ jobs:
                 `PR changes ${changedFiles} files, exceeding the GitHub list-files inspection limit of 3000; fail closed.`
               );
               return;
+            }
+
+            const baseSha = context.payload.pull_request.base?.sha;
+            if (typeof baseSha !== 'string' || !/^[0-9a-f]{40}$/i.test(baseSha)) {
+              core.setFailed('Cannot establish exact pull request base SHA; fail closed.');
+              return;
+            }
+
+            async function readBaseJson(path) {
+              const response = await github.rest.repos.getContent({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                path,
+                ref: baseSha,
+              });
+              const data = response.data;
+              if (Array.isArray(data) || data.type !== 'file' || typeof data.content !== 'string') {
+                throw new Error(`${path} at base ${baseSha} is not a readable file`);
+              }
+              const text = Buffer.from(data.content, data.encoding || 'base64').toString('utf8');
+              const value = JSON.parse(text);
+              if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+                throw new Error(`${path} at base ${baseSha} is not a JSON object`);
+              }
+              return value;
+            }
+
+            let baseState;
+            let baseContract;
+            try {
+              baseState = await readBaseJson('workflow/state.json');
+              baseContract = await readBaseJson('workflow/contract.json');
+            } catch (error) {
+              core.setFailed(`Cannot establish trusted base governance state; fail closed: ${error.message}`);
+              return;
+            }
+
+            const baseBatch = baseState.current_batch;
+            if (!Number.isInteger(baseBatch) || baseBatch < 0) {
+              core.setFailed('Base workflow/state.json has invalid current_batch; fail closed.');
+              return;
+            }
+            if (!['open', 'closed'].includes(baseState.batch_status)) {
+              core.setFailed('Base workflow/state.json has invalid batch_status; fail closed.');
+              return;
+            }
+            if (typeof baseState.next_batch_allowed !== 'boolean') {
+              core.setFailed('Base workflow/state.json has invalid next_batch_allowed; fail closed.');
+              return;
+            }
+
+            const sensitiveRules = baseContract.sensitive_paths;
+            if (!Array.isArray(sensitiveRules)
+                || !sensitiveRules.every((rule) => typeof rule === 'string' && rule.length > 0)) {
+              core.setFailed('Base workflow/contract.json has invalid sensitive_paths; fail closed.');
+              return;
+            }
+
+            function pathMatches(path, rule) {
+              return path === rule || (rule.endsWith('/') && path.startsWith(rule));
+            }
+
+            function isOrdinaryPath(path) {
+              return path === 'index.html'
+                || path === 'PROJECT_STATE.md'
+                || path === 'tests/check_pwa_icons.py'
+                || path.startsWith('src/')
+                || path.startsWith('public/')
+                || /^tests\/[^/]+_check\.ts$/.test(path);
+            }
+
+            function allowedBatchFilesFor(state) {
+              const allowed = new Set();
+              if (state.batch_status === 'open') {
+                allowed.add(`BATCH${state.current_batch}.md`);
+              } else if (state.batch_status === 'closed' && state.next_batch_allowed === true) {
+                allowed.add(`BATCH${state.current_batch + 1}.md`);
+              }
+              return allowed;
+            }
+
+            // Embedded adversarial probes protect the classifier itself without creating
+            // another repository file that would become a new mutable control surface.
+            const ordinaryProbes = [
+              ['src/app/App.tsx', true],
+              ['public/offline.html', true],
+              ['index.html', true],
+              ['PROJECT_STATE.md', true],
+              ['tests/spool_model_check.ts', true],
+              ['tests/check_pwa_icons.py', true],
+              ['npm-shrinkwrap.json', false],
+              ['vite.config.ts', false],
+              ['tests/e2e/navigation.spec.ts', false],
+              ['tests/test_filora_guard.py', false],
+              ['totally-unknown.tooling.js', false],
+            ];
+            for (const [path, expected] of ordinaryProbes) {
+              if (isOrdinaryPath(path) !== expected) {
+                core.setFailed(`Sentinel ordinary-path self-test failed for ${path}; fail closed.`);
+                return;
+              }
+            }
+
+            const closedBaseProbe = allowedBatchFilesFor({
+              current_batch: 8,
+              batch_status: 'closed',
+              next_batch_allowed: true,
+            });
+            const openBaseProbe = allowedBatchFilesFor({
+              current_batch: 9,
+              batch_status: 'open',
+              next_batch_allowed: false,
+            });
+            if (!closedBaseProbe.has('BATCH9.md')
+                || closedBaseProbe.has('BATCH8.md')
+                || closedBaseProbe.has('BATCH999.md')
+                || !openBaseProbe.has('BATCH9.md')
+                || openBaseProbe.has('BATCH10.md')) {
+              core.setFailed('Sentinel Batch-transition self-test failed; fail closed.');
+              return;
+            }
+
+            const allowedBatchFiles = allowedBatchFilesFor(baseState);
+            function isAdmittedPath(path) {
+              return isOrdinaryPath(path)
+                || allowedBatchFiles.has(path)
+                || sensitiveRules.some((rule) => pathMatches(path, rule));
             }
 
             const files = await github.paginate(github.rest.pulls.listFiles, {
@@ -68,11 +179,12 @@ jobs:
             const paths = files.flatMap((file) =>
               [file.filename, file.previous_filename].filter(Boolean)
             );
-            const blocked = [...new Set(paths.filter((path) => protectedExact.has(path)))];
+            const blocked = [...new Set(paths.filter((path) => !isAdmittedPath(path)))];
 
             if (blocked.length > 0) {
               core.setFailed(
-                'Critical guard surface changed by an ordinary PR. ' +
+                'PR changes a path outside the trusted non-critical surface. ' +
+                'Unknown/control/toolchain paths are Critical by default. ' +
                 'Use the explicit critical-governance path with an administrator ruleset bypass after independent validation. ' +
                 `Blocked paths: ${blocked.join(', ')}`
               );

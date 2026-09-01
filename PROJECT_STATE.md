@@ -1,15 +1,15 @@
 # PROJECT_STATE.md — Filora
 
 **Rôle : index opérationnel de reprise**  
-**Dernière mise à jour : 2026-08-31**
+**Dernière mise à jour : 2026-09-01**
 
 Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationnelle. GitHub et les documents canoniques restent la source de vérité.
 
 ## Reprise structurée
-- stage: Batch 8 — installation PWA Test et Officielle
-- status: clôturé
-- git: Batch 8 promu vers `main` par la PR #74 ; Filora Official est servie par `filora-app-nine.vercel.app` depuis `main` et Filora Test par `filora-test-stable.vercel.app` depuis `test-preview`
-- next_action: ne pas démarrer automatiquement le Batch 9 ; lors de sa préparation, reconstruire l’état réel depuis GitHub, consulter les Issues/findings ouverts et proposer son périmètre avant toute modification
+- stage: Batch 9 — remédiation de l’audit global
+- status: en cours
+- git: branche `batch9/audit-remediation` créée depuis `test-preview` `1803e5b22bafab09b29d68539ef7f0a9286596ec` ; première correction en cours : F-006 sur la chaîne de preuve GitHub
+- next_action: vérifier la CI du candidat F-006 à 12 fichiers puis obtenir la revue indépendante du SHA exact avant tout bypass critique ou intégration
 
 ## État courant
 
@@ -31,14 +31,20 @@ Ce fichier sert à reprendre Filora sans dépendre de la mémoire conversationne
 - **Décision propriétaire Batch 8 :** obtenue pour le comportement produit, le découpage Test / Officielle / mise à jour contrôlée et le niveau Critique retenu pour la promotion.
 - **Revue indépendante Batch 8 :** `passed`. Codex a revu le candidat exact de la PR #74, commit `0ed6227d46c4de5be7b2d0dfac900d4569792782`, base `795d68068fbaad47dda278e05345ff93eec6bc5c`. Aucun finding produit/PWA bloquant ; deux P2 documentaires ont été décidés non bloquants puis corrigés dans la synchronisation de clôture.
 - **Jalon humain applicatif Batch 8 :** **acquis** : Filora Test installée/standalone/badge TEST/mise à jour contrôlée ; Filora Official installée séparément/standalone/sans badge TEST ; coexistence réelle ; isolation Test → Official et Official → Test démontrée.
+- **Batch 9 :** **en cours**. Il est réservé à la remédiation des findings confirmés de l’audit global exhaustif post-Batch-8. Aucun nouveau métier n’est démarré. Ordre prévu : F-006 → F-002 → F-001 → F-003 + F-005 → F-004 → checkpoint.
+- **Risque Batch 9 :** **Critique**, car F-006 touche d’abord les mécanismes de contrôle GitHub ; le niveau reste Critique pendant le Batch ouvert.
+- **Accord propriétaire F4.4 Batch 9 :** obtenu pour le démarrage de la remédiation et le périmètre F-006, puis confirmé pour les extensions bornées rendues nécessaires par les revues indépendantes de #77 : durcissement npm, protection de la suite E2E, test du vrai `dist/`, séparation `build`/`e2e` sur deux runners, inversion du sentinel vers une admission fail-closed fondée sur l’état de la base, puis alignement du plancher de risque de `tools/filora_guard.py` sur le contrat/état de base avec régressions dans `tests/test_workflow_guard.py`. Cette dernière extension a été autorisée après contre-revue Claude favorable sur le traitement des renommages ; le périmètre de #77 est désormais de **12 fichiers**.
+- **Revue indépendante Batch 9 :** `pending` ; aucune correction F-006 ne sera intégrée sur la seule affirmation de l’agent d’implémentation.
+- **Audit global post-Batch-8 :** verdict **NO-GO** pour la poursuite métier ; 2 bloquants et 4 importants ont été contre-vérifiés comme réels. Les autres findings sont reportés au checkpoint ou conservés comme observations selon `BATCH9.md`.
 - **Branche officielle :** `main`.
 - **Branche de validation :** `test-preview`.
+- **Branche de travail Batch 9 :** `batch9/audit-remediation`.
 
-`workflow/state.json` porte après clôture du Batch 8 : `current_batch: 8`, `batch_status: closed`, `risk: critical`, `independent_review: passed`, `owner_approval: obtained`, `next_batch_allowed: true`.
+`workflow/state.json` porte au démarrage du Batch 9 : `current_batch: 9`, `batch_status: open`, `risk: critical`, `independent_review: pending`, `owner_approval: obtained`, `next_batch_allowed: false`.
 
-`next_batch_allowed: true` signifie que la préparation d’un Batch suivant est autorisée ; cela ne démarre pas le Batch 9 et ne dispense pas de son préflight.
+`next_batch_allowed: false` signifie qu’aucun Batch suivant ne peut commencer tant que cette remédiation n’est pas clôturée selon les conditions canoniques.
 
-## Base fonctionnelle acquise avant Batch 7
+## Base fonctionnelle acquise avant Batch 7 — réserves révélées par l’audit global
 
 Le domaine `spools` sait notamment :
 
@@ -50,14 +56,15 @@ Le domaine `spools` sait notamment :
 - calculer le filament disponible à partir des faits applicables ;
 - distinguer stock nominal / non vérifié et stock mesuré ;
 - refuser une tare supérieure au poids brut ;
-- protéger les nouvelles identités contre les doublons insensibles à la casse tout en préservant les IDs historiques sensibles à la casse ;
+- préserver en lecture les IDs historiques sensibles à la casse ;
 - relire et afficher l’ensemble du stock local ;
 - corriger une référence partagée avec avertissement sur les bobines affectées ;
-- réaffecter une seule bobine vers un autre produit sans modifier les autres ;
 - sauvegarder et restaurer références filament, emplacements, bobines, catalogue personnel et relations dans le backup v2 ;
 - importer encore un backup Batch 5 v1 sans invention de données ;
-- restaurer par remplacement cohérent avec rollback compensatoire entre les stockages techniques ;
-- démontrer réellement le recovery sur navigateur/appareil.
+- démontrer le rollback compensatoire simple entre les stockages techniques ;
+- démontrer réellement le recovery sur navigateur/appareil pour le scénario testé.
+
+L’audit global a invalidé ou limité plusieurs formulations auparavant trop fortes : la protection contre les doublons n’est pas sûre en concurrence (**F-001**), la réaffectation d’une bobine historique `A/a` peut viser la mauvaise identité (**F-002**), et un échec du rollback lui-même laisse actuellement l’application mutable malgré une intégrité incertaine (**F-003**). Ces propriétés ne doivent plus être présentées comme acquises avant leur correction et leurs preuves.
 
 La persistance métier actuelle utilise IndexedDB direct sans Dexie, conformément à la décision acceptée tant qu’aucun besoin concret ne justifie cette dépendance.
 
@@ -81,18 +88,19 @@ La démonstration visible des quatre viewports a été réalisée. Ces tailles r
 Le workflow séparé `.github/workflows/playwright-e2e.yml` :
 
 - se déclenche sur les PR vers `test-preview` et `main` ;
-- checkout le SHA exact de la PR et exige un checkout propre ;
-- utilise Node 22 ;
-- exécute `npm ci --no-audit --no-fund` ;
-- installe Chromium uniquement ;
-- exécute la suite complète `npm run test:e2e` ;
+- utilise deux jobs `build` puis `e2e` sur deux runners distincts ;
+- checkout le SHA exact de la PR et exige un checkout propre dans chaque job ;
+- utilise Node 22 et `npm ci --ignore-scripts --no-audit --no-fund` dans chaque environnement neuf ;
+- construit le vrai `dist/` une seule fois dans `build` via le binaire Vite installé ;
+- transfère uniquement `dist/` comme artefact, sans `node_modules`, workspace ni cache npm partagé ;
+- installe Chromium uniquement sur le runner `e2e` puis exécute les 39 tests contre le `dist/` téléchargé et servi par Python ;
 - utilise seulement `permissions: contents: read` ;
 - n’utilise aucun secret ;
 - conserve les preuves Playwright uniquement en cas d’échec.
 
-`playwright.config.ts` interdit `test.only` en CI avec `forbidOnly` et conserve trace/capture uniquement en cas d’échec.
+Dans F-006, le workflow appelle directement les binaires Vite/Playwright installés plutôt que de dépendre de scripts npm modifiables. `playwright.config.ts` interdit `test.only` en CI avec `forbidOnly` et sert le `dist/` déjà construit. Le sentinel en cours de remplacement n’essaie plus d’énumérer tous les fichiers dangereux : depuis sa version base-side, il admet seulement `src/**`, `public/**`, `index.html`, les tests métier racine `tests/*_check.ts`, `tests/check_pwa_icons.py`, `PROJECT_STATE.md`, les chemins Sensibles déjà déclarés dans le contrat de la base et le seul fichier Batch autorisé par l’état de cette base. Tout autre chemin est Critique par défaut. Le `workflow-state` du guard applique désormais le même principe pour le plancher de risque : contrat et état de base authentifiés, Critique prioritaire sur l’allowlist ordinaire, ancien et nouveau chemin d’un renommage pris en compte par `_changed_paths()`, et Critique par défaut pour tout chemin non admis.
 
-Le workflow `filora-guard.yml`, son sentinel, `DEVELOPMENT.md`, `workflow/contract.json` et les scripts de garde n’ont pas été modifiés par le Batch 7.
+Le workflow `filora-guard.yml`, son sentinel, `DEVELOPMENT.md`, `workflow/contract.json` et les scripts de garde n’avaient pas été modifiés par le Batch 7 ; F-006 modifie désormais volontairement le sentinel, le workflow guard, le contrat, `tools/filora_guard.py` et ses régressions de workflow par le chemin Critique.
 
 ### Preuves acquises avant le commit de clôture du Batch 7
 
@@ -260,7 +268,7 @@ Le déploiement Production Official correspondant est `READY`. Le manifeste Offi
 - encodage implicite du guard sous Windows ;
 - `localeCompare()` sans locale explicite sauf nécessité fonctionnelle ;
 - compteur de téléchargement basé sur l’état UI ;
-- consommations et mouvements de filament : **Batch 9** ;
+- consommations et mouvements de filament : **après le Batch 9 de remédiation ; candidat Batch 10** ;
 - pesées successives, corrections/recalages et inventaire ;
 - nettoyage/suppression de références filament ;
 - cycle de vie complet des supports réutilisables ;
@@ -291,11 +299,19 @@ Codex a revu le candidat exact de la PR #74, `0ed6227d46c4de5be7b2d0dfac900d4569
 
 La revue n’a trouvé aucun finding produit/PWA bloquant. Elle a trouvé deux P2 documentaires, tous deux traités dans la synchronisation de clôture. La revue indépendante est donc enregistrée `passed` sans boucle supplémentaire de relecture pour ces corrections documentaires ciblées.
 
+## Batch 9 — remédiation de l’audit global
+
+Le Batch 9 est **ouvert**. Son document détaillé est `BATCH9.md`.
+
+Les findings sérieux retenus avant checkpoint sont : **F-006, F-002, F-001, F-003, F-005 et F-004**. Les findings mineurs F-007 à F-013 sont reportés au checkpoint ; F-014 à F-017 restent des observations non bloquantes. La réserve initiale sur un éventuel downgrade futur de `@playwright/test` n’est plus simplement reportée : les revues de #77 ont démontré que la chaîne de dépendances et de configuration participe directement à la valeur des checks.
+
+La première correction F-006 abandonne désormais la blacklist de noms de fichiers au profit d’une admission base-side fail-closed : seules les surfaces applicatives/non critiques explicitement admises, les chemins Sensibles déjà déclarés dans le contrat de la base et le fichier Batch autorisé par l’état de cette base peuvent passer comme PR non critique ; tout autre chemin est Critique par défaut. Le guard aligne son plancher de risque sur cette même base authentifiée et conserve les deux côtés des renommages. La preuve E2E reste en parallèle isolée entre un runner de build et un runner de certification recevant uniquement `dist/`. Après intégration du candidat revu, le ruleset réel doit être mis à jour immédiatement vers `sentinel + guard + e2e` requis, puis le nouveau sentinel doit être éprouvé sur une PR suivante avant tout travail F-002.
+
 ## Conditions de transition
 
-Le Batch 8 est **clôturé**. Son état machine est `closed / critical / independent_review: passed / owner_approval: obtained / next_batch_allowed: true`.
+Le Batch 8 est clôturé et a autorisé la préparation du Batch suivant. Le Batch 9 est désormais **ouvert / critical / independent_review: pending / owner_approval: obtained / next_batch_allowed: false**.
 
-La clôture du Batch 8 ne démarre pas le Batch 9. Avant tout Batch suivant, reconstruire l’état GitHub, consulter les Issues/findings ouverts pertinents et vérifier les conditions de transition habituelles.
+Aucun Batch suivant ne peut être démarré tant que le Batch 9 n’est pas clôturé. La prochaine action est la CI puis la revue indépendante du candidat F-006 exact à 12 fichiers, pas une fonctionnalité métier.
 
 ## Documents canoniques
 
@@ -310,7 +326,7 @@ Les fichiers `BATCH<n>.md` documentent un Batch mais ne remplacent pas les contr
 
 - GitHub est la source de vérité pour branches, commits, PR, checks, Issues et preuves GitHub.
 - Une déclaration d’agent n’est pas une preuve mécanique.
-- Avant une intégration ou un nouveau Batch, effectuer le préflight applicable.
+- Avant une intégration ou un nouveau Batch, effectuer le preflight applicable.
 - Ne pas modifier un garde-fou pour faire passer un changement qu’il refuse.
 - Réserver les revues renforcées aux propriétés qui les justifient réellement.
 - Éviter les boucles de revue et la gouvernance sans réduction de risque réelle.
