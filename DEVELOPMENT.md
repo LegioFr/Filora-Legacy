@@ -1086,6 +1086,18 @@ Son rôle consiste à :
 
 Une contradiction entre reviewers ne se résout pas par vote.
 
+## 17.4 Format des transferts manuels de prompts et paquets de revue
+
+Lorsqu’un prompt, un paquet de preuves ou un paquet de contre-revue doit être transmis manuellement par Mickaël à Claude, Codex, Codex Security ou tout autre reviewer externe, le coordinateur le fournit par défaut sous forme de fichier texte UTF-8 `.txt` téléchargeable.
+
+Le chat contient alors seulement un résumé court, l’étiquette de revue applicable et le lien ou fichier, afin d’éviter de surcharger la conversation et d’éviter à Mickaël de copier manuellement un long prompt.
+
+Un prompt très court peut rester directement dans le chat lorsqu’un fichier n’apporterait aucun bénéfice réel.
+
+Cette règle concerne uniquement le format du transfert manuel. Elle ne change ni les exigences de preuve ni le contenu requis du paquet définis ailleurs dans ce document.
+
+Lorsque le coordinateur dispose lui-même d’un accès direct et autorisé au reviewer ou à l’outil concerné, il doit utiliser cet accès directement conformément à la section 6.1 plutôt que créer artificiellement un transfert manuel. Dans ce cas, le fichier `.txt` n’est pas obligatoire sauf utilité réelle.
+
 ---
 
 # 18. Prévention du fractionnement entre Batches
@@ -1283,7 +1295,7 @@ Cette règle s’applique à **toute demande d’autorisation dans tout Batch Fi
 
 3. Au moindre doute, information manquante ou impossibilité de démontrer toutes ces conditions, la revue indépendante est `REQUISE`.
 
-4. Si la revue indépendante est `REQUISE`, la demande d’autorisation doit être accompagnée **dans le même message** du paquet de contre-vérification prêt à transmettre au reviewer indépendant.
+4. Si la revue indépendante est `REQUISE`, la demande d’autorisation doit être accompagnée **dans le même message** du paquet de contre-vérification prêt à transmettre au reviewer indépendant. Lorsqu’un transfert manuel est nécessaire, le fichier `.txt` attaché ou lié dans ce même message conformément à la section 17.4 satisfait cette exigence.
 
 5. Si le retour du reviewer est nécessaire avant la décision finale, aucun feu vert final ne peut être demandé avant réception et confrontation de ce retour aux preuves disponibles.
 
