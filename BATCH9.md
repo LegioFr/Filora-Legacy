@@ -24,7 +24,7 @@ L’audit est une preuve d’entrée pour le Batch 9, pas une autorité remplaç
 
 ### F4.4
 
-**Accord propriétaire obtenu.** Mickaël a approuvé le démarrage du Batch 9 de remédiation et le périmètre initial F-006 après présentation de l’intention, des conséquences et du chemin critique de validation. Après revue indépendante du premier candidat F-006, il a approuvé l’extension bornée du même finding à `.github/workflows/filora-guard.yml` pour traiter la même classe de contournement `npm postinstall`. Après la seconde revue indépendante, il a également approuvé la promotion de `package.json` et `package-lock.json` en surface Critique afin de fermer les contournements concrets restants de `guard` et `e2e` sans ajouter de nouvelle mécanique. Après la troisième revue indépendante, il a approuvé l’extension bornée de cette même surface Critique à `.npmrc` et au préfixe `tests/e2e/`, ainsi que la correction documentaire associée. Après la revue suivante et le probe d’architecture en lecture seule, il a approuvé le remplacement global du serveur `vite dev` des E2E par le test du `dist/` réellement construit, servi statiquement, avec adaptation ciblée du test PWA ; cette extension porte la PR #77 à neuf fichiers modifiés au maximum. Après la revue Codex du candidat `b0fb30789005749553a0875f518a98357d87f35d`, il a approuvé le remplacement du job E2E unique par deux jobs isolés `build` puis `e2e`, sur deux runners distincts, avec transfert de `dist/` uniquement et sans partage de `node_modules` ni de cache npm entre les deux jobs.
+**Accord propriétaire obtenu.** Mickaël a approuvé le démarrage du Batch 9 de remédiation et le périmètre initial F-006 après présentation de l’intention, des conséquences et du chemin critique de validation. Après revue indépendante du premier candidat F-006, il a approuvé l’extension bornée du même finding à `.github/workflows/filora-guard.yml` pour traiter la même classe de contournement `npm postinstall`. Après la seconde revue indépendante, il a également approuvé la promotion de `package.json` et `package-lock.json` en surface Critique afin de fermer les contournements concrets restants de `guard` et `e2e` sans ajouter de nouvelle mécanique. Après la troisième revue indépendante, il a approuvé l’extension bornée de cette même surface Critique à `.npmrc` et au préfixe `tests/e2e/`, ainsi que la correction documentaire associée. Après la revue suivante et le probe d’architecture en lecture seule, il a approuvé le remplacement global du serveur `vite dev` des E2E par le test du `dist/` réellement construit, servi statiquement, avec adaptation ciblée du test PWA ; cette extension porte la PR #77 à neuf fichiers modifiés au maximum. Après la revue Codex du candidat `b0fb30789005749553a0875f518a98357d87f35d`, il a approuvé le remplacement du job E2E unique par deux jobs isolés `build` puis `e2e`, sur deux runners distincts, avec transfert de `dist/` uniquement et sans partage de `node_modules` ni de cache npm entre les deux jobs. Après la revue Codex du candidat `f82efb1b56986a565fae9d02552a6f36fb0de90b` et la contre-analyse de l’arbre Git, il a approuvé l’inversion du sentinel : une allowlist fail-closed fondée sur la base GitHub autorise seulement les surfaces non critiques connues ; tout autre chemin devient Critique par défaut, sans nouvelle liste noire fichier par fichier.
 
 ### Jalon humain requis — EN ATTENTE
 
@@ -74,7 +74,7 @@ Le ruleset GitHub réel actif sur `main` et `test-preview` exige actuellement un
 
 Le sentinel initial protégeait une liste exacte de surfaces critiques, mais cette liste n’incluait pas le workflow Playwright ni `playwright.config.ts`. Le workflow Playwright exécutait en outre la suite via `npm run test:e2e`, ce qui créait une dépendance inutile à un script modifiable hors de la surface protégée par le sentinel.
 
-Les revues indépendantes de la PR #77 ont ensuite confirmé sept contournements réalistes de cette même cause racine :
+Les revues indépendantes de la PR #77 ont ensuite confirmé huit contournements réalistes de cette même cause racine :
 
 1. un `postinstall` pouvait remplacer le runner Playwright ou les outils Node après `npm ci` ;
 2. modifier les scripts `typecheck`/`build` de `package.json` pouvait rendre le `guard` faussement vert malgré `--ignore-scripts` ;
@@ -82,24 +82,45 @@ Les revues indépendantes de la PR #77 ont ensuite confirmé sept contournements
 4. un `.npmrc` de projet pouvait imposer `script-shell=./fake-shell.sh` et rendre `npm run typecheck` / `npm run build` faussement verts sans modifier `package.json` ;
 5. une PR ordinaire pouvait réduire `tests/e2e/` à une suite vide/triviale, laissant le check `e2e` vert sans préserver la valeur des 39 scénarios attendus ;
 6. `vite.config.ts` pouvait faire diverger le comportement de `vite dev` du résultat de `vite build`, de sorte que les E2E testent une application différente de l’artefact réellement construit ;
-7. même après passage au vrai `dist/`, `vite.config.ts`, exécuté comme code Node pendant `vite build`, pouvait modifier `node_modules/.bin/playwright` sur le même runner avant l’installation Chromium et les tests, ce qui permettait encore un faux vert.
+7. même après passage au vrai `dist/`, `vite.config.ts`, exécuté comme code Node pendant `vite build`, pouvait modifier `node_modules/.bin/playwright` sur le même runner avant l’installation Chromium et les tests, ce qui permettait encore un faux vert ;
+8. après séparation en deux runners, une PR ordinaire pouvait encore ajouter `npm-shrinkwrap.json`, prioritaire sur `package-lock.json` pour npm, et y orienter une dépendance vers un paquet local exposant un faux binaire `playwright` sur le runner E2E neuf.
 
-Le sixième finding a déclenché la règle de sortie convenue : ne plus ajouter des chemins protégés un par un, mais changer le modèle de preuve pour que la suite E2E teste l’artefact réellement produit par le build. Le septième a montré que l’artefact unique ne suffit pas si le build et la certification restent dans le même environnement mutable : la frontière de confiance doit désormais être physique entre deux runners GitHub Actions distincts.
+Le sixième finding a déclenché la règle de sortie convenue : ne plus ajouter des chemins protégés un par un, mais changer le modèle de preuve pour que la suite E2E teste l’artefact réellement produit par le build. Le septième a montré que l’artefact unique ne suffit pas si le build et la certification restent dans le même environnement mutable : la frontière de confiance doit être physique entre deux runners GitHub Actions distincts. Le huitième a démontré que même cette isolation ne rend pas durable une liste noire de fichiers de configuration : le modèle d’admission du sentinel doit être inversé afin que tout chemin non explicitement admis par une base GitHub de confiance soit Critique par défaut.
 
-Filora a été vérifié mono-package sur le candidat concerné : un seul `package.json` et un seul `package-lock.json` à la racine, aucun workspace npm et aucun `.npmrc` suivi. La protection exacte de `.npmrc` vise donc le seul emplacement de configuration npm projet pertinent dans l’architecture actuelle ; cette hypothèse devra être réévaluée si Filora devient un jour multi-package/workspaces.
+Filora reste vérifié mono-package sur le candidat concerné : un seul `package.json` et un seul `package-lock.json` à la racine, aucun workspace npm et aucun `.npmrc` suivi. Le finding `npm-shrinkwrap.json` montre toutefois qu’une protection fondée sur l’énumération des noms connus n’est pas une propriété durable ; aucune nouvelle variante de manifeste/configuration n’est ajoutée individuellement à une liste noire.
+
+### Modèle d’admission fail-closed retenu
+
+Le sentinel est exécuté via `pull_request_target` depuis la branche de base. Il utilise le **SHA exact de base** comme autorité pour lire `workflow/state.json` et `workflow/contract.json` ; il ne déduit jamais le Batch autorisé depuis l’état proposé par la PR.
+
+Une PR non critique peut modifier :
+
+- `src/**` ;
+- `public/**` ;
+- `index.html` ;
+- `tests/*_check.ts` à la racine de `tests/` ;
+- `tests/check_pwa_icons.py` ;
+- `PROJECT_STATE.md` ;
+- les chemins déjà classés `sensitive_paths` dans le **contrat de la base**, lesquels restent soumis au niveau Sensible par le guard ;
+- un seul fichier Batch déterminé par l’état de la base : si le Batch de base est ouvert, `BATCH<base>.md` ; s’il est fermé et `next_batch_allowed: true`, uniquement `BATCH<base+1>.md`.
+
+Tout autre chemin — connu ou inconnu — est rejeté par défaut par le sentinel et doit suivre le chemin Critique. Les renommages sont évalués sur le nouveau et l’ancien chemin. Cette règle rejette donc sans connaissance préalable `npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml`, une nouvelle configuration de build, `tests/e2e/**`, les workflows, les outils de garde et les fichiers de contrôle hors surfaces admises.
+
+Le candidat a également vérifié en lecture seule que `vite.config.ts` n’importe aucun fichier sous `src/**`; l’allowlist applicative actuelle n’est donc pas exécutée comme configuration Node par le build Vite. Toute future modification Critique de la configuration de build devra préserver cette frontière ou la réévaluer explicitement.
+
+Des probes adversariaux sont intégrés directement au script base-side du sentinel afin de vérifier à chaque exécution de cette version la classification de chemins ordinaires, de `npm-shrinkwrap.json`, `vite.config.ts`, `tests/e2e/**`, d’un chemin inconnu et des transitions Batch synthétiques. Aucun dixième fichier de test mutable n’est créé.
 
 ### Périmètre F-006 autorisé
 
-- `.github/workflows/filora-guard-sentinel.yml` : considérer tout `.github/workflows/` comme surface critique et protéger aussi `playwright.config.ts`, `package.json`, `package-lock.json`, `.npmrc` et le préfixe `tests/e2e/` ;
+- `.github/workflows/filora-guard-sentinel.yml` : remplacer la blacklist de fichiers dangereux par l’admission fail-closed décrite ci-dessus, lire état/contrat au SHA exact de base avec `contents: read`, vérifier ancien et nouveau chemin des renommages et exécuter les probes adversariaux embarqués ;
 - `.github/workflows/playwright-e2e.yml` : séparer la preuve en deux jobs. Le job `build` checkout le SHA exact, installe les dépendances avec `npm ci --ignore-scripts`, construit une seule fois le vrai `dist/`, vérifie ses fichiers PWA essentiels et publie **uniquement `dist/`** comme artefact. Le job `e2e`, sur un runner distinct et dépendant du succès de `build`, checkout le même SHA exact, effectue une nouvelle installation `npm ci --ignore-scripts`, installe Chromium, télécharge uniquement l’artefact `dist/` et exécute les 39 tests contre cet artefact ; aucun `node_modules`, workspace ou cache npm n’est partagé entre les deux jobs ;
 - `.github/workflows/filora-guard.yml` : appliquer la même protection `npm ci --ignore-scripts` à la chaîne Node du guard afin qu’un hook npm ne puisse pas falsifier `tsc` ou le build ;
 - `playwright.config.ts` : ne plus lancer `vite dev`, mais servir `dist/` par `python3 -m http.server` sur le même port 4173 ;
 - `tests/e2e/pwa.spec.ts` : vérifier le shell/cache réellement déclaré par le service worker du build, y compris ses assets JS/CSS, au lieu d’imposer la liste réduite propre au serveur de développement ;
 - `workflow/contract.json` : déclarer `playwright.config.ts`, `package.json`, `package-lock.json` et `tests/e2e/` comme contrôles critiques durables existants ;
-- `.npmrc` : rester absent du dépôt mais être bloqué prospectivement par le sentinel. Le contrat n’énumère volontairement pas ce fichier absent, car son invariant existant refuse tout `critical_control_path` qui n’existe pas dans le candidat ; aucun fichier artificiel ni modification du guard n’est ajouté pour contourner cet invariant ;
 - état/documentation Batch 9 nécessaires à la reprise.
 
-Aucune modification du contenu de `package.json` ou `package-lock.json`, aucun nouveau système de SHA de revue, aucun nouveau mécanisme de bypass et aucun changement métier ne font partie de F-006.
+Aucune modification du contenu de `package.json` ou `package-lock.json`, aucun nouveau système de SHA de revue, aucun nouveau mécanisme de bypass, aucun nouveau fichier de test et aucun changement métier ne font partie de F-006.
 
 `claude-review-package.yml` a été vérifié séparément : il n’exécute aucun `npm ci` et n’est donc pas concerné par le vecteur `postinstall`.
 
@@ -122,7 +143,9 @@ Aucune modification du contenu de `package.json` ou `package-lock.json`, aucun n
 - un probe strictement sans commit sur ce même SHA a validé `npm ci`, architecture, typecheck et build `dist/` avec identifiant de SHA incorporé, puis le service de `dist/` par `python3 -m http.server 4173 --directory dist`. Les headers observés étaient corrects (`text/html`, `application/manifest+json`, `text/javascript`, `text/css`) et aucune route profonde n’est requise par Filora. Le probe a obtenu **37/39** : quatre des six tests PWA ont passé ; un échec révélait que le vrai service worker de `dist/` précache aussi les assets JS/CSS alors que le test historique attendait uniquement l’enveloppe du mode développement ; l’autre échec d’installabilité était lié au Chrome de secours utilisé parce que le téléchargement du Chromium Playwright attendu était bloqué en HTTP 403 dans cet environnement. Aucun échec MIME n’a été observé ;
 - décision architecturale autorisée : le check GitHub `e2e` doit désormais construire une seule fois le vrai `dist/`, servir cet artefact par un serveur statique indépendant de Vite, exécuter les **39 tests** contre ce même artefact et adapter seulement les assertions PWA devenues fausses parce qu’elles décrivaient `vite dev` ;
 - le candidat `b0fb30789005749553a0875f518a98357d87f35d` a ensuite obtenu `guard` SUCCESS et `e2e` SUCCESS avec le vrai build Vite, le Chromium Playwright officiel, le serveur Python et **39/39 tests**. La revue Codex de ce SHA a néanmoins trouvé un **nouveau P1 réel** : `vite.config.ts`, exécuté pendant le build dans le même job, pouvait réécrire le binaire Playwright avant les tests ; le candidat reste donc non intégrable ;
-- la contre-vérification en lecture seule a confirmé que `cache: npm` ne partage pas `node_modules`, que le projet actuel se construit réellement avec `npm ci --ignore-scripts`, et qu’aucun `postinstall` indispensable au build n’a été identifié dans le graphe actuel. La correction retenue est donc une isolation stricte : deux runners, deux installations fraîches, aucun cache npm dans ces jobs, et transfert de **`dist/` uniquement** du job `build` vers le job final `e2e`.
+- la contre-vérification en lecture seule a confirmé que `cache: npm` ne partage pas `node_modules`, que le projet actuel se construit réellement avec `npm ci --ignore-scripts`, et qu’aucun `postinstall` indispensable au build n’a été identifié dans le graphe actuel. La correction retenue est donc une isolation stricte : deux runners, deux installations fraîches, aucun cache npm dans ces jobs, et transfert de **`dist/` uniquement** du job `build` vers le job final `e2e` ;
+- le candidat `f82efb1b56986a565fae9d02552a6f36fb0de90b` a prouvé sur GitHub deux jobs verts réellement séparés, transfert de `dist/` seul et **39/39 Playwright**, avec `guard` SUCCESS et `sentinel` FAILURE attendu. La revue Codex de ce SHA a trouvé un **nouveau P1 réel** : `npm-shrinkwrap.json`, prioritaire sur le lockfile, permettait encore à une PR ordinaire de fournir un faux binaire Playwright sur le runner E2E neuf ;
+- l’analyse de l’arbre exact `f82efb1b...` a conduit à l’inversion du modèle : allowlist non critique minimale, chemins Sensibles issus du contrat **de base**, fichier Batch autorisé calculé depuis `workflow/state.json` **de base**, tout autre chemin Critique par défaut. La logique ne fait jamais confiance au `current_batch` proposé par la PR. Le premier commit d’implémentation de ce modèle est `095be57ad4e29afd64fa30083b22c0a04c82dfab`.
 
 Le HEAD courant doit toujours être relu directement depuis GitHub avant toute revue ou intégration ; aucun SHA de candidat n’est considéré durable après une nouvelle modification.
 
@@ -142,19 +165,21 @@ Cette photographie sert de preuve de contexte, pas de configuration supposée é
 
 La modification touche volontairement la propre surface protégée du sentinel. Un échec `sentinel` sur la PR candidate est donc **attendu** et ne doit jamais être corrigé en affaiblissant le contrôle.
 
+Le nouveau modèle d’allowlist est lui-même présent dans #77 mais ne peut pas servir de preuve opérationnelle pour #77 : `pull_request_target` exécute la version du sentinel déjà présente sur la base `test-preview`. Sa preuve réelle doit donc être obtenue **après intégration**, sur une PR suivante, avant tout travail F-002.
+
 Chemin requis :
 
 1. candidat exact et diff borné ;
 2. préflight ;
 3. `guard` et `e2e` exécutés sur le SHA candidat lorsqu’ils sont applicables ;
-4. revue indépendante du SHA exact ;
+4. revue indépendante du SHA exact, incluant l’allowlist base-side et ses probes ;
 5. traitement explicite des findings ;
 6. accord propriétaire Critique confirmé avant intégration ;
 7. relecture immédiate du ruleset/bypass list avant utilisation ;
 8. utilisation du bypass administrateur existant uniquement si le sentinel bloque exactement la modification critique validée ;
 9. intégration vers `test-preview` ;
 10. **immédiatement après l’intégration**, mise à jour du ruleset réel pour exiger `sentinel` + `guard` + `e2e`, après vérification des noms exacts des checks ;
-11. preuve opérationnelle sur une vraie PR suivante ; **aucun travail F-002 ne commence avant que les trois checks soient réellement requis par GitHub**.
+11. preuve opérationnelle sur une vraie PR suivante, comprenant au minimum un chemin métier admis et un chemin inconnu/toolchain rejeté ; **aucun travail F-002 ne commence avant que les trois checks soient réellement requis par GitHub et que le nouveau sentinel ait démontré son fail-closed**.
 
 Aucun nouveau mécanisme de bypass ne doit être créé.
 
