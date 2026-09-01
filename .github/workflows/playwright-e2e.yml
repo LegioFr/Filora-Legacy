@@ -10,9 +10,9 @@ permissions:
   contents: read
 
 jobs:
-  e2e:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout exact PR HEAD
         uses: actions/checkout@v4
@@ -28,7 +28,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Install application dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
@@ -43,10 +42,54 @@ jobs:
           test -f dist/manifest.webmanifest
           test -f dist/sw.js
 
+      - name: Upload built dist only
+        uses: actions/upload-artifact@v4
+        with:
+          name: filora-e2e-dist-${{ github.event.pull_request.head.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  e2e:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Assert exact clean PR HEAD
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test -z "$(git status --porcelain)"
+          test ! -e dist
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install fresh E2E dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
       - name: Install Chromium only
         run: ./node_modules/.bin/playwright install --with-deps chromium
 
-      - name: Run full Playwright E2E suite against built artifact
+      - name: Download exact built dist only
+        uses: actions/download-artifact@v4
+        with:
+          name: filora-e2e-dist-${{ github.event.pull_request.head.sha }}
+          path: dist
+
+      - name: Verify downloaded artifact
+        run: |
+          test -f dist/index.html
+          test -f dist/manifest.webmanifest
+          test -f dist/sw.js
+
+      - name: Run full Playwright E2E suite against isolated built artifact
         env:
           VERCEL_GIT_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
           VERCEL_PROJECT_PRODUCTION_URL: filora-test-stable.vercel.app
