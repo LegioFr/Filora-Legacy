@@ -19,11 +19,11 @@ if (
   !Number.isFinite(tare) ||
   gross < 0 ||
   tare < 0 ||
-  tare >= gross
+  tare > gross
 ) {
   invalid();
   process.exit(0);
 }
 
-const net = Math.round((gross - tare) * 10) / 10;
+const net = Math.round((gross - tare) * 100) / 100;
 process.stdout.write(`${JSON.stringify({ ok: true, net })}\n`);
