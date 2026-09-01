@@ -1,0 +1,54 @@
+name: Agent loop sandbox
+
+on:
+  pull_request:
+    branches:
+      - experiment/agent-loop-base-20260901
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+jobs:
+  sandbox:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Assert exact PR HEAD and clean checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test -z "$(git status --porcelain)"
+
+      - name: Enforce candidate diff allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "${{ github.event.pull_request.base.ref }}"
+          mapfile -t changed < <(git diff --name-only "origin/${{ github.event.pull_request.base.ref }}...HEAD")
+          printf 'Changed files:\n'
+          printf ' - %s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "experiments/agent-loop/solution.mjs"
+
+      - name: Pull trusted runtime image
+        run: docker pull node:22-alpine
+
+      - name: Run candidate in isolated container
+        run: node experiments/agent-loop/run-tests.mjs
+
+      - name: Assert repository still clean after candidate execution
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
