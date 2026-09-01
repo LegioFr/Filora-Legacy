@@ -89,22 +89,31 @@ test('versionne le service worker et son cache avec l identifiant du build', asy
   expect(source.indexOf('self.skipWaiting();')).toBeGreaterThan(source.indexOf("event.data.type === 'SKIP_WAITING'"))
 })
 
-test('enregistre le service worker simple et précharge uniquement l enveloppe PWA', async ({ page }) => {
+test('enregistre le service worker du build et précharge exactement son shell statique', async ({ page }) => {
   await openApp(page)
   await waitForServiceWorkerControl(page)
 
   const state = await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.getRegistration('/')
+    const source = await fetch('/sw.js', { cache: 'no-store' }).then((response) => response.text())
+    const shellMatch = source.match(/const SHELL = (\[[^\n]*\]);/)
+    if (!shellMatch) throw new Error('SHELL absent du service worker construit')
+    const declaredShell = JSON.parse(shellMatch[1]) as string[]
+    const declaredPaths = declaredShell
+      .map((entry) => new URL(entry, `${location.origin}/`).pathname)
+      .sort()
+
     const cacheKeys = await caches.keys()
     const cacheContents = await Promise.all(cacheKeys.map(async (key) => {
       const cache = await caches.open(key)
       const requests = await cache.keys()
-      return { key, paths: requests.map((request) => new URL(request.url).pathname) }
+      return { key, paths: requests.map((request) => new URL(request.url).pathname).sort() }
     }))
     return {
       active: registration?.active?.state ?? null,
       activeScriptURL: registration?.active?.scriptURL ?? null,
       scope: registration?.scope ?? null,
+      declaredPaths,
       cacheContents,
     }
   })
@@ -112,16 +121,26 @@ test('enregistre le service worker simple et précharge uniquement l enveloppe P
   expect(state.active).toBe('activated')
   expect(state.activeScriptURL).toBe('http://127.0.0.1:4173/sw.js')
   expect(state.scope).toBe('http://127.0.0.1:4173/')
+  expect(state.declaredPaths).toEqual(expect.arrayContaining([
+    '/',
+    '/index.html',
+    '/manifest.webmanifest',
+    '/icons/filora-test-192.png',
+    '/icons/filora-test-512.png',
+  ]))
+  expect(state.declaredPaths.some((path) => /^\/assets\/.+\.js$/.test(path))).toBe(true)
+  expect(state.declaredPaths.some((path) => /^\/assets\/.+\.css$/.test(path))).toBe(true)
+  expect(state.declaredPaths.every((path) => (
+    path === '/'
+    || path === '/index.html'
+    || path === '/manifest.webmanifest'
+    || path.startsWith('/icons/')
+    || path.startsWith('/assets/')
+  ))).toBe(true)
   expect(state.cacheContents).toEqual([
     {
       key: `filora-test-${expectedBuildId()}`,
-      paths: [
-        '/',
-        '/index.html',
-        '/manifest.webmanifest',
-        '/icons/filora-test-192.png',
-        '/icons/filora-test-512.png',
-      ],
+      paths: state.declaredPaths,
     },
   ])
 })
