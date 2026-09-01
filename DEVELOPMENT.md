@@ -1265,3 +1265,32 @@ La gouvernance doit permettre aux IA de travailler efficacement sans leur permet
 Le but n'est pas de supprimer tout risque.
 
 Le but est que les risques importants soient détectés, rendus visibles, traités au bon niveau et jamais masqués pour permettre au développement de continuer.
+
+---
+
+# 26. Protocole permanent avant toute demande d’autorisation
+
+Cette règle s’applique à **toute demande d’autorisation dans tout Batch Filora, présent ou futur**. Elle n’est liée ni au Batch 9 ni à F-006.
+
+1. Toute demande d’autorisation est `REVUE INDÉPENDANTE : REQUISE` par défaut.
+
+2. `REVUE INDÉPENDANTE : NON REQUISE` n’est permis que si le coordinateur peut démontrer objectivement que **toutes** les opérations proposées :
+   - restent dans le périmètre déjà explicitement autorisé ;
+   - ne touchent que des chemins classés ordinaires par les règles en vigueur ;
+   - ne modifient aucun workflow, guard, sentinel, ruleset, mécanisme de preuve, permission, dépendance, contrat ou document canonique ;
+   - n’élargissent ni la liste de fichiers ni la portée précédemment autorisée ;
+   - ne changent aucune décision déjà approuvée.
+
+3. Au moindre doute, information manquante ou impossibilité de démontrer toutes ces conditions, la revue indépendante est `REQUISE`.
+
+4. Si la revue indépendante est `REQUISE`, la demande d’autorisation doit être accompagnée **dans le même message** du paquet de contre-vérification prêt à transmettre au reviewer indépendant.
+
+5. Si le retour du reviewer est nécessaire avant la décision finale, aucun feu vert final ne peut être demandé avant réception et confrontation de ce retour aux preuves disponibles.
+
+6. Une demande d’autorisation qui ne respecte pas cette règle est **nulle**. Un `vas-y`, `d’accord` ou équivalent reçu en réponse à une demande invalide n’autorise aucune modification.
+
+7. Mickaël n’a pas à déterminer lui-même si une revue était techniquement nécessaire, à rappeler cette règle ou à certifier le contenu technique du paquet.
+
+8. Cette règle est une règle de gouvernance durable. Elle ne doit pas être matérialisée par un champ ad hoc dans `workflow/state.json`, qui conserve son rôle d’état du Batch courant.
+
+9. Les mécanismes de revue indépendante applicables restent ceux définis en F4.5 et dans les sections 12 à 17. Cette section impose l’ordre et le format de la demande d’autorisation ; elle ne transforme pas une seconde IA en preuve absolue.
